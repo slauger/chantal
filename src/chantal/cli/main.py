@@ -58,8 +58,6 @@ def repo_list(ctx: click.Context) -> None:
 @click.option("--all", is_flag=True, help="Sync all enabled repositories")
 @click.option("--type", help="Filter by repository type (rpm, apt) when using --all")
 @click.option("--workers", type=int, default=1, help="Number of parallel workers for --all")
-@click.option("--create-snapshot", is_flag=True, help="Create snapshot after sync")
-@click.option("--snapshot-name", help="Custom snapshot name")
 @click.pass_context
 def repo_sync(
     ctx: click.Context,
@@ -67,10 +65,11 @@ def repo_sync(
     all: bool,
     type: str,
     workers: int,
-    create_snapshot: bool,
-    snapshot_name: str,
 ) -> None:
     """Sync repository from upstream.
+
+    Downloads packages from upstream and stores them in the content-addressed pool.
+    Does NOT create snapshots automatically - use 'chantal snapshot create' for that.
 
     Either specify --repo-id for a single repository or --all for all enabled repositories.
     """
@@ -91,8 +90,6 @@ def repo_sync(
         click.echo("TODO: Implement batch sync logic")
     else:
         click.echo(f"Syncing repository: {repo_id}")
-        if create_snapshot:
-            click.echo(f"Will create snapshot: {snapshot_name or 'auto-generated'}")
         click.echo("TODO: Implement sync logic")
 
 

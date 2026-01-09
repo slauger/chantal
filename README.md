@@ -84,24 +84,24 @@ repositories:
 ### 3. Sync Repository
 
 ```bash
-# Sync single repository
+# Sync single repository (downloads packages to pool)
 chantal repo sync --repo-id rhel9-baseos
 
 # Sync all enabled repositories
 chantal repo sync --all
 
-# Sync with automatic snapshot creation
-chantal repo sync --repo-id rhel9-baseos --create-snapshot
+# Sync with parallel workers
+chantal repo sync --all --workers 3
 ```
 
-### 4. Manage Snapshots
+### 4. Create Snapshots
 
 ```bash
+# Create snapshot after sync (immutable point-in-time freeze)
+chantal snapshot create --repo-id rhel9-baseos --name rhel9-2025-01-patch1
+
 # List snapshots
 chantal snapshot list
-
-# Create manual snapshot
-chantal snapshot create --repo-id rhel9-baseos --name rhel9-2025-01-patch1
 
 # Compare snapshots
 chantal snapshot diff rhel9-baseos-20250109 rhel9-baseos-20250108
@@ -123,8 +123,8 @@ chantal repo list
 # Show repository details
 chantal repo show --repo-id rhel9-baseos
 
-# Sync repository from upstream
-chantal repo sync --repo-id rhel9-baseos [--create-snapshot]
+# Sync repository from upstream (downloads to pool)
+chantal repo sync --repo-id rhel9-baseos
 chantal repo sync --all [--type rpm] [--workers 3]
 
 # Check for updates without syncing (like 'dnf check-update')
@@ -262,11 +262,12 @@ repositories:
     latest_path: /var/www/repos/rhel9-baseos/latest
     snapshots_path: /var/www/repos/rhel9-baseos/snapshots
 
-    # Scheduling (optional)
+    # Scheduling (optional - for automatic syncs via daemon)
     schedule:
       enabled: true
       cron: "0 2 * * *"  # Daily at 2:00 AM
-      create_snapshot: true
+      create_snapshot: true  # Auto-create snapshot after scheduled sync
+      snapshot_name_template: "{repo_id}-{date}"  # Optional template
 ```
 
 ---
