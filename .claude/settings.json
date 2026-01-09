@@ -1,0 +1,50 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/scripts/init-planning.sh"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|Task",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Before executing this tool, review the current task plan in .planning/task_plan.md to ensure this action aligns with the current phase and objectives. If .planning/task_plan.md exists, briefly confirm the action is appropriate. Respond with JSON: {\"proceed\": true/false, \"feedback\": \"optional message to Claude\"}"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "WebFetch|Read|Grep",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "CLAUDE_TOOL_NAME='$TOOL_NAME' $CLAUDE_PROJECT_DIR/.claude/scripts/update-findings.sh"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/scripts/check-plan-completion.sh"
+          }
+        ]
+      }
+    ]
+  },
+  "description": "Planning-with-Files Workflow für RPMSync Projekt",
+  "version": "1.0.0"
+}
