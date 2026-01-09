@@ -62,7 +62,27 @@ def init(ctx: click.Context) -> None:
     click.echo(f"Pool path: {config.storage.get_pool_path()}")
     click.echo(f"Published path: {config.storage.published_path}")
     click.echo()
-    click.echo("TODO: Create directories and database schema")
+
+    # Create directories
+    click.echo("Creating directories...")
+    base_path = Path(config.storage.base_path)
+    pool_path = Path(config.storage.get_pool_path())
+    published_path = Path(config.storage.published_path)
+
+    for path in [base_path, pool_path, published_path]:
+        if not path.exists():
+            path.mkdir(parents=True, exist_ok=True)
+            click.echo(f"  ✓ Created: {path}")
+        else:
+            click.echo(f"  - Already exists: {path}")
+
+    # Initialize database
+    click.echo("\nInitializing database...")
+    db_manager = DatabaseManager(config.database.url)
+    db_manager.create_all()
+    click.echo("  ✓ Database schema created")
+
+    click.echo("\n✓ Chantal initialized successfully!")
 
 
 @cli.group()

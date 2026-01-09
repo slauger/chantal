@@ -58,3 +58,9 @@ chantal.db
 *.bak
 .DS_Store
 venv*/
+
+# Local development files
+config-local.yaml
+chantal-dev.db
+chantal-dev.db-*
+dev-storage/

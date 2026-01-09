@@ -279,19 +279,19 @@ class RpmSyncPlugin:
 
         for pkg_elem in package_elems:
             try:
-                # Extract basic info
-                name_elem = pkg_elem.find("common:name", ns) or pkg_elem.find("name")
-                arch_elem = pkg_elem.find("common:arch", ns) or pkg_elem.find("arch")
-                version_elem = pkg_elem.find("common:version", ns) or pkg_elem.find("version")
-                checksum_elem = pkg_elem.find("common:checksum", ns) or pkg_elem.find("checksum")
-                size_elem = pkg_elem.find("common:size", ns) or pkg_elem.find("size")
-                location_elem = pkg_elem.find("common:location", ns) or pkg_elem.find("location")
-                summary_elem = pkg_elem.find("common:summary", ns) or pkg_elem.find("summary")
-                desc_elem = pkg_elem.find("common:description", ns) or pkg_elem.find("description")
+                # Extract basic info - use full namespace URI in find()
+                name_elem = pkg_elem.find("{http://linux.duke.edu/metadata/common}name")
+                arch_elem = pkg_elem.find("{http://linux.duke.edu/metadata/common}arch")
+                version_elem = pkg_elem.find("{http://linux.duke.edu/metadata/common}version")
+                checksum_elem = pkg_elem.find("{http://linux.duke.edu/metadata/common}checksum")
+                size_elem = pkg_elem.find("{http://linux.duke.edu/metadata/common}size")
+                location_elem = pkg_elem.find("{http://linux.duke.edu/metadata/common}location")
+                summary_elem = pkg_elem.find("{http://linux.duke.edu/metadata/common}summary")
+                desc_elem = pkg_elem.find("{http://linux.duke.edu/metadata/common}description")
 
-                if not all([name_elem, arch_elem, version_elem, checksum_elem, location_elem]):
+                # ElementTree elements can be falsy even if not None, so check explicitly
+                if name_elem is None or arch_elem is None or version_elem is None or checksum_elem is None or location_elem is None:
                     continue  # Skip incomplete packages
-
                 pkg_meta = PackageMetadata(
                     name=name_elem.text,
                     version=version_elem.get("ver"),
@@ -306,7 +306,7 @@ class RpmSyncPlugin:
                 )
                 packages.append(pkg_meta)
 
-            except (AttributeError, ValueError) as e:
+            except Exception as e:
                 # Skip packages with parsing errors
                 print(f"Warning: Failed to parse package: {e}")
                 continue
