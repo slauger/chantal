@@ -16,8 +16,6 @@ parts/
 sdist/
 var/
 wheels/
-pip-wheel-metadata/
-share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
@@ -29,55 +27,33 @@ ENV/
 env/
 .venv
 
-# IDEs
+# IDE
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
-.DS_Store
 
 # Testing
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.log
 .pytest_cache/
+.coverage
 htmlcov/
+.tox/
 
-# Type checking
+# MyPy
 .mypy_cache/
 .dmypy.json
 dmypy.json
-.pytype/
 
-# Documentation
-docs/_build/
-site/
-
-# Project specific
+# Chantal specific
+chantal.db
 *.db
-*.sqlite
-*.sqlite3
-
-# Chantal working directories (when implemented)
 /data/
 /repos/
 /snapshots/
-chantal.yaml
-chantal.yml
-*.local.yaml
+/cache/
 
 # Temporary files
 *.tmp
 *.bak
-.planning/.research_action_counter
-
-# OS
 .DS_Store
-Thumbs.db
