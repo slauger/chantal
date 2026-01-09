@@ -54,18 +54,46 @@ def repo_list(ctx: click.Context) -> None:
 
 
 @repo.command("sync")
-@click.option("--repo-id", required=True, help="Repository ID to sync")
+@click.option("--repo-id", help="Repository ID to sync")
+@click.option("--all", is_flag=True, help="Sync all enabled repositories")
+@click.option("--type", help="Filter by repository type (rpm, apt) when using --all")
+@click.option("--workers", type=int, default=1, help="Number of parallel workers for --all")
 @click.option("--create-snapshot", is_flag=True, help="Create snapshot after sync")
 @click.option("--snapshot-name", help="Custom snapshot name")
 @click.pass_context
 def repo_sync(
-    ctx: click.Context, repo_id: str, create_snapshot: bool, snapshot_name: str
+    ctx: click.Context,
+    repo_id: str,
+    all: bool,
+    type: str,
+    workers: int,
+    create_snapshot: bool,
+    snapshot_name: str,
 ) -> None:
-    """Sync repository from upstream."""
-    click.echo(f"Syncing repository: {repo_id}")
-    if create_snapshot:
-        click.echo(f"Will create snapshot: {snapshot_name or 'auto-generated'}")
-    click.echo("TODO: Implement sync logic")
+    """Sync repository from upstream.
+
+    Either specify --repo-id for a single repository or --all for all enabled repositories.
+    """
+    if not repo_id and not all:
+        click.echo("Error: Either --repo-id or --all is required")
+        raise click.Abort()
+
+    if repo_id and all:
+        click.echo("Error: Cannot use both --repo-id and --all")
+        raise click.Abort()
+
+    if all:
+        click.echo("Syncing all enabled repositories")
+        if type:
+            click.echo(f"Filtered by type: {type}")
+        if workers > 1:
+            click.echo(f"Using {workers} parallel workers")
+        click.echo("TODO: Implement batch sync logic")
+    else:
+        click.echo(f"Syncing repository: {repo_id}")
+        if create_snapshot:
+            click.echo(f"Will create snapshot: {snapshot_name or 'auto-generated'}")
+        click.echo("TODO: Implement sync logic")
 
 
 @repo.command("show")
@@ -106,6 +134,34 @@ def repo_check_updates(ctx: click.Context, repo_id: str, output_format: str) -> 
     click.echo("Run 'chantal repo sync --repo-id {repo_id}' to download updates")
 
 
+@repo.command("history")
+@click.option("--repo-id", required=True, help="Repository ID")
+@click.option("--limit", type=int, default=10, help="Number of sync entries to show")
+@click.option("--format", "output_format", type=click.Choice(["table", "json"]),
+              default="table", help="Output format")
+@click.pass_context
+def repo_history(ctx: click.Context, repo_id: str, limit: int, output_format: str) -> None:
+    """Show sync history for repository.
+
+    Displays past sync operations with status, duration, packages added/removed, etc.
+    """
+    click.echo(f"Sync History: {repo_id}")
+    click.echo(f"Showing last {limit} syncs")
+    click.echo()
+    click.echo("Expected output:")
+    click.echo()
+    click.echo("Date                 Status   Packages    Downloaded  Duration")
+    click.echo("--------------------------------------------------------------------------------")
+    click.echo("2025-01-09 14:30:00  Success  47 added    450 MB      5m 23s")
+    click.echo("                              5 updated")
+    click.echo("                              2 removed")
+    click.echo("2025-01-08 02:00:00  Success  12 added    120 MB      2m 15s")
+    click.echo("2025-01-07 02:00:00  Failed   -           -           -")
+    click.echo("                              Error: Connection timeout")
+    click.echo()
+    click.echo("TODO: Query sync_history table from database")
+
+
 @cli.group()
 def snapshot() -> None:
     """Snapshot management commands."""
@@ -127,11 +183,49 @@ def snapshot_list(ctx: click.Context, repo_id: str) -> None:
 @snapshot.command("create")
 @click.option("--repo-id", required=True, help="Repository ID")
 @click.option("--name", required=True, help="Snapshot name")
+@click.option("--description", help="Snapshot description")
 @click.pass_context
-def snapshot_create(ctx: click.Context, repo_id: str, name: str) -> None:
+def snapshot_create(ctx: click.Context, repo_id: str, name: str, description: str) -> None:
     """Create snapshot of repository."""
     click.echo(f"Creating snapshot '{name}' of repository '{repo_id}'")
+    if description:
+        click.echo(f"Description: {description}")
     click.echo("TODO: Implement snapshot creation")
+
+
+@snapshot.command("diff")
+@click.argument("snapshot1")
+@click.argument("snapshot2")
+@click.option("--format", "output_format", type=click.Choice(["table", "json"]),
+              default="table", help="Output format")
+@click.pass_context
+def snapshot_diff(ctx: click.Context, snapshot1: str, snapshot2: str, output_format: str) -> None:
+    """Compare two snapshots and show differences.
+
+    Shows packages that were added, removed, or updated between two snapshots.
+    """
+    click.echo(f"Comparing snapshots: {snapshot1} → {snapshot2}")
+    click.echo()
+    click.echo("Expected output:")
+    click.echo()
+    click.echo("Added (5):")
+    click.echo("  + kernel-5.14.0-362.el9.x86_64")
+    click.echo("  + nginx-1.20.2-1.el9.x86_64")
+    click.echo("  + httpd-2.4.51-1.el9.x86_64")
+    click.echo("  + glibc-2.34-61.el9.x86_64")
+    click.echo("  + systemd-252-14.el9.x86_64")
+    click.echo()
+    click.echo("Removed (2):")
+    click.echo("  - kernel-5.14.0-360.el9.x86_64")
+    click.echo("  - nginx-1.20.1-10.el9.x86_64")
+    click.echo()
+    click.echo("Updated (3):")
+    click.echo("  ~ httpd: 2.4.50-1.el9 → 2.4.51-1.el9")
+    click.echo("  ~ glibc: 2.34-60.el9 → 2.34-61.el9")
+    click.echo("  ~ systemd: 252-13.el9 → 252-14.el9")
+    click.echo()
+    click.echo("Summary: 5 added, 2 removed, 3 updated")
+    click.echo("TODO: Query database and compare package lists")
 
 
 @cli.group()
@@ -266,6 +360,101 @@ def db_verify(ctx: click.Context) -> None:
     click.echo("  - All packages in database have files in pool")
     click.echo("  - All pool files have database entries")
     click.echo("  - Foreign key constraints are valid")
+
+
+@cli.group()
+def publish() -> None:
+    """Publishing management commands."""
+    pass
+
+
+@publish.command("repo")
+@click.option("--repo-id", help="Repository ID to publish")
+@click.option("--all", is_flag=True, help="Publish all repositories")
+@click.option("--target", help="Custom target directory (default: from config)")
+@click.pass_context
+def publish_repo(ctx: click.Context, repo_id: str, all: bool, target: str) -> None:
+    """Publish repository to target directory.
+
+    Creates hardlinks from package pool to published repository directory.
+    Updates repository metadata (repomd.xml, etc.).
+    """
+    if not repo_id and not all:
+        click.echo("Error: Either --repo-id or --all is required")
+        raise click.Abort()
+
+    if repo_id and all:
+        click.echo("Error: Cannot use both --repo-id and --all")
+        raise click.Abort()
+
+    if all:
+        click.echo("Publishing all repositories")
+        click.echo("TODO: Publish all repos to their configured paths")
+    else:
+        click.echo(f"Publishing repository: {repo_id}")
+        if target:
+            click.echo(f"Target: {target}")
+        click.echo("TODO: Create hardlinks and generate metadata")
+
+
+@publish.command("snapshot")
+@click.option("--snapshot", required=True, help="Snapshot name to publish")
+@click.option("--target", help="Custom target directory (default: from config)")
+@click.pass_context
+def publish_snapshot(ctx: click.Context, snapshot: str, target: str) -> None:
+    """Publish a specific snapshot.
+
+    Creates hardlinks from package pool to snapshot directory.
+    Useful for publishing older snapshots or creating parallel environments.
+    """
+    click.echo(f"Publishing snapshot: {snapshot}")
+    if target:
+        click.echo(f"Target: {target}")
+    click.echo("TODO: Create hardlinks and generate metadata for snapshot")
+
+
+@publish.command("list")
+@click.pass_context
+def publish_list(ctx: click.Context) -> None:
+    """List currently published repositories and snapshots."""
+    click.echo("Currently Published:")
+    click.echo()
+    click.echo("Expected output:")
+    click.echo()
+    click.echo("Repositories:")
+    click.echo("  rhel9-baseos     → /var/www/repos/rhel9-baseos/latest")
+    click.echo("  rhel9-appstream  → /var/www/repos/rhel9-appstream/latest")
+    click.echo()
+    click.echo("Snapshots:")
+    click.echo("  rhel9-baseos-20250109  → /var/www/repos/rhel9-baseos/snapshots/20250109")
+    click.echo("  rhel9-baseos-20250108  → /var/www/repos/rhel9-baseos/snapshots/20250108")
+    click.echo()
+    click.echo("TODO: Query database for published repos/snapshots")
+
+
+@publish.command("unpublish")
+@click.option("--repo-id", help="Repository ID to unpublish")
+@click.option("--snapshot", help="Snapshot name to unpublish")
+@click.pass_context
+def publish_unpublish(ctx: click.Context, repo_id: str, snapshot: str) -> None:
+    """Unpublish repository or snapshot.
+
+    Removes the published directory (hardlinks). Does not delete packages from pool.
+    """
+    if not repo_id and not snapshot:
+        click.echo("Error: Either --repo-id or --snapshot is required")
+        raise click.Abort()
+
+    if repo_id and snapshot:
+        click.echo("Error: Cannot use both --repo-id and --snapshot")
+        raise click.Abort()
+
+    if repo_id:
+        click.echo(f"Unpublishing repository: {repo_id}")
+    else:
+        click.echo(f"Unpublishing snapshot: {snapshot}")
+
+    click.echo("TODO: Remove published directory")
 
 
 def main() -> None:

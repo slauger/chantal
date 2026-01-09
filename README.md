@@ -6,76 +6,403 @@
 
 ## Features
 
-- 🔄 **Unified Mirroring** - APT and RPM repositories in one tool
-- 📦 **Deduplication** - Content-addressed storage, packages stored once
-- 📸 **Snapshots** - Freeze repo states for patch management
-- 🔌 **Modular** - Plugin architecture for repo types
-- 🚫 **No Daemons** - Simple CLI tool, not a service
-- 📁 **Static Output** - Serve with any webserver (Apache, NGINX, S3)
+- 🔄 **Unified Mirroring** - RPM and APT repositories in one tool (MVP: RPM only)
+- 📦 **Deduplication** - Content-addressed storage (SHA256), packages stored once
+- 📸 **Snapshots** - Immutable point-in-time repository states for patch management
+- 🔌 **Modular** - Plugin architecture for repository types
+- 🚫 **No Daemons** - Simple CLI tool (optional scheduler for automation)
+- 📁 **Static Output** - Serve with any webserver (Apache, NGINX)
+- 🔐 **RHEL CDN Support** - Client certificate authentication for Red Hat repos
 
 ---
 
 ## What is Chantal?
 
-A unified CLI tool for offline repository mirroring across APT and RPM ecosystems.
+A Python-based CLI tool for offline repository mirroring, inspired by pulp-admin, reposync, and aptly.
 
-**The Problem:** Running Debian and RHEL systems requires different tools (apt-mirror, aptly, reposync), different configs, different workflows.
+**The Problem:** Enterprise environments need offline mirrors of RPM/APT repositories with:
+- Version control (snapshots for rollback)
+- Efficient storage (deduplication across repos)
+- RHEL subscription support
+- Simple management
 
-**The Solution:** One tool. One config. One workflow.
+**The Solution:** One tool. One workflow. Content-addressed storage. Immutable snapshots.
+
+---
+
+## Installation
 
 ```bash
-chantal sync --all
+# Clone the repository
+git clone https://github.com/slauger/chantal.git
+cd chantal
+
+# Install in development mode
+pip install -e .
+
+# Verify installation
+chantal --version
 ```
 
-## Quick Example
+**Requirements:**
+- Python 3.9+
+- PostgreSQL (for metadata storage)
+
+---
+
+## Quick Start
+
+### 1. Initialize Chantal
+
+```bash
+# Create database and directory structure
+chantal init
+```
+
+### 2. Configure Repositories
+
+Create `/etc/chantal/config.yaml`:
 
 ```yaml
-# chantal.yaml
-repos:
-  - name: debian-bookworm
-    type: apt
-    upstream: http://deb.debian.org/debian
-    releases: [bookworm]
-    architectures: [amd64, arm64]
+database:
+  url: postgresql://chantal:password@localhost/chantal
 
-  - name: rhel9-baseos
+storage:
+  base_path: /var/lib/chantal
+  pool_path: /var/lib/chantal/pool
+
+repositories:
+  - id: rhel9-baseos
     type: rpm
-    upstream: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/os
-    architectures: [x86_64]
+    upstream_url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/os
+    enabled: true
+    auth:
+      type: client_cert
+      cert_dir: /etc/pki/entitlement
 ```
+
+### 3. Sync Repository
 
 ```bash
-chantal sync debian-bookworm
-chantal snapshot create 2025-01
+# Sync single repository
+chantal repo sync --repo-id rhel9-baseos
+
+# Sync all enabled repositories
+chantal repo sync --all
+
+# Sync with automatic snapshot creation
+chantal repo sync --repo-id rhel9-baseos --create-snapshot
 ```
+
+### 4. Manage Snapshots
+
+```bash
+# List snapshots
+chantal snapshot list
+
+# Create manual snapshot
+chantal snapshot create --repo-id rhel9-baseos --name rhel9-2025-01-patch1
+
+# Compare snapshots
+chantal snapshot diff rhel9-baseos-20250109 rhel9-baseos-20250108
+
+# Publish specific snapshot
+chantal publish snapshot --snapshot rhel9-baseos-20250109
+```
+
+---
+
+## CLI Commands
+
+### Repository Management
+
+```bash
+# List all configured repositories
+chantal repo list
+
+# Show repository details
+chantal repo show --repo-id rhel9-baseos
+
+# Sync repository from upstream
+chantal repo sync --repo-id rhel9-baseos [--create-snapshot]
+chantal repo sync --all [--type rpm] [--workers 3]
+
+# Check for updates without syncing (like 'dnf check-update')
+chantal repo check-updates --repo-id rhel9-baseos
+
+# Show sync history
+chantal repo history --repo-id rhel9-baseos [--limit 10]
+```
+
+### Snapshot Management
+
+```bash
+# List snapshots
+chantal snapshot list [--repo-id rhel9-baseos]
+
+# Create snapshot
+chantal snapshot create --repo-id rhel9-baseos --name <name> [--description "..."]
+
+# Compare two snapshots (show added/removed/updated packages)
+chantal snapshot diff <snapshot1> <snapshot2>
+
+# Delete snapshot
+chantal snapshot delete <snapshot-name>
+```
+
+### Package Management
+
+```bash
+# List packages in repository
+chantal package list --repo-id rhel9-baseos [--arch x86_64] [--limit 100]
+
+# Search for packages
+chantal package search nginx [--repo-id rhel9-baseos] [--arch x86_64]
+
+# Show package details
+chantal package show nginx-1.20.1-10.el9.x86_64
+chantal package show <sha256>
+```
+
+### Publishing
+
+```bash
+# Publish repository (create hardlinks to published directory)
+chantal publish repo --repo-id rhel9-baseos
+chantal publish repo --all
+
+# Publish specific snapshot
+chantal publish snapshot --snapshot rhel9-baseos-20250109
+
+# List published repositories and snapshots
+chantal publish list
+
+# Unpublish repository or snapshot
+chantal publish unpublish --repo-id rhel9-baseos
+chantal publish unpublish --snapshot rhel9-baseos-20250108
+```
+
+### Statistics & Database
+
+```bash
+# Show global statistics
+chantal stats
+
+# Show repository-specific statistics
+chantal stats --repo-id rhel9-baseos
+
+# Database statistics
+chantal db stats
+
+# Verify database integrity
+chantal db verify
+
+# Clean up unreferenced packages
+chantal db cleanup [--dry-run]
+```
+
+### Output Formats
+
+Most commands support multiple output formats:
+
+```bash
+chantal package list --repo-id rhel9-baseos --format table  # Default: human-readable
+chantal package list --repo-id rhel9-baseos --format json   # Machine-readable
+chantal package list --repo-id rhel9-baseos --format csv    # For Excel/analysis
+```
+
+---
+
+## Configuration
+
+### Global Configuration (`/etc/chantal/config.yaml`)
+
+```yaml
+# Database connection
+database:
+  url: postgresql://chantal:password@localhost/chantal
+
+# Storage paths
+storage:
+  base_path: /var/lib/chantal
+  pool_path: /var/lib/chantal/pool
+  published_path: /var/www/repos
+
+# HTTP Proxy (optional)
+proxy:
+  http_proxy: http://proxy.example.com:8080
+  https_proxy: http://proxy.example.com:8080
+  no_proxy: localhost,127.0.0.1,.internal.domain
+  username: proxyuser  # optional
+  password: proxypass  # optional
+
+# Include repository configs
+include: conf.d/*.yaml
+```
+
+### Repository Configuration (`/etc/chantal/conf.d/rhel9.yaml`)
+
+```yaml
+repositories:
+  - id: rhel9-baseos
+    type: rpm
+    upstream_url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/os
+    enabled: true
+
+    # RHEL Subscription Authentication
+    auth:
+      type: client_cert
+      cert_dir: /etc/pki/entitlement
+
+    # Version retention policy
+    retention:
+      policy: mirror  # mirror, newest-only, keep-all, keep-last-n
+
+    # Publishing configuration
+    latest_path: /var/www/repos/rhel9-baseos/latest
+    snapshots_path: /var/www/repos/rhel9-baseos/snapshots
+
+    # Scheduling (optional)
+    schedule:
+      enabled: true
+      cron: "0 2 * * *"  # Daily at 2:00 AM
+      create_snapshot: true
+```
+
+---
+
+## Architecture
+
+- **Storage**: Content-addressed pool with SHA256 deduplication
+- **Database**: PostgreSQL for metadata (packages, repositories, snapshots, sync history)
+- **Publishing**: Hardlinks from pool to published directories (zero-copy)
+- **Snapshots**: Reference-based (like Pulp 3) - immutable, efficient
+- **CLI**: Click framework with pulp-admin-inspired commands
+
+### Directory Structure
+
+```
+/var/lib/chantal/
+├── pool/               # Content-addressed package storage
+│   └── ab/cd/abc123...def456_package.rpm
+├── config/             # Runtime configuration cache
+└── tmp/                # Temporary downloads
+
+/var/www/repos/         # Published repositories
+├── rhel9-baseos/
+│   ├── latest/         # Rolling latest (hardlinks to pool)
+│   └── snapshots/
+│       └── 20250109/   # Immutable snapshot (hardlinks to pool)
+└── rhel9-appstream/
+    └── ...
+```
+
+---
 
 ## Status
 
-**⚠️ Early Development - Research Phase**
+**🚧 Active Development - MVP Phase (Milestone 1)**
 
-Currently analyzing existing tools (apt-mirror, aptly, reposync) to design a better solution.
+- ✅ Database models (SQLAlchemy with PostgreSQL)
+- ✅ CLI framework (Click with comprehensive commands)
+- ✅ Architecture design and planning
+- ✅ RHEL CDN authentication PoC
+- ✅ 18 tests passing
+- ⏳ Configuration management (in progress)
+- ⏳ RPM sync implementation
+- ⏳ Publishing system
 
-Not ready for production. See [TODO.md](TODO.md) for roadmap.
+**Progress:** ~15% of MVP complete
+
+See [`.planning/status.md`](.planning/status.md) for detailed status.
+
+---
+
+## Development
+
+### Running Tests
+
+```bash
+# Run all tests
+pytest
+
+# Run specific test file
+pytest tests/test_cli.py
+
+# Run with coverage
+pytest --cov=chantal --cov-report=term-missing
+```
+
+### Code Quality
+
+```bash
+# Format code
+black src/ tests/
+
+# Lint code
+ruff src/ tests/
+
+# Type checking
+mypy src/
+```
+
+---
+
+## Roadmap
+
+### MVP (v0.1.0) - RPM/DNF Support
+- ✅ Database models
+- ⏳ Configuration management
+- ⏳ Content-addressed storage
+- ⏳ RPM repository sync
+- ⏳ Snapshot management
+- ⏳ Publishing (hardlinks)
+- ⏳ CLI commands
+- ⏳ HTTP proxy support
+
+### Post-MVP (v0.2.0+)
+- Scheduler/daemon service
+- Web UI
+- APT/Debian support
+- Advanced statistics
+- REST API
+
+---
 
 ## Why "Chantal"?
 
 Every other name was taken. Seriously.
 
-We checked: berth (Docker tool), conduit (5+ tools), tributary (d3.js), harbor (CNCF), stow (GNU), fulcrum, vesper, cairn, aperture - all taken.
+We checked: berth, conduit, tributary, harbor, stow, fulcrum, vesper, cairn, aperture - all taken.
 
 So we picked something memorable, available, and with personality.
 
+---
+
 ## Documentation
 
-- **[CONTEXT.md](CONTEXT.md)** - Full project specification and requirements
-- **[TODO.md](TODO.md)** - Detailed roadmap and task breakdown
-- **[CONTRIBUTING.md](CONTRIBUTING.md)** - How to contribute (feedback welcome!)
-
-## License
-
-TBD - Will be decided before first code commit.
+- **[Architecture](.planning/architecture.md)** - Full architecture design (~2000 lines)
+- **[CLI Commands](.planning/cli-commands.md)** - Complete CLI reference
+- **[MVP Scope](.planning/mvp-scope.md)** - MVP features and timeline
+- **[Status](.planning/status.md)** - Current development status
 
 ---
 
-**Current Phase:** Research & Tool Analysis
-**Next Milestone:** Architecture Proposal
+## Contributing
+
+Feedback and contributions welcome! This is early development, so design input is especially valuable.
+
+1. Check the [status document](.planning/status.md) for current progress
+2. Look at [open issues](https://github.com/slauger/chantal/issues) or create a new one
+3. Submit pull requests for fixes or features
+
+---
+
+## License
+
+MIT License - See LICENSE file for details.
+
+---
+
+**Current Phase:** MVP Development (Milestone 1 - Foundation)
+**Next Milestone:** Configuration Management & Storage Implementation
