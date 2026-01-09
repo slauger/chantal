@@ -10,6 +10,10 @@ from typing import Optional
 
 from chantal import __version__
 from chantal.core.config import GlobalConfig, load_config
+from chantal.core.storage import StorageManager
+from chantal.db.connection import DatabaseManager
+from chantal.db.models import Repository
+from chantal.plugins.rpm_sync import RpmSyncPlugin
 
 
 @click.group()
@@ -103,16 +107,88 @@ def repo_sync(
         click.echo("Error: Cannot use both --repo-id and --all")
         raise click.Abort()
 
-    if all:
-        click.echo("Syncing all enabled repositories")
-        if type:
-            click.echo(f"Filtered by type: {type}")
-        if workers > 1:
-            click.echo(f"Using {workers} parallel workers")
-        click.echo("TODO: Implement batch sync logic")
+    config: GlobalConfig = ctx.obj["config"]
+
+    # Initialize managers
+    storage = StorageManager(config.storage)
+    db_manager = DatabaseManager(config.database.url)
+    session = db_manager.get_session()
+
+    try:
+        if all:
+            click.echo("Syncing all enabled repositories")
+            if type:
+                click.echo(f"Filtered by type: {type}")
+            if workers > 1:
+                click.echo(f"Using {workers} parallel workers")
+
+            # Get all enabled repositories from config
+            repos_to_sync = [r for r in config.repositories if r.enabled]
+            if type:
+                repos_to_sync = [r for r in repos_to_sync if r.type == type]
+
+            if not repos_to_sync:
+                click.echo("No enabled repositories found")
+                return
+
+            click.echo(f"Found {len(repos_to_sync)} repositories to sync\n")
+
+            # TODO: Implement parallel workers if workers > 1
+            for repo_config in repos_to_sync:
+                click.echo(f"--- Syncing {repo_config.id} ---")
+                _sync_single_repository(session, storage, config, repo_config)
+                click.echo()
+        else:
+            # Sync single repository
+            repo_config = next((r for r in config.repositories if r.id == repo_id), None)
+            if not repo_config:
+                click.echo(f"Error: Repository '{repo_id}' not found in configuration")
+                raise click.Abort()
+
+            _sync_single_repository(session, storage, config, repo_config)
+    finally:
+        session.close()
+
+
+def _sync_single_repository(session, storage, global_config, repo_config):
+    """Helper function to sync a single repository."""
+    # Get or create repository in database
+    repository = session.query(Repository).filter_by(repo_id=repo_config.id).first()
+    if not repository:
+        click.echo(f"Creating new repository: {repo_config.id}")
+        repository = Repository(
+            repo_id=repo_config.id,
+            name=repo_config.name or repo_config.id,
+            type=repo_config.type,
+            feed=repo_config.feed,
+            enabled=repo_config.enabled,
+        )
+        session.add(repository)
+        session.commit()
+
+    # Initialize sync plugin based on repository type
+    if repo_config.type == "rpm":
+        sync_plugin = RpmSyncPlugin(
+            storage=storage,
+            config=repo_config,
+            proxy_config=global_config.proxy,
+        )
     else:
-        click.echo(f"Syncing repository: {repo_id}")
-        click.echo("TODO: Implement sync logic")
+        click.echo(f"Error: Unsupported repository type: {repo_config.type}")
+        return
+
+    # Perform sync
+    result = sync_plugin.sync_repository(session, repository)
+
+    # Display result
+    if result.success:
+        click.echo(f"\n✓ Sync completed successfully!")
+        click.echo(f"  Total packages: {result.packages_total}")
+        click.echo(f"  Downloaded: {result.packages_downloaded}")
+        click.echo(f"  Skipped (already in pool): {result.packages_skipped}")
+        click.echo(f"  Data transferred: {result.bytes_downloaded / 1024 / 1024:.2f} MB")
+    else:
+        click.echo(f"\n✗ Sync failed: {result.error_message}", err=True)
 
 
 @repo.command("show")
