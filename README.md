@@ -182,6 +182,20 @@ chantal publish unpublish --repo-id rhel9-baseos
 chantal publish unpublish --snapshot rhel9-baseos-20250108
 ```
 
+### Storage Pool Management
+
+```bash
+# Show storage pool statistics
+chantal pool stats
+
+# Remove orphaned files from pool (dry-run first!)
+chantal pool cleanup --dry-run
+chantal pool cleanup
+
+# Verify pool integrity (checksums, file existence)
+chantal pool verify
+```
+
 ### Statistics & Database
 
 ```bash

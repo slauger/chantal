@@ -385,6 +385,176 @@ def db_verify(ctx: click.Context) -> None:
 
 
 @cli.group()
+def pool() -> None:
+    """Storage pool management commands."""
+    pass
+
+
+@pool.command("stats")
+@click.pass_context
+def pool_stats(ctx: click.Context) -> None:
+    """Show storage pool statistics."""
+    from chantal.core.storage import StorageManager
+    from chantal.db.connection import DatabaseManager
+
+    config: GlobalConfig = ctx.obj["config"]
+
+    # Initialize storage manager
+    storage = StorageManager(config.storage)
+
+    # Initialize database connection
+    db_manager = DatabaseManager(config.database.url)
+    session = db_manager.get_session()
+
+    try:
+        # Get statistics
+        stats = storage.get_pool_statistics(session)
+
+        click.echo("Storage Pool Statistics:")
+        click.echo("=" * 60)
+        click.echo(f"Pool Path: {stats['pool_path']}")
+        click.echo()
+        click.echo(f"Packages in Database:    {stats['total_packages_db']:,}")
+        click.echo(f"Database Size:           {stats['total_size_db']:,} bytes ({stats['total_size_db'] / (1024**3):.2f} GB)")
+        click.echo()
+        click.echo(f"Files in Pool:           {stats['total_files_pool']:,}")
+        click.echo(f"Pool Size on Disk:       {stats['total_size_pool']:,} bytes ({stats['total_size_pool'] / (1024**3):.2f} GB)")
+        click.echo()
+        click.echo(f"Orphaned Files:          {stats['orphaned_files']:,}")
+
+        if stats['deduplication_savings'] > 0:
+            savings_pct = (stats['deduplication_savings'] / stats['total_size_db']) * 100 if stats['total_size_db'] > 0 else 0
+            click.echo(f"Deduplication Savings:   {stats['deduplication_savings']:,} bytes ({savings_pct:.1f}%)")
+
+    finally:
+        session.close()
+
+
+@pool.command("cleanup")
+@click.option("--dry-run", is_flag=True, help="Show what would be deleted without actually deleting")
+@click.pass_context
+def pool_cleanup(ctx: click.Context, dry_run: bool) -> None:
+    """Remove orphaned files from storage pool.
+
+    Orphaned files are package files in the pool that are not referenced
+    in the database. This can happen after package deletion or cleanup operations.
+    """
+    from chantal.core.storage import StorageManager
+    from chantal.db.connection import DatabaseManager
+
+    config: GlobalConfig = ctx.obj["config"]
+
+    # Initialize storage manager
+    storage = StorageManager(config.storage)
+
+    # Initialize database connection
+    db_manager = DatabaseManager(config.database.url)
+    session = db_manager.get_session()
+
+    try:
+        if dry_run:
+            click.echo("DRY RUN: Finding orphaned files...")
+        else:
+            click.echo("Cleaning up orphaned files...")
+
+        click.echo()
+
+        # Cleanup orphaned files
+        files_removed, bytes_freed = storage.cleanup_orphaned_files(session, dry_run=dry_run)
+
+        if dry_run:
+            click.echo(f"Would remove {files_removed:,} orphaned files")
+            click.echo(f"Would free {bytes_freed:,} bytes ({bytes_freed / (1024**2):.2f} MB)")
+        else:
+            click.echo(f"Removed {files_removed:,} orphaned files")
+            click.echo(f"Freed {bytes_freed:,} bytes ({bytes_freed / (1024**2):.2f} MB)")
+
+    finally:
+        session.close()
+
+
+@pool.command("verify")
+@click.pass_context
+def pool_verify(ctx: click.Context) -> None:
+    """Verify storage pool integrity.
+
+    Checks:
+    - All packages in database have corresponding files in pool
+    - All pool files match their recorded SHA256 checksums
+    - Pool directory structure is correct
+    """
+    from chantal.core.storage import StorageManager
+    from chantal.db.connection import DatabaseManager
+    from chantal.db.models import Package
+
+    config: GlobalConfig = ctx.obj["config"]
+
+    # Initialize storage manager
+    storage = StorageManager(config.storage)
+
+    # Initialize database connection
+    db_manager = DatabaseManager(config.database.url)
+    session = db_manager.get_session()
+
+    try:
+        click.echo("Verifying storage pool integrity...")
+        click.echo("=" * 60)
+        click.echo()
+
+        errors = 0
+        warnings = 0
+
+        # Get all packages from database
+        packages = session.query(Package).all()
+        click.echo(f"Checking {len(packages):,} packages...")
+
+        for i, package in enumerate(packages, 1):
+            if i % 100 == 0:
+                click.echo(f"  Checked {i:,}/{len(packages):,} packages...", nl=False)
+                click.echo("\r", nl=False)
+
+            # Check if file exists
+            pool_file = storage.pool_path / package.pool_path
+
+            if not pool_file.exists():
+                click.echo(f"ERROR: Missing pool file for {package.filename} (SHA256: {package.sha256[:8]}...)")
+                errors += 1
+                continue
+
+            # Verify SHA256
+            actual_sha256 = storage.calculate_sha256(pool_file)
+            if actual_sha256 != package.sha256:
+                click.echo(f"ERROR: SHA256 mismatch for {package.filename}")
+                click.echo(f"  Expected: {package.sha256}")
+                click.echo(f"  Actual:   {actual_sha256}")
+                errors += 1
+
+            # Verify file size
+            actual_size = pool_file.stat().st_size
+            if actual_size != package.size_bytes:
+                click.echo(f"WARNING: Size mismatch for {package.filename}")
+                click.echo(f"  Expected: {package.size_bytes:,} bytes")
+                click.echo(f"  Actual:   {actual_size:,} bytes")
+                warnings += 1
+
+        click.echo()
+        click.echo("=" * 60)
+
+        if errors == 0 and warnings == 0:
+            click.echo("✓ Pool verification completed successfully!")
+            click.echo(f"  All {len(packages):,} packages verified")
+        else:
+            click.echo(f"Pool verification completed with issues:")
+            if errors > 0:
+                click.echo(f"  Errors: {errors}")
+            if warnings > 0:
+                click.echo(f"  Warnings: {warnings}")
+
+    finally:
+        session.close()
+
+
+@cli.group()
 def publish() -> None:
     """Publishing management commands."""
     pass
