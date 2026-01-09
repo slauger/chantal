@@ -74,7 +74,7 @@ storage:
 repositories:
   - id: rhel9-baseos
     type: rpm
-    upstream_url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/os
+    feed: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/os
     enabled: true
     auth:
       type: client_cert
@@ -246,7 +246,7 @@ include: conf.d/*.yaml
 repositories:
   - id: rhel9-baseos
     type: rpm
-    upstream_url: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/os
+    feed: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/os
     enabled: true
 
     # RHEL Subscription Authentication

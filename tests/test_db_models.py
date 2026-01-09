@@ -26,7 +26,7 @@ def test_create_repository(db_session):
         repo_id="rhel9-baseos",
         name="RHEL 9 BaseOS",
         type="rpm",
-        upstream_url="https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/os",
+        feed="https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/os",
         enabled=True
     )
 
@@ -94,7 +94,7 @@ def test_create_snapshot(db_session):
         repo_id="test-repo",
         name="Test Repo",
         type="rpm",
-        upstream_url="https://example.com/repo",
+        feed="https://example.com/repo",
         enabled=True
     )
     db_session.add(repo)
@@ -126,7 +126,7 @@ def test_snapshot_package_relationship(db_session):
         repo_id="test-repo",
         name="Test Repo",
         type="rpm",
-        upstream_url="https://example.com/repo",
+        feed="https://example.com/repo",
         enabled=True
     )
     db_session.add(repo)
@@ -189,7 +189,7 @@ def test_sync_history(db_session):
         repo_id="test-repo",
         name="Test Repo",
         type="rpm",
-        upstream_url="https://example.com/repo",
+        feed="https://example.com/repo",
         enabled=True
     )
     db_session.add(repo)
@@ -225,7 +225,7 @@ def test_unique_constraints(db_session):
         repo_id="test-repo",
         name="Test Repo 1",
         type="rpm",
-        upstream_url="https://example.com/repo1",
+        feed="https://example.com/repo1",
         enabled=True
     )
     db_session.add(repo1)
@@ -236,7 +236,7 @@ def test_unique_constraints(db_session):
         repo_id="test-repo",  # Same repo_id
         name="Test Repo 2",
         type="rpm",
-        upstream_url="https://example.com/repo2",
+        feed="https://example.com/repo2",
         enabled=True
     )
     db_session.add(repo2)

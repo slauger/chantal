@@ -46,7 +46,7 @@ class Repository(Base):
     repo_id: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     type: Mapped[str] = mapped_column(String(50), nullable=False)  # rpm, apt
-    upstream_url: Mapped[str] = mapped_column(Text, nullable=False)
+    feed: Mapped[str] = mapped_column(Text, nullable=False)  # upstream URL (Pulp terminology)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     # Paths
