@@ -1,0 +1,333 @@
+"""
+Configuration management for Chantal.
+
+This module provides Pydantic models for configuration validation and
+YAML-based configuration loading with include support.
+"""
+
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+import yaml
+from pydantic import BaseModel, Field, field_validator
+
+
+class ProxyConfig(BaseModel):
+    """HTTP proxy configuration."""
+
+    http_proxy: Optional[str] = None
+    https_proxy: Optional[str] = None
+    no_proxy: Optional[str] = None
+    username: Optional[str] = None
+    password: Optional[str] = None
+
+
+class AuthConfig(BaseModel):
+    """Repository authentication configuration."""
+
+    type: str  # client_cert, basic, bearer
+    cert_dir: Optional[str] = None  # For client_cert
+    cert_file: Optional[str] = None  # For client_cert
+    key_file: Optional[str] = None  # For client_cert
+    username: Optional[str] = None  # For basic
+    password: Optional[str] = None  # For basic
+    token: Optional[str] = None  # For bearer
+
+
+class RetentionConfig(BaseModel):
+    """Package retention policy configuration."""
+
+    policy: str = "mirror"  # mirror, newest-only, keep-all, keep-last-n
+    keep_count: Optional[int] = None  # For keep-last-n policy
+
+    @field_validator("policy")
+    @classmethod
+    def validate_policy(cls, v: str) -> str:
+        """Validate retention policy."""
+        valid_policies = ["mirror", "newest-only", "keep-all", "keep-last-n"]
+        if v not in valid_policies:
+            raise ValueError(f"Invalid retention policy: {v}. Must be one of {valid_policies}")
+        return v
+
+
+class ScheduleConfig(BaseModel):
+    """Repository sync schedule configuration."""
+
+    enabled: bool = False
+    cron: str = "0 2 * * *"  # Daily at 2:00 AM by default
+    create_snapshot: bool = False
+    snapshot_name_template: str = "{repo_id}-{date}"
+
+
+class RepositoryConfig(BaseModel):
+    """Repository configuration."""
+
+    id: str
+    name: Optional[str] = None
+    type: str  # rpm, apt
+    feed: str  # upstream URL
+    enabled: bool = True
+
+    # Authentication
+    auth: Optional[AuthConfig] = None
+
+    # Paths (optional overrides)
+    latest_path: Optional[str] = None
+    snapshots_path: Optional[str] = None
+
+    # Retention policy
+    retention: Optional[RetentionConfig] = Field(default_factory=lambda: RetentionConfig())
+
+    # Scheduling
+    schedule: Optional[ScheduleConfig] = Field(default_factory=lambda: ScheduleConfig())
+
+    # Per-repository proxy override
+    proxy: Optional[ProxyConfig] = None
+
+    @field_validator("type")
+    @classmethod
+    def validate_type(cls, v: str) -> str:
+        """Validate repository type."""
+        valid_types = ["rpm", "apt"]
+        if v not in valid_types:
+            raise ValueError(f"Invalid repository type: {v}. Must be one of {valid_types}")
+        return v
+
+    @property
+    def display_name(self) -> str:
+        """Get display name (use name if set, otherwise id)."""
+        return self.name or self.id
+
+
+class DatabaseConfig(BaseModel):
+    """Database configuration."""
+
+    url: str = "postgresql://chantal:chantal@localhost/chantal"
+    pool_size: int = 5
+    max_overflow: int = 10
+    echo: bool = False  # SQLAlchemy echo (verbose SQL logging)
+
+
+class StorageConfig(BaseModel):
+    """Storage paths configuration."""
+
+    base_path: str = "/var/lib/chantal"
+    pool_path: Optional[str] = None  # Defaults to {base_path}/pool
+    published_path: str = "/var/www/repos"
+    temp_path: Optional[str] = None  # Defaults to {base_path}/tmp
+
+    def get_pool_path(self) -> Path:
+        """Get pool path (with default)."""
+        if self.pool_path:
+            return Path(self.pool_path)
+        return Path(self.base_path) / "pool"
+
+    def get_temp_path(self) -> Path:
+        """Get temp path (with default)."""
+        if self.temp_path:
+            return Path(self.temp_path)
+        return Path(self.base_path) / "tmp"
+
+
+class GlobalConfig(BaseModel):
+    """Global Chantal configuration."""
+
+    database: DatabaseConfig = Field(default_factory=DatabaseConfig)
+    storage: StorageConfig = Field(default_factory=StorageConfig)
+    proxy: Optional[ProxyConfig] = None
+    repositories: List[RepositoryConfig] = Field(default_factory=list)
+
+    # Include pattern for additional config files
+    include: Optional[str] = None
+
+    def get_repository(self, repo_id: str) -> Optional[RepositoryConfig]:
+        """Get repository configuration by ID."""
+        for repo in self.repositories:
+            if repo.id == repo_id:
+                return repo
+        return None
+
+    def get_enabled_repositories(self) -> List[RepositoryConfig]:
+        """Get all enabled repositories."""
+        return [repo for repo in self.repositories if repo.enabled]
+
+    def get_repositories_by_type(self, repo_type: str) -> List[RepositoryConfig]:
+        """Get all repositories of a specific type."""
+        return [repo for repo in self.repositories if repo.type == repo_type]
+
+
+class ConfigLoader:
+    """Configuration file loader with include support."""
+
+    def __init__(self, config_path: Path):
+        """Initialize config loader.
+
+        Args:
+            config_path: Path to main configuration file
+        """
+        self.config_path = config_path
+
+    def load(self) -> GlobalConfig:
+        """Load configuration from YAML file.
+
+        Returns:
+            GlobalConfig instance
+
+        Raises:
+            FileNotFoundError: If config file doesn't exist
+            ValueError: If config is invalid
+        """
+        if not self.config_path.exists():
+            raise FileNotFoundError(f"Configuration file not found: {self.config_path}")
+
+        # Load main config file
+        with open(self.config_path) as f:
+            config_data = yaml.safe_load(f) or {}
+
+        # Handle includes
+        if "include" in config_data:
+            include_pattern = config_data["include"]
+            included_repos = self._load_includes(include_pattern)
+
+            # Merge included repositories
+            if "repositories" not in config_data:
+                config_data["repositories"] = []
+            config_data["repositories"].extend(included_repos)
+
+        # Validate and create GlobalConfig
+        return GlobalConfig(**config_data)
+
+    def _load_includes(self, include_pattern: str) -> List[Dict[str, Any]]:
+        """Load included configuration files.
+
+        Args:
+            include_pattern: Glob pattern for include files (e.g., "conf.d/*.yaml")
+
+        Returns:
+            List of repository configurations from included files
+        """
+        # Resolve pattern relative to main config directory
+        config_dir = self.config_path.parent
+        include_path = config_dir / include_pattern
+
+        # Get parent directory and pattern
+        if "*" in include_pattern:
+            # It's a glob pattern
+            pattern_parts = Path(include_pattern).parts
+            if len(pattern_parts) > 1:
+                search_dir = config_dir / Path(*pattern_parts[:-1])
+                pattern = pattern_parts[-1]
+            else:
+                search_dir = config_dir
+                pattern = include_pattern
+
+            # Find matching files
+            if search_dir.exists():
+                config_files = sorted(search_dir.glob(pattern))
+            else:
+                config_files = []
+        else:
+            # Single file
+            config_files = [include_path] if include_path.exists() else []
+
+        # Load all included files
+        all_repos = []
+        for config_file in config_files:
+            if config_file.suffix in [".yaml", ".yml"]:
+                with open(config_file) as f:
+                    data = yaml.safe_load(f) or {}
+                    if "repositories" in data:
+                        all_repos.extend(data["repositories"])
+
+        return all_repos
+
+
+def load_config(config_path: Optional[Path] = None) -> GlobalConfig:
+    """Load configuration from file.
+
+    Args:
+        config_path: Path to config file. If None, tries default locations.
+
+    Returns:
+        GlobalConfig instance
+
+    Raises:
+        FileNotFoundError: If no config file found
+    """
+    # Default config locations
+    default_paths = [
+        Path("/etc/chantal/config.yaml"),
+        Path.home() / ".config" / "chantal" / "config.yaml",
+        Path("config.yaml"),
+    ]
+
+    if config_path:
+        paths_to_try = [config_path]
+    else:
+        paths_to_try = default_paths
+
+    # Try each path
+    for path in paths_to_try:
+        if path.exists():
+            loader = ConfigLoader(path)
+            return loader.load()
+
+    # No config found
+    if config_path:
+        raise FileNotFoundError(f"Configuration file not found: {config_path}")
+    else:
+        # Return default config if no file found
+        return GlobalConfig()
+
+
+def create_example_config(output_path: Path) -> None:
+    """Create an example configuration file.
+
+    Args:
+        output_path: Path to write example config
+    """
+    example_config = {
+        "database": {
+            "url": "postgresql://chantal:password@localhost/chantal",
+            "pool_size": 5,
+            "echo": False,
+        },
+        "storage": {
+            "base_path": "/var/lib/chantal",
+            "pool_path": "/var/lib/chantal/pool",
+            "published_path": "/var/www/repos",
+        },
+        "proxy": {
+            "http_proxy": "http://proxy.example.com:8080",
+            "https_proxy": "http://proxy.example.com:8080",
+            "no_proxy": "localhost,127.0.0.1,.internal.domain",
+            "username": None,
+            "password": None,
+        },
+        "repositories": [
+            {
+                "id": "rhel9-baseos",
+                "name": "RHEL 9 BaseOS",
+                "type": "rpm",
+                "feed": "https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/os",
+                "enabled": True,
+                "auth": {
+                    "type": "client_cert",
+                    "cert_dir": "/etc/pki/entitlement",
+                },
+                "retention": {
+                    "policy": "mirror",
+                },
+                "schedule": {
+                    "enabled": True,
+                    "cron": "0 2 * * *",
+                    "create_snapshot": True,
+                    "snapshot_name_template": "{repo_id}-{date}",
+                },
+            }
+        ],
+        "include": "conf.d/*.yaml",
+    }
+
+    with open(output_path, "w") as f:
+        yaml.dump(example_config, f, default_flow_style=False, sort_keys=False)

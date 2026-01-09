@@ -1,0 +1,49 @@
+# Chantal Configuration Example
+# This is the main configuration file for Chantal.
+# Copy to /etc/chantal/config.yaml or ~/.config/chantal/config.yaml
+
+# Database configuration
+database:
+  url: postgresql://chantal:password@localhost/chantal
+  pool_size: 5
+  max_overflow: 10
+  echo: false  # Set to true for verbose SQL logging
+
+# Storage paths
+storage:
+  base_path: /var/lib/chantal
+  pool_path: /var/lib/chantal/pool  # Optional: defaults to {base_path}/pool
+  published_path: /var/www/repos
+  temp_path: /var/lib/chantal/tmp  # Optional: defaults to {base_path}/tmp
+
+# HTTP Proxy (optional)
+# Uncomment to enable proxy support
+# proxy:
+#   http_proxy: http://proxy.example.com:8080
+#   https_proxy: http://proxy.example.com:8080
+#   no_proxy: localhost,127.0.0.1,.internal.domain
+#   username: proxyuser  # Optional
+#   password: proxypass  # Optional
+
+# Repositories (inline configuration)
+# You can also use include directive to load from conf.d/*.yaml
+repositories:
+  - id: centos9-baseos
+    name: CentOS 9 BaseOS
+    type: rpm
+    feed: https://mirror.stream.centos.org/9-stream/BaseOS/x86_64/os/
+    enabled: true
+
+    # Retention policy
+    retention:
+      policy: mirror  # Options: mirror, newest-only, keep-all, keep-last-n
+
+    # Scheduling (optional)
+    schedule:
+      enabled: false
+      cron: "0 2 * * *"  # Daily at 2:00 AM
+      create_snapshot: false
+      snapshot_name_template: "{repo_id}-{date}"
+
+# Include additional repository configs from conf.d directory
+include: conf.d/*.yaml

@@ -6,36 +6,58 @@ This module provides the Click-based command-line interface for Chantal.
 
 import click
 from pathlib import Path
+from typing import Optional
 
 from chantal import __version__
+from chantal.core.config import GlobalConfig, load_config
 
 
 @click.group()
 @click.version_option(version=__version__)
 @click.option(
-    "--config-dir",
-    type=click.Path(path_type=Path),
-    default="/etc/chantal",
-    help="Configuration directory",
+    "--config",
+    type=click.Path(exists=True, path_type=Path),
+    default=None,
+    help="Path to configuration file (default: /etc/chantal/config.yaml)",
 )
 @click.option("--verbose", "-v", is_flag=True, help="Verbose output")
 @click.pass_context
-def cli(ctx: click.Context, config_dir: Path, verbose: bool) -> None:
+def cli(ctx: click.Context, config: Optional[Path], verbose: bool) -> None:
     """Chantal - Unified offline repository mirroring.
 
     Because every other name was already taken.
     """
     ctx.ensure_object(dict)
-    ctx.obj["config_dir"] = config_dir
     ctx.obj["verbose"] = verbose
+
+    # Load configuration
+    try:
+        ctx.obj["config"] = load_config(config)
+    except FileNotFoundError:
+        if config:
+            # User specified a config file that doesn't exist - fail
+            click.echo(f"Error: Configuration file not found: {config}", err=True)
+            ctx.exit(1)
+        else:
+            # No config file found, use defaults
+            ctx.obj["config"] = GlobalConfig()
+
+    if verbose:
+        click.echo(f"Loaded configuration: {len(ctx.obj['config'].repositories)} repositories")
 
 
 @cli.command()
 @click.pass_context
 def init(ctx: click.Context) -> None:
     """Initialize Chantal (create directories, database schema)."""
+    config: GlobalConfig = ctx.obj["config"]
+
     click.echo("Chantal initialization...")
-    click.echo(f"Config directory: {ctx.obj['config_dir']}")
+    click.echo(f"Database: {config.database.url}")
+    click.echo(f"Storage base path: {config.storage.base_path}")
+    click.echo(f"Pool path: {config.storage.get_pool_path()}")
+    click.echo(f"Published path: {config.storage.published_path}")
+    click.echo()
     click.echo("TODO: Create directories and database schema")
 
 
@@ -191,16 +213,19 @@ def snapshot_create(ctx: click.Context, repo_id: str, name: str, description: st
 
 
 @snapshot.command("diff")
+@click.option("--repo-id", required=True, help="Repository ID")
 @click.argument("snapshot1")
 @click.argument("snapshot2")
 @click.option("--format", "output_format", type=click.Choice(["table", "json"]),
               default="table", help="Output format")
 @click.pass_context
-def snapshot_diff(ctx: click.Context, snapshot1: str, snapshot2: str, output_format: str) -> None:
-    """Compare two snapshots and show differences.
+def snapshot_diff(ctx: click.Context, repo_id: str, snapshot1: str, snapshot2: str, output_format: str) -> None:
+    """Compare two snapshots within a repository.
 
-    Shows packages that were added, removed, or updated between two snapshots.
+    Shows packages that were added, removed, or updated between two snapshots
+    of the same repository.
     """
+    click.echo(f"Repository: {repo_id}")
     click.echo(f"Comparing snapshots: {snapshot1} → {snapshot2}")
     click.echo()
     click.echo("Expected output:")

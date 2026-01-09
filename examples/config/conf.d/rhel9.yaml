@@ -1,0 +1,48 @@
+# RHEL 9 Repository Configuration
+# This file will be included by the main config.yaml
+
+repositories:
+  - id: rhel9-baseos
+    name: RHEL 9 BaseOS
+    type: rpm
+    feed: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/os
+    enabled: true
+
+    # RHEL Subscription Authentication
+    auth:
+      type: client_cert
+      cert_dir: /etc/pki/entitlement
+
+    # Version retention policy
+    retention:
+      policy: mirror  # mirror, newest-only, keep-all, keep-last-n
+
+    # Publishing paths (optional overrides)
+    # latest_path: /var/www/repos/rhel9-baseos/latest
+    # snapshots_path: /var/www/repos/rhel9-baseos/snapshots
+
+    # Scheduling (optional - for automatic syncs)
+    schedule:
+      enabled: true
+      cron: "0 2 * * *"  # Daily at 2:00 AM
+      create_snapshot: true
+      snapshot_name_template: "{repo_id}-{date}"
+
+  - id: rhel9-appstream
+    name: RHEL 9 AppStream
+    type: rpm
+    feed: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os
+    enabled: true
+
+    auth:
+      type: client_cert
+      cert_dir: /etc/pki/entitlement
+
+    retention:
+      policy: mirror
+
+    schedule:
+      enabled: true
+      cron: "0 3 * * *"  # Daily at 3:00 AM
+      create_snapshot: true
+      snapshot_name_template: "{repo_id}-{date}"

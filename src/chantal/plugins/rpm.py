@@ -1,0 +1,283 @@
+"""
+RPM/DNF repository publisher plugin.
+
+This module implements publishing for RPM repositories with yum/dnf metadata.
+"""
+
+import gzip
+import hashlib
+import shutil
+import xml.etree.ElementTree as ET
+from datetime import datetime
+from pathlib import Path
+from typing import List
+
+from sqlalchemy.orm import Session
+
+from chantal.core.config import RepositoryConfig
+from chantal.core.storage import StorageManager
+from chantal.db.models import Package, Repository, Snapshot
+from chantal.plugins.base import PublisherPlugin
+
+
+class RpmPublisher(PublisherPlugin):
+    """Publisher for RPM/DNF repositories.
+
+    Creates standard yum/dnf repository structure:
+    - Packages/ - Package files (hardlinks to pool)
+    - repodata/ - Repository metadata
+      - repomd.xml - Root metadata file
+      - primary.xml.gz - Package metadata
+      - filelists.xml.gz - File lists (optional)
+      - other.xml.gz - Changelogs (optional)
+    """
+
+    def __init__(self, storage: StorageManager):
+        """Initialize RPM publisher.
+
+        Args:
+            storage: Storage manager instance
+        """
+        super().__init__(storage)
+
+    def publish_repository(
+        self,
+        session: Session,
+        repository: Repository,
+        config: RepositoryConfig,
+        target_path: Path,
+    ) -> None:
+        """Publish RPM repository to target directory.
+
+        Args:
+            session: Database session
+            repository: Repository model instance
+            config: Repository configuration
+            target_path: Target directory for publishing
+        """
+        # Get packages
+        packages = self._get_repository_packages(session, repository)
+
+        # Publish packages and metadata
+        self._publish_packages(packages, target_path)
+
+    def publish_snapshot(
+        self,
+        session: Session,
+        snapshot: Snapshot,
+        repository: Repository,
+        config: RepositoryConfig,
+        target_path: Path,
+    ) -> None:
+        """Publish RPM snapshot to target directory.
+
+        Args:
+            session: Database session
+            snapshot: Snapshot model instance
+            repository: Repository model instance
+            config: Repository configuration
+            target_path: Target directory for publishing
+        """
+        # Get packages from snapshot
+        packages = self._get_snapshot_packages(session, snapshot)
+
+        # Publish packages and metadata
+        self._publish_packages(packages, target_path)
+
+    def unpublish(self, target_path: Path) -> None:
+        """Remove published RPM repository.
+
+        Args:
+            target_path: Target directory to unpublish
+        """
+        if target_path.exists():
+            shutil.rmtree(target_path)
+
+    def _publish_packages(
+        self,
+        packages: List[Package],
+        target_path: Path
+    ) -> None:
+        """Publish packages and generate metadata.
+
+        Args:
+            packages: List of packages to publish
+            target_path: Target directory
+        """
+        # Create directory structure
+        target_path.mkdir(parents=True, exist_ok=True)
+        repodata_path = target_path / "repodata"
+        repodata_path.mkdir(exist_ok=True)
+
+        # Create hardlinks for packages
+        self._create_hardlinks(packages, target_path, subdir="Packages")
+
+        # Generate metadata
+        primary_xml_path = self._generate_primary_xml(packages, repodata_path)
+        repomd_xml_path = self._generate_repomd_xml(
+            repodata_path,
+            primary_xml_path
+        )
+
+    def _generate_primary_xml(
+        self,
+        packages: List[Package],
+        repodata_path: Path
+    ) -> Path:
+        """Generate primary.xml.gz metadata file.
+
+        Args:
+            packages: List of packages
+            repodata_path: Path to repodata directory
+
+        Returns:
+            Path to generated primary.xml.gz
+        """
+        # Create primary.xml
+        metadata = ET.Element("metadata")
+        metadata.set("xmlns", "http://linux.duke.edu/metadata/common")
+        metadata.set("xmlns:rpm", "http://linux.duke.edu/metadata/rpm")
+        metadata.set("packages", str(len(packages)))
+
+        for package in packages:
+            pkg_elem = ET.SubElement(metadata, "package")
+            pkg_elem.set("type", "rpm")
+
+            # Basic info
+            name = ET.SubElement(pkg_elem, "name")
+            name.text = package.name
+
+            arch = ET.SubElement(pkg_elem, "arch")
+            arch.text = package.arch
+
+            # Version
+            version = ET.SubElement(pkg_elem, "version")
+            if package.epoch:
+                version.set("epoch", package.epoch)
+            version.set("ver", package.version)
+            if package.release:
+                version.set("rel", package.release)
+
+            # Checksum
+            checksum = ET.SubElement(pkg_elem, "checksum")
+            checksum.set("type", "sha256")
+            checksum.set("pkgid", "YES")
+            checksum.text = package.sha256
+
+            # Summary
+            if package.summary:
+                summary = ET.SubElement(pkg_elem, "summary")
+                summary.text = package.summary
+
+            # Description
+            if package.description:
+                description = ET.SubElement(pkg_elem, "description")
+                description.text = package.description
+
+            # Location
+            location = ET.SubElement(pkg_elem, "location")
+            location.set("href", f"Packages/{package.filename}")
+
+            # Size
+            size = ET.SubElement(pkg_elem, "size")
+            size.set("package", str(package.size_bytes))
+
+            # Time (use current time for now)
+            time_elem = ET.SubElement(pkg_elem, "time")
+            time_elem.set("file", str(int(datetime.utcnow().timestamp())))
+
+        # Write XML
+        tree = ET.ElementTree(metadata)
+        primary_xml_path = repodata_path / "primary.xml"
+
+        # Pretty print XML
+        ET.indent(tree, space="  ")
+        tree.write(
+            primary_xml_path,
+            encoding="UTF-8",
+            xml_declaration=True
+        )
+
+        # Gzip it
+        primary_xml_gz_path = repodata_path / "primary.xml.gz"
+        with open(primary_xml_path, "rb") as f_in:
+            with gzip.open(primary_xml_gz_path, "wb") as f_out:
+                shutil.copyfileobj(f_in, f_out)
+
+        # Remove uncompressed version
+        primary_xml_path.unlink()
+
+        return primary_xml_gz_path
+
+    def _generate_repomd_xml(
+        self,
+        repodata_path: Path,
+        primary_xml_path: Path
+    ) -> Path:
+        """Generate repomd.xml root metadata file.
+
+        Args:
+            repodata_path: Path to repodata directory
+            primary_xml_path: Path to primary.xml.gz
+
+        Returns:
+            Path to generated repomd.xml
+        """
+        # Calculate checksum and size of primary.xml.gz
+        with open(primary_xml_path, "rb") as f:
+            primary_data = f.read()
+            primary_sha256 = hashlib.sha256(primary_data).hexdigest()
+            primary_size = len(primary_data)
+
+        # Calculate checksum of uncompressed primary.xml
+        with gzip.open(primary_xml_path, "rb") as f:
+            primary_open_data = f.read()
+            primary_open_sha256 = hashlib.sha256(primary_open_data).hexdigest()
+            primary_open_size = len(primary_open_data)
+
+        # Create repomd.xml
+        repomd = ET.Element("repomd")
+        repomd.set("xmlns", "http://linux.duke.edu/metadata/repo")
+        repomd.set("xmlns:rpm", "http://linux.duke.edu/metadata/rpm")
+
+        # Revision (timestamp)
+        revision = ET.SubElement(repomd, "revision")
+        revision.text = str(int(datetime.utcnow().timestamp()))
+
+        # Primary data entry
+        data = ET.SubElement(repomd, "data")
+        data.set("type", "primary")
+
+        checksum = ET.SubElement(data, "checksum")
+        checksum.set("type", "sha256")
+        checksum.text = primary_sha256
+
+        open_checksum = ET.SubElement(data, "open-checksum")
+        open_checksum.set("type", "sha256")
+        open_checksum.text = primary_open_sha256
+
+        location = ET.SubElement(data, "location")
+        location.set("href", f"repodata/{primary_xml_path.name}")
+
+        timestamp = ET.SubElement(data, "timestamp")
+        timestamp.text = str(int(datetime.utcnow().timestamp()))
+
+        size = ET.SubElement(data, "size")
+        size.text = str(primary_size)
+
+        open_size = ET.SubElement(data, "open-size")
+        open_size.text = str(primary_open_size)
+
+        # Write repomd.xml
+        tree = ET.ElementTree(repomd)
+        repomd_xml_path = repodata_path / "repomd.xml"
+
+        # Pretty print XML
+        ET.indent(tree, space="  ")
+        tree.write(
+            repomd_xml_path,
+            encoding="UTF-8",
+            xml_declaration=True
+        )
+
+        return repomd_xml_path

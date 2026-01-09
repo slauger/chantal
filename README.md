@@ -104,7 +104,7 @@ chantal snapshot create --repo-id rhel9-baseos --name rhel9-2025-01-patch1
 chantal snapshot list
 
 # Compare snapshots
-chantal snapshot diff rhel9-baseos-20250109 rhel9-baseos-20250108
+chantal snapshot diff --repo-id rhel9-baseos 20250109 20250108
 
 # Publish specific snapshot
 chantal publish snapshot --snapshot rhel9-baseos-20250109
@@ -143,11 +143,11 @@ chantal snapshot list [--repo-id rhel9-baseos]
 # Create snapshot
 chantal snapshot create --repo-id rhel9-baseos --name <name> [--description "..."]
 
-# Compare two snapshots (show added/removed/updated packages)
-chantal snapshot diff <snapshot1> <snapshot2>
+# Compare two snapshots within a repository (show added/removed/updated packages)
+chantal snapshot diff --repo-id rhel9-baseos <snapshot1> <snapshot2>
 
 # Delete snapshot
-chantal snapshot delete <snapshot-name>
+chantal snapshot delete --repo-id rhel9-baseos <snapshot-name>
 ```
 
 ### Package Management
