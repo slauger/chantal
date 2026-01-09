@@ -57,3 +57,4 @@ chantal.db
 *.tmp
 *.bak
 .DS_Store
+venv*/
