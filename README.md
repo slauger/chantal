@@ -263,5 +263,7 @@ Inspired by: pulp-admin, reposync, aptly, apt-mirror, bandersnatch
 ---
 
 **📦 Container Images:** `ghcr.io/slauger/chantal:latest`
+
 **📚 Documentation:** https://slauger.github.io/chantal/
+
 **🐛 Issues:** https://github.com/slauger/chantal/issues
