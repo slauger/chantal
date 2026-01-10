@@ -11,9 +11,9 @@ storage:
 
 repositories:
   # RHEL 9 BaseOS with aggressive filtering
-  # Only sync a few essential packages instead of all 4000+
-  - id: rhel9-baseos-filtered
-    name: RHEL 9 BaseOS (Filtered - nginx, curl, systemd only)
+  # Only sync vim packages for testing
+  - id: rhel9-baseos-vim
+    name: RHEL 9 BaseOS (vim packages only)
     type: rpm
     feed: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/os
     enabled: true
@@ -22,8 +22,9 @@ repositories:
     auth:
       type: client_cert
       cert_dir: /tmp/rhel-certs
+      verify_ssl: false  # Disable SSL verification for testing
 
-    # Package filters - only sync specific packages
+    # Package filters - only sync vim packages
     filters:
       # Generic metadata filters
       metadata:
@@ -34,19 +35,14 @@ repositories:
       rpm:
         exclude_source_rpms: true
 
-      # Pattern filters (regex)
+      # Pattern filters (regex) - only vim packages
       patterns:
         include:
-          - "^nginx$"
-          - "^nginx-.*"
-          - "^curl$"
-          - "^curl-.*"
-          - "^systemd$"
-          - "^systemd-.*"
+          - "^vim$"
+          - "^vim-.*"
         exclude:
           - ".*-debuginfo$"
           - ".*-debugsource$"
-          - ".*-devel$"
 
   # Alternative: CentOS Stream for comparison (no auth needed)
   - id: centos9-baseos-filtered

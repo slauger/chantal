@@ -6,6 +6,7 @@ for all package types (RPM, DEB, etc.).
 """
 
 import hashlib
+import os
 import shutil
 from pathlib import Path
 from typing import Dict, Optional, Tuple
@@ -200,8 +201,8 @@ class StorageManager:
         if target_path.exists():
             target_path.unlink()
 
-        # Create hardlink
-        target_path.hardlink_to(source_path)
+        # Create hardlink (use os.link for Python 3.9 compatibility)
+        os.link(source_path, target_path)
 
     def get_orphaned_files(self, session: Session) -> list[Path]:
         """Find files in pool that are not referenced in database.

@@ -42,6 +42,10 @@ class AuthConfig(BaseModel):
     # Custom HTTP headers
     headers: Optional[Dict[str, str]] = None  # e.g., {"X-API-Key": "secret"}
 
+    # SSL/TLS verification
+    verify_ssl: bool = True  # Verify SSL certificates (set False to disable)
+    ca_bundle: Optional[str] = None  # Path to CA bundle for custom CAs
+
 
 class RetentionConfig(BaseModel):
     """Package retention policy configuration."""

@@ -158,6 +158,14 @@ class RpmSyncPlugin:
                     self.session.headers.update(config.auth.headers)
                     print(f"Using custom headers: {list(config.auth.headers.keys())}")
 
+            # SSL/TLS verification settings
+            if not config.auth.verify_ssl:
+                self.session.verify = False
+                print("Warning: SSL certificate verification disabled")
+            elif config.auth.ca_bundle:
+                self.session.verify = config.auth.ca_bundle
+                print(f"Using custom CA bundle: {config.auth.ca_bundle}")
+
     def sync_repository(
         self, session: Session, repository: Repository
     ) -> SyncResult:
