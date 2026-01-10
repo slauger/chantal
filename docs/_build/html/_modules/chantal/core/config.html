@@ -274,6 +274,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../configuration/repositories.html#basic-repository-configuration">Basic Repository Configuration</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../configuration/repositories.html#repository-types">Repository Types</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="../../../configuration/repositories.html#rpm-repositories">RPM Repositories</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../configuration/repositories.html#helm-repositories">Helm Repositories</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../configuration/repositories.html#apt-repositories-future">APT Repositories (Future)</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../configuration/repositories.html#pypi-repositories-future">PyPI Repositories (Future)</a></li>
 </ul>
@@ -300,6 +301,9 @@
 <li class="toctree-l3"><a class="reference internal" href="../../../configuration/repositories.html#rocky-linux-9">Rocky Linux 9</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../configuration/repositories.html#epel-9-with-selective-mirroring">EPEL 9 with Selective Mirroring</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../configuration/repositories.html#centos-stream-9">CentOS Stream 9</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../configuration/repositories.html#helm-charts-ingress-nginx">Helm Charts - Ingress NGINX</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../configuration/repositories.html#helm-charts-bitnami-selective">Helm Charts - Bitnami (Selective)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../configuration/repositories.html#helm-charts-private-repository">Helm Charts - Private Repository</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="../../../configuration/repositories.html#validation">Validation</a></li>
@@ -624,6 +628,55 @@
 <li class="toctree-l2"><a class="reference internal" href="../../../plugins/rpm-plugin.html#future-enhancements">Future Enhancements</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="../../../plugins/helm-plugin.html">Helm Plugin</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../../plugins/helm-plugin.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../plugins/helm-plugin.html#features">Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../plugins/helm-plugin.html#configuration">Configuration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../plugins/helm-plugin.html#basic-helm-repository">Basic Helm Repository</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../plugins/helm-plugin.html#with-filters">With Filters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../plugins/helm-plugin.html#with-authentication">With Authentication</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../plugins/helm-plugin.html#how-it-works">How It Works</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../plugins/helm-plugin.html#sync-process">Sync Process</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../plugins/helm-plugin.html#publish-process">Publish Process</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../plugins/helm-plugin.html#chart-filtering">Chart Filtering</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../plugins/helm-plugin.html#pattern-filters">Pattern Filters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../plugins/helm-plugin.html#version-filtering">Version Filtering</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../plugins/helm-plugin.html#common-use-cases">Common Use Cases</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../plugins/helm-plugin.html#mirror-official-kubernetes-charts">Mirror Official Kubernetes Charts</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../plugins/helm-plugin.html#mirror-bitnami-charts-selective">Mirror Bitnami Charts (Selective)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../plugins/helm-plugin.html#mirror-harbor-registry">Mirror Harbor Registry</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../plugins/helm-plugin.html#private-chart-repository">Private Chart Repository</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../plugins/helm-plugin.html#publishing-helm-repositories">Publishing Helm Repositories</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../plugins/helm-plugin.html#publish-latest-repository">Publish Latest Repository</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../plugins/helm-plugin.html#publish-snapshot">Publish Snapshot</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../plugins/helm-plugin.html#configure-helm-client">Configure Helm Client</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../plugins/helm-plugin.html#configure-helm-with-snapshot">Configure Helm with Snapshot</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../plugins/helm-plugin.html#chart-metadata">Chart Metadata</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../plugins/helm-plugin.html#troubleshooting">Troubleshooting</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../plugins/helm-plugin.html#charts-not-syncing">Charts Not Syncing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../plugins/helm-plugin.html#publishing-issues">Publishing Issues</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../plugins/helm-plugin.html#client-certificate-issues">Client Certificate Issues</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../plugins/helm-plugin.html#best-practices">Best Practices</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../plugins/helm-plugin.html#integration-with-ci-cd">Integration with CI/CD</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../plugins/helm-plugin.html#gitops-workflow">GitOps Workflow</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../plugins/helm-plugin.html#jenkins-pipeline">Jenkins Pipeline</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../../../plugins/helm-plugin.html#further-reading">Further Reading</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="../../../plugins/custom-plugins.html">Creating Custom Plugins</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../../../plugins/custom-plugins.html#overview">Overview</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../plugins/custom-plugins.html#prerequisites">Prerequisites</a></li>
@@ -693,28 +746,25 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Base.registry"><code class="docutils literal notranslate"><span class="pre">Base.registry</span></code></a></li>
 </ul>
 </li>
-<li class="toctree-l3"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Package"><code class="docutils literal notranslate"><span class="pre">Package</span></code></a><ul>
-<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Package.arch"><code class="docutils literal notranslate"><span class="pre">Package.arch</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Package.created_at"><code class="docutils literal notranslate"><span class="pre">Package.created_at</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Package.description"><code class="docutils literal notranslate"><span class="pre">Package.description</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Package.epoch"><code class="docutils literal notranslate"><span class="pre">Package.epoch</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Package.filename"><code class="docutils literal notranslate"><span class="pre">Package.filename</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Package.id"><code class="docutils literal notranslate"><span class="pre">Package.id</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Package.name"><code class="docutils literal notranslate"><span class="pre">Package.name</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Package.nevra"><code class="docutils literal notranslate"><span class="pre">Package.nevra</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Package.package_type"><code class="docutils literal notranslate"><span class="pre">Package.package_type</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Package.pool_path"><code class="docutils literal notranslate"><span class="pre">Package.pool_path</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Package.reference_count"><code class="docutils literal notranslate"><span class="pre">Package.reference_count</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Package.release"><code class="docutils literal notranslate"><span class="pre">Package.release</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Package.repositories"><code class="docutils literal notranslate"><span class="pre">Package.repositories</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Package.sha256"><code class="docutils literal notranslate"><span class="pre">Package.sha256</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Package.size_bytes"><code class="docutils literal notranslate"><span class="pre">Package.size_bytes</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Package.snapshots"><code class="docutils literal notranslate"><span class="pre">Package.snapshots</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Package.summary"><code class="docutils literal notranslate"><span class="pre">Package.summary</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Package.version"><code class="docutils literal notranslate"><span class="pre">Package.version</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.ContentItem"><code class="docutils literal notranslate"><span class="pre">ContentItem</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.ContentItem.content_metadata"><code class="docutils literal notranslate"><span class="pre">ContentItem.content_metadata</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.ContentItem.content_type"><code class="docutils literal notranslate"><span class="pre">ContentItem.content_type</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.ContentItem.created_at"><code class="docutils literal notranslate"><span class="pre">ContentItem.created_at</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.ContentItem.filename"><code class="docutils literal notranslate"><span class="pre">ContentItem.filename</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.ContentItem.id"><code class="docutils literal notranslate"><span class="pre">ContentItem.id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.ContentItem.name"><code class="docutils literal notranslate"><span class="pre">ContentItem.name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.ContentItem.nevra"><code class="docutils literal notranslate"><span class="pre">ContentItem.nevra</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.ContentItem.pool_path"><code class="docutils literal notranslate"><span class="pre">ContentItem.pool_path</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.ContentItem.reference_count"><code class="docutils literal notranslate"><span class="pre">ContentItem.reference_count</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.ContentItem.repositories"><code class="docutils literal notranslate"><span class="pre">ContentItem.repositories</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.ContentItem.sha256"><code class="docutils literal notranslate"><span class="pre">ContentItem.sha256</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.ContentItem.size_bytes"><code class="docutils literal notranslate"><span class="pre">ContentItem.size_bytes</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.ContentItem.snapshots"><code class="docutils literal notranslate"><span class="pre">ContentItem.snapshots</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.ContentItem.version"><code class="docutils literal notranslate"><span class="pre">ContentItem.version</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Repository"><code class="docutils literal notranslate"><span class="pre">Repository</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Repository.content_items"><code class="docutils literal notranslate"><span class="pre">Repository.content_items</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Repository.created_at"><code class="docutils literal notranslate"><span class="pre">Repository.created_at</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Repository.enabled"><code class="docutils literal notranslate"><span class="pre">Repository.enabled</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Repository.feed"><code class="docutils literal notranslate"><span class="pre">Repository.feed</span></code></a></li>
@@ -723,7 +773,6 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Repository.last_sync_status"><code class="docutils literal notranslate"><span class="pre">Repository.last_sync_status</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Repository.latest_path"><code class="docutils literal notranslate"><span class="pre">Repository.latest_path</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Repository.name"><code class="docutils literal notranslate"><span class="pre">Repository.name</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Repository.packages"><code class="docutils literal notranslate"><span class="pre">Repository.packages</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Repository.repo_id"><code class="docutils literal notranslate"><span class="pre">Repository.repo_id</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Repository.snapshots"><code class="docutils literal notranslate"><span class="pre">Repository.snapshots</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Repository.snapshots_path"><code class="docutils literal notranslate"><span class="pre">Repository.snapshots_path</span></code></a></li>
@@ -733,13 +782,13 @@
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Snapshot"><code class="docutils literal notranslate"><span class="pre">Snapshot</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Snapshot.content_items"><code class="docutils literal notranslate"><span class="pre">Snapshot.content_items</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Snapshot.created_at"><code class="docutils literal notranslate"><span class="pre">Snapshot.created_at</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Snapshot.description"><code class="docutils literal notranslate"><span class="pre">Snapshot.description</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Snapshot.id"><code class="docutils literal notranslate"><span class="pre">Snapshot.id</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Snapshot.is_published"><code class="docutils literal notranslate"><span class="pre">Snapshot.is_published</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Snapshot.name"><code class="docutils literal notranslate"><span class="pre">Snapshot.name</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Snapshot.package_count"><code class="docutils literal notranslate"><span class="pre">Snapshot.package_count</span></code></a></li>
-<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Snapshot.packages"><code class="docutils literal notranslate"><span class="pre">Snapshot.packages</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Snapshot.published_path"><code class="docutils literal notranslate"><span class="pre">Snapshot.published_path</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Snapshot.repository"><code class="docutils literal notranslate"><span class="pre">Snapshot.repository</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Snapshot.repository_id"><code class="docutils literal notranslate"><span class="pre">Snapshot.repository_id</span></code></a></li>
@@ -1191,7 +1240,7 @@
     <span class="nd">@classmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">validate_type</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">v</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Validate repository type.&quot;&quot;&quot;</span>
-        <span class="n">valid_types</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;rpm&quot;</span><span class="p">,</span> <span class="s2">&quot;apt&quot;</span><span class="p">]</span>
+        <span class="n">valid_types</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;rpm&quot;</span><span class="p">,</span> <span class="s2">&quot;apt&quot;</span><span class="p">,</span> <span class="s2">&quot;helm&quot;</span><span class="p">]</span>
         <span class="k">if</span> <span class="n">v</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">valid_types</span><span class="p">:</span>
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid repository type: </span><span class="si">{</span><span class="n">v</span><span class="si">}</span><span class="s2">. Must be one of </span><span class="si">{</span><span class="n">valid_types</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">v</span></div>

@@ -18,7 +18,7 @@ repositories:
 **Required Fields:**
 - `id`: Unique identifier (alphanumeric, hyphens, underscores)
 - `name`: Human-readable name
-- `type`: Repository type (`rpm`, future: `apt`, `pypi`)
+- `type`: Repository type (`rpm`, `helm`, future: `apt`, `pypi`)
 - `feed`: Upstream repository URL
 - `enabled`: Whether to include in `--all` operations
 
@@ -41,6 +41,24 @@ repositories:
 - Must point to a directory containing `repodata/repomd.xml`
 - Supports HTTP and HTTPS
 - Supports file:// URLs for local mirrors
+
+### Helm Repositories
+
+For Kubernetes Helm chart repositories:
+
+```yaml
+repositories:
+  - id: ingress-nginx
+    name: Ingress NGINX Helm Charts
+    type: helm
+    feed: https://kubernetes.github.io/ingress-nginx
+    enabled: true
+```
+
+**Feed URL Requirements:**
+- Must point to a directory containing `index.yaml`
+- Supports HTTP and HTTPS
+- May require authentication for private chart repositories
 
 ### APT Repositories (Future)
 
@@ -312,6 +330,49 @@ repositories:
     # Note: mirrorlist URLs are not yet supported, use direct mirror URL
 ```
 
+### Helm Charts - Ingress NGINX
+
+```yaml
+repositories:
+  - id: ingress-nginx
+    name: Ingress NGINX Helm Charts
+    type: helm
+    feed: https://kubernetes.github.io/ingress-nginx
+    enabled: true
+```
+
+### Helm Charts - Bitnami (Selective)
+
+```yaml
+repositories:
+  - id: bitnami-databases
+    name: Bitnami Charts - Databases
+    type: helm
+    feed: https://charts.bitnami.com/bitnami
+    enabled: true
+    filters:
+      patterns:
+        include: ["^postgresql$", "^mysql$", "^mongodb$", "^redis$"]
+      post_processing:
+        only_latest_version: true
+```
+
+### Helm Charts - Private Repository
+
+```yaml
+repositories:
+  - id: company-charts
+    name: Company Internal Charts
+    type: helm
+    feed: https://charts.internal.company.com/
+    enabled: true
+    ssl:
+      ca_bundle: /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
+      client_cert: /etc/pki/helm/company-client.pem
+      client_key: /etc/pki/helm/company-client-key.pem
+      verify: true
+```
+
 ## Validation
 
 Chantal validates repository configuration at startup:
@@ -321,7 +382,7 @@ $ chantal repo list
 Error: Configuration validation failed:
   - repositories[0].id: must match pattern ^[a-zA-Z0-9_-]+$
   - repositories[1].feed: invalid URL format
-  - repositories[2].type: must be one of: rpm
+  - repositories[2].type: must be one of: rpm, helm
 ```
 
 ## Best Practices

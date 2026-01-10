@@ -14,10 +14,10 @@ Plugins extend Chantal to support different repository types like RPM, DEB/APT, 
 | Plugin | Type | Status | Description |
 |--------|------|--------|-------------|
 | [RPM](rpm-plugin.md) | Sync + Publisher | ✅ Available | DNF/YUM repositories (RHEL, CentOS, Fedora) |
+| [Helm](helm-plugin.md) | Sync + Publisher | ✅ Available | Kubernetes Helm chart repositories |
 | DEB/APT | Sync + Publisher | 🚧 Planned | Debian/Ubuntu repositories |
 | PyPI | Sync + Publisher | 🚧 Planned | Python Package Index |
 | Alpine APK | Sync + Publisher | 🚧 Planned | Alpine Linux repositories |
-| Helm | Sync + Publisher | 🚧 Planned | Kubernetes Helm charts |
 
 ## Plugin Architecture
 

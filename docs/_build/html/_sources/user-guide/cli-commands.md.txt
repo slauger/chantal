@@ -59,11 +59,12 @@ Creates:
 List all configured repositories.
 
 ```bash
-chantal repo list [--format table|json]
+chantal repo list [--format table|json] [--type rpm|apt|helm]
 ```
 
 **Options:**
 - `--format`: Output format (default: table)
+- `--type`: Filter by repository type (rpm, apt, or helm)
 
 **Example:**
 ```bash
@@ -74,6 +75,17 @@ ID                          Type Enabled Packages Last Sync
 ----------------------------------------------------------------------
 rhel9-baseos-vim-latest     rpm  Yes     4        2026-01-10 14:34
 epel9-vim-latest            rpm  Yes     3        2026-01-10 14:27
+ingress-nginx               helm Yes     1        2026-01-10 23:20
+```
+
+**Filter by type:**
+```bash
+$ chantal repo list --type helm
+Configured Repositories:
+
+ID                          Type Enabled Packages Last Sync
+----------------------------------------------------------------------
+ingress-nginx               helm Yes     1        2026-01-10 23:20
 ```
 
 ### `chantal repo show`

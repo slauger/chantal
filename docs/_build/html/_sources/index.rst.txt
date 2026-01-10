@@ -33,13 +33,13 @@ Chantal is a Python-based CLI tool for offline repository mirroring, inspired by
 +=====================+==================================+===================+
 | RPM/DNF/YUM         | RHEL, CentOS, Fedora, Rocky, ... | ✅ **Available**  |
 +---------------------+----------------------------------+-------------------+
+| Helm Charts         | Kubernetes Helm repositories     | ✅ **Available**  |
++---------------------+----------------------------------+-------------------+
 | DEB/APT             | Debian, Ubuntu                   | 🚧 Planned        |
 +---------------------+----------------------------------+-------------------+
 | PyPI                | Python Package Index             | 🚧 Planned        |
 +---------------------+----------------------------------+-------------------+
 | Alpine APK          | Alpine Linux                     | 🚧 Planned        |
-+---------------------+----------------------------------+-------------------+
-| Helm Charts         | Kubernetes Helm repositories     | 🚧 Planned        |
 +---------------------+----------------------------------+-------------------+
 | npm/yarn            | Node.js package registries       | 🔬 Research       |
 +---------------------+----------------------------------+-------------------+
@@ -62,7 +62,8 @@ Features
 - 🔄 **Unified Mirroring** - Support for multiple package ecosystems in one tool
 
   - ✅ **RPM/DNF/YUM** (RHEL, CentOS, Fedora, Rocky, Alma) - *Available now*
-  - 🚧 **DEB/APT, PyPI, Alpine APK, Helm Charts** - *Planned*
+  - ✅ **Helm Charts** (Kubernetes chart repositories) - *Available now*
+  - 🚧 **DEB/APT, PyPI, Alpine APK** - *Planned*
   - 🔬 **npm, RubyGems, NuGet, Go Modules, Terraform** - *Research phase*
 
 - 📦 **Deduplication** - Content-addressed storage (SHA256), packages stored once
@@ -109,6 +110,7 @@ Features
 
    plugins/overview
    plugins/rpm-plugin
+   plugins/helm-plugin
    plugins/custom-plugins
 
 .. toctree::

@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Quick Start &mdash; Chantal - Unified Repository Mirroring Tool</title>
+  <title>Helm Plugin &mdash; Chantal - Unified Repository Mirroring Tool</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
 
@@ -19,8 +19,8 @@
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="CLI Commands" href="cli-commands.html" />
-    <link rel="prev" title="Installation" href="installation.html" /> 
+    <link rel="next" title="Creating Custom Plugins" href="custom-plugins.html" />
+    <link rel="prev" title="RPM Plugin" href="rpm-plugin.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -43,194 +43,194 @@
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
-<ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="installation.html#requirements">Requirements</a></li>
-<li class="toctree-l2"><a class="reference internal" href="installation.html#installation-steps">Installation Steps</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="installation.html#clone-the-repository">1. Clone the Repository</a></li>
-<li class="toctree-l3"><a class="reference internal" href="installation.html#install-in-development-mode">2. Install in Development Mode</a></li>
-<li class="toctree-l3"><a class="reference internal" href="installation.html#verify-installation">3. Verify Installation</a></li>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../user-guide/installation.html">Installation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/installation.html#requirements">Requirements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/installation.html#installation-steps">Installation Steps</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/installation.html#clone-the-repository">1. Clone the Repository</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/installation.html#install-in-development-mode">2. Install in Development Mode</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/installation.html#verify-installation">3. Verify Installation</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="installation.html#dependencies">Dependencies</a></li>
-<li class="toctree-l2"><a class="reference internal" href="installation.html#database-setup">Database Setup</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="installation.html#sqlite-development">SQLite (Development)</a></li>
-<li class="toctree-l3"><a class="reference internal" href="installation.html#postgresql-production">PostgreSQL (Production)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/installation.html#dependencies">Dependencies</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/installation.html#database-setup">Database Setup</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/installation.html#sqlite-development">SQLite (Development)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/installation.html#postgresql-production">PostgreSQL (Production)</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="installation.html#next-steps">Next Steps</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/installation.html#next-steps">Next Steps</a></li>
 </ul>
 </li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Quick Start</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#initialize-chantal">1. Initialize Chantal</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#configure-repositories">2. Configure Repositories</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#list-configured-repositories">3. List Configured Repositories</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#sync-repository">4. Sync Repository</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#check-for-updates">5. Check for Updates</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#create-snapshot">6. Create Snapshot</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#publish-repository">7. Publish Repository</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#next-steps">Next Steps</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../user-guide/quickstart.html">Quick Start</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/quickstart.html#initialize-chantal">1. Initialize Chantal</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/quickstart.html#configure-repositories">2. Configure Repositories</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/quickstart.html#list-configured-repositories">3. List Configured Repositories</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/quickstart.html#sync-repository">4. Sync Repository</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/quickstart.html#check-for-updates">5. Check for Updates</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/quickstart.html#create-snapshot">6. Create Snapshot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/quickstart.html#publish-repository">7. Publish Repository</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/quickstart.html#next-steps">Next Steps</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="cli-commands.html">CLI Commands</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="cli-commands.html#global-options">Global Options</a></li>
-<li class="toctree-l2"><a class="reference internal" href="cli-commands.html#configuration-file-priority">Configuration File Priority</a></li>
-<li class="toctree-l2"><a class="reference internal" href="cli-commands.html#initialize">Initialize</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="cli-commands.html#chantal-init"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">init</span></code></a></li>
+<li class="toctree-l1"><a class="reference internal" href="../user-guide/cli-commands.html">CLI Commands</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/cli-commands.html#global-options">Global Options</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/cli-commands.html#configuration-file-priority">Configuration File Priority</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/cli-commands.html#initialize">Initialize</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/cli-commands.html#chantal-init"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">init</span></code></a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="cli-commands.html#repository-management">Repository Management</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="cli-commands.html#chantal-repo-list"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">repo</span> <span class="pre">list</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="cli-commands.html#chantal-repo-show"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">repo</span> <span class="pre">show</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="cli-commands.html#chantal-repo-sync"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">repo</span> <span class="pre">sync</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="cli-commands.html#chantal-repo-check-updates"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">repo</span> <span class="pre">check-updates</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="cli-commands.html#chantal-repo-history"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">repo</span> <span class="pre">history</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/cli-commands.html#repository-management">Repository Management</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/cli-commands.html#chantal-repo-list"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">repo</span> <span class="pre">list</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/cli-commands.html#chantal-repo-show"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">repo</span> <span class="pre">show</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/cli-commands.html#chantal-repo-sync"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">repo</span> <span class="pre">sync</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/cli-commands.html#chantal-repo-check-updates"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">repo</span> <span class="pre">check-updates</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/cli-commands.html#chantal-repo-history"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">repo</span> <span class="pre">history</span></code></a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="cli-commands.html#snapshot-management">Snapshot Management</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="cli-commands.html#chantal-snapshot-list"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">snapshot</span> <span class="pre">list</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="cli-commands.html#chantal-snapshot-create"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">snapshot</span> <span class="pre">create</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="cli-commands.html#chantal-snapshot-content"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">snapshot</span> <span class="pre">content</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="cli-commands.html#chantal-snapshot-diff"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">snapshot</span> <span class="pre">diff</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="cli-commands.html#chantal-snapshot-delete"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">snapshot</span> <span class="pre">delete</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/cli-commands.html#snapshot-management">Snapshot Management</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/cli-commands.html#chantal-snapshot-list"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">snapshot</span> <span class="pre">list</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/cli-commands.html#chantal-snapshot-create"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">snapshot</span> <span class="pre">create</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/cli-commands.html#chantal-snapshot-content"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">snapshot</span> <span class="pre">content</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/cli-commands.html#chantal-snapshot-diff"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">snapshot</span> <span class="pre">diff</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/cli-commands.html#chantal-snapshot-delete"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">snapshot</span> <span class="pre">delete</span></code></a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="cli-commands.html#package-management">Package Management</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="cli-commands.html#chantal-package-list"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">package</span> <span class="pre">list</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="cli-commands.html#chantal-package-search"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">package</span> <span class="pre">search</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="cli-commands.html#chantal-package-show"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">package</span> <span class="pre">show</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/cli-commands.html#package-management">Package Management</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/cli-commands.html#chantal-package-list"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">package</span> <span class="pre">list</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/cli-commands.html#chantal-package-search"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">package</span> <span class="pre">search</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/cli-commands.html#chantal-package-show"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">package</span> <span class="pre">show</span></code></a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="cli-commands.html#publishing">Publishing</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="cli-commands.html#chantal-publish-repo"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">publish</span> <span class="pre">repo</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="cli-commands.html#chantal-publish-snapshot"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">publish</span> <span class="pre">snapshot</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="cli-commands.html#chantal-publish-list"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">publish</span> <span class="pre">list</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="cli-commands.html#chantal-publish-unpublish"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">publish</span> <span class="pre">unpublish</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/cli-commands.html#publishing">Publishing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/cli-commands.html#chantal-publish-repo"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">publish</span> <span class="pre">repo</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/cli-commands.html#chantal-publish-snapshot"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">publish</span> <span class="pre">snapshot</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/cli-commands.html#chantal-publish-list"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">publish</span> <span class="pre">list</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/cli-commands.html#chantal-publish-unpublish"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">publish</span> <span class="pre">unpublish</span></code></a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="cli-commands.html#storage-pool-management">Storage Pool Management</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="cli-commands.html#chantal-pool-stats"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">pool</span> <span class="pre">stats</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="cli-commands.html#chantal-pool-cleanup"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">pool</span> <span class="pre">cleanup</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="cli-commands.html#chantal-pool-verify"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">pool</span> <span class="pre">verify</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/cli-commands.html#storage-pool-management">Storage Pool Management</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/cli-commands.html#chantal-pool-stats"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">pool</span> <span class="pre">stats</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/cli-commands.html#chantal-pool-cleanup"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">pool</span> <span class="pre">cleanup</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/cli-commands.html#chantal-pool-verify"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">pool</span> <span class="pre">verify</span></code></a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="cli-commands.html#statistics-database">Statistics &amp; Database</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="cli-commands.html#chantal-stats"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">stats</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="cli-commands.html#chantal-db-stats"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">db</span> <span class="pre">stats</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="cli-commands.html#chantal-db-verify"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">db</span> <span class="pre">verify</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="cli-commands.html#chantal-db-cleanup"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">db</span> <span class="pre">cleanup</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/cli-commands.html#statistics-database">Statistics &amp; Database</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/cli-commands.html#chantal-stats"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">stats</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/cli-commands.html#chantal-db-stats"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">db</span> <span class="pre">stats</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/cli-commands.html#chantal-db-verify"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">db</span> <span class="pre">verify</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/cli-commands.html#chantal-db-cleanup"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">db</span> <span class="pre">cleanup</span></code></a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="cli-commands.html#output-formats">Output Formats</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/cli-commands.html#output-formats">Output Formats</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="views.html">Views (Virtual Repositories)</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="views.html#what-are-views">What are Views?</a></li>
-<li class="toctree-l2"><a class="reference internal" href="views.html#use-cases">Use Cases</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="views.html#combining-rhel-channels">1. Combining RHEL Channels</a></li>
-<li class="toctree-l3"><a class="reference internal" href="views.html#mixing-rhel-epel">2. Mixing RHEL + EPEL</a></li>
-<li class="toctree-l3"><a class="reference internal" href="views.html#custom-application-stacks">3. Custom Application Stacks</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../user-guide/views.html">Views (Virtual Repositories)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/views.html#what-are-views">What are Views?</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/views.html#use-cases">Use Cases</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#combining-rhel-channels">1. Combining RHEL Channels</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#mixing-rhel-epel">2. Mixing RHEL + EPEL</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#custom-application-stacks">3. Custom Application Stacks</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="views.html#configuration">Configuration</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="views.html#location">Location</a></li>
-<li class="toctree-l3"><a class="reference internal" href="views.html#format">Format</a></li>
-<li class="toctree-l3"><a class="reference internal" href="views.html#requirements">Requirements</a></li>
-<li class="toctree-l3"><a class="reference internal" href="views.html#example-configuration">Example Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/views.html#configuration">Configuration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#location">Location</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#format">Format</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#requirements">Requirements</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#example-configuration">Example Configuration</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="views.html#cli-commands">CLI Commands</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="views.html#list-views">List Views</a></li>
-<li class="toctree-l3"><a class="reference internal" href="views.html#show-view-details">Show View Details</a></li>
-<li class="toctree-l3"><a class="reference internal" href="views.html#publish-view-latest-rolling">Publish View (Latest/Rolling)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/views.html#cli-commands">CLI Commands</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#list-views">List Views</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#show-view-details">Show View Details</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#publish-view-latest-rolling">Publish View (Latest/Rolling)</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="views.html#view-snapshots">View Snapshots</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="views.html#create-view-snapshot-atomic-freeze">Create View Snapshot (Atomic Freeze)</a></li>
-<li class="toctree-l3"><a class="reference internal" href="views.html#publish-view-snapshot">Publish View Snapshot</a></li>
-<li class="toctree-l3"><a class="reference internal" href="views.html#show-snapshot-content-compliance-audit">Show Snapshot Content (Compliance/Audit)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/views.html#view-snapshots">View Snapshots</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#create-view-snapshot-atomic-freeze">Create View Snapshot (Atomic Freeze)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#publish-view-snapshot">Publish View Snapshot</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#show-snapshot-content-compliance-audit">Show Snapshot Content (Compliance/Audit)</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="views.html#workflows">Workflows</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="views.html#workflow-1-rolling-release-development">Workflow 1: Rolling Release (Development)</a></li>
-<li class="toctree-l3"><a class="reference internal" href="views.html#workflow-2-frozen-baselines-production">Workflow 2: Frozen Baselines (Production)</a></li>
-<li class="toctree-l3"><a class="reference internal" href="views.html#workflow-3-compliance-audit">Workflow 3: Compliance/Audit</a></li>
-<li class="toctree-l3"><a class="reference internal" href="views.html#workflow-4-automated-monthly-compliance-reports">Workflow 4: Automated Monthly Compliance Reports</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/views.html#workflows">Workflows</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#workflow-1-rolling-release-development">Workflow 1: Rolling Release (Development)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#workflow-2-frozen-baselines-production">Workflow 2: Frozen Baselines (Production)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#workflow-3-compliance-audit">Workflow 3: Compliance/Audit</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#workflow-4-automated-monthly-compliance-reports">Workflow 4: Automated Monthly Compliance Reports</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="views.html#important-design-decisions">Important Design Decisions</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="views.html#no-deduplication">1. NO Deduplication</a></li>
-<li class="toctree-l3"><a class="reference internal" href="views.html#repository-order-matters">2. Repository Order Matters</a></li>
-<li class="toctree-l3"><a class="reference internal" href="views.html#view-snapshots-are-atomic">3. View Snapshots are Atomic</a></li>
-<li class="toctree-l3"><a class="reference internal" href="views.html#hardlink-based-publishing">4. Hardlink-based Publishing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/views.html#important-design-decisions">Important Design Decisions</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#no-deduplication">1. NO Deduplication</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#repository-order-matters">2. Repository Order Matters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#view-snapshots-are-atomic">3. View Snapshots are Atomic</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#hardlink-based-publishing">4. Hardlink-based Publishing</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="views.html#client-configuration-examples">Client Configuration Examples</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="views.html#example-1-development-rolling-release">Example 1: Development (Rolling Release)</a></li>
-<li class="toctree-l3"><a class="reference internal" href="views.html#example-2-production-frozen-baseline">Example 2: Production (Frozen Baseline)</a></li>
-<li class="toctree-l3"><a class="reference internal" href="views.html#example-3-testing-new-baseline">Example 3: Testing New Baseline</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/views.html#client-configuration-examples">Client Configuration Examples</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#example-1-development-rolling-release">Example 1: Development (Rolling Release)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#example-2-production-frozen-baseline">Example 2: Production (Frozen Baseline)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#example-3-testing-new-baseline">Example 3: Testing New Baseline</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="views.html#troubleshooting">Troubleshooting</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="views.html#view-shows-0-packages">View shows 0 packages</a></li>
-<li class="toctree-l3"><a class="reference internal" href="views.html#view-snapshot-creation-fails">View snapshot creation fails</a></li>
-<li class="toctree-l3"><a class="reference internal" href="views.html#published-view-doesnt-update">Published view doesn’t update</a></li>
-<li class="toctree-l3"><a class="reference internal" href="views.html#repository-not-found-in-view">Repository not found in view</a></li>
-<li class="toctree-l3"><a class="reference internal" href="views.html#view-type-mismatch">View type mismatch</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/views.html#troubleshooting">Troubleshooting</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#view-shows-0-packages">View shows 0 packages</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#view-snapshot-creation-fails">View snapshot creation fails</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#published-view-doesnt-update">Published view doesn’t update</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#repository-not-found-in-view">Repository not found in view</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#view-type-mismatch">View type mismatch</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="views.html#best-practices">Best Practices</a></li>
-<li class="toctree-l2"><a class="reference internal" href="views.html#migration-from-pulp-katello">Migration from Pulp/Katello</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="views.html#pulp-composite-content-views-chantal-views">Pulp “Composite Content Views” → Chantal “Views”</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/views.html#best-practices">Best Practices</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/views.html#migration-from-pulp-katello">Migration from Pulp/Katello</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#pulp-composite-content-views-chantal-views">Pulp “Composite Content Views” → Chantal “Views”</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="views.html#technical-details">Technical Details</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="views.html#database-models">Database Models</a></li>
-<li class="toctree-l3"><a class="reference internal" href="views.html#storage-structure">Storage Structure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/views.html#technical-details">Technical Details</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#database-models">Database Models</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#storage-structure">Storage Structure</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="views.html#future-enhancements">Future Enhancements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/views.html#future-enhancements">Future Enhancements</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="workflows.html">Workflows</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="workflows.html#patch-management-workflow">Patch Management Workflow</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="workflows.html#step-1-initial-setup">Step 1: Initial Setup</a></li>
-<li class="toctree-l3"><a class="reference internal" href="workflows.html#step-2-create-monthly-baseline">Step 2: Create Monthly Baseline</a></li>
-<li class="toctree-l3"><a class="reference internal" href="workflows.html#step-3-monthly-update-cycle">Step 3: Monthly Update Cycle</a></li>
-<li class="toctree-l3"><a class="reference internal" href="workflows.html#step-4-promote-to-production">Step 4: Promote to Production</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../user-guide/workflows.html">Workflows</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/workflows.html#patch-management-workflow">Patch Management Workflow</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/workflows.html#step-1-initial-setup">Step 1: Initial Setup</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/workflows.html#step-2-create-monthly-baseline">Step 2: Create Monthly Baseline</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/workflows.html#step-3-monthly-update-cycle">Step 3: Monthly Update Cycle</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/workflows.html#step-4-promote-to-production">Step 4: Promote to Production</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="workflows.html#development-environment-workflow">Development Environment Workflow</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="workflows.html#setup">Setup</a></li>
-<li class="toctree-l3"><a class="reference internal" href="workflows.html#working-with-snapshots">Working with Snapshots</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/workflows.html#development-environment-workflow">Development Environment Workflow</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/workflows.html#setup">Setup</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/workflows.html#working-with-snapshots">Working with Snapshots</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="workflows.html#air-gapped-environment-workflow">Air-Gapped Environment Workflow</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="workflows.html#phase-1-online-system-internet-connected">Phase 1: Online System (Internet-Connected)</a></li>
-<li class="toctree-l3"><a class="reference internal" href="workflows.html#phase-2-offline-system-air-gapped">Phase 2: Offline System (Air-Gapped)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/workflows.html#air-gapped-environment-workflow">Air-Gapped Environment Workflow</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/workflows.html#phase-1-online-system-internet-connected">Phase 1: Online System (Internet-Connected)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/workflows.html#phase-2-offline-system-air-gapped">Phase 2: Offline System (Air-Gapped)</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="workflows.html#rhel-subscription-workflow">RHEL Subscription Workflow</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="workflows.html#setup-rhel-subscription">Setup RHEL Subscription</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/workflows.html#rhel-subscription-workflow">RHEL Subscription Workflow</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/workflows.html#setup-rhel-subscription">Setup RHEL Subscription</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="workflows.html#selective-mirroring-workflow">Selective Mirroring Workflow</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="workflows.html#example-only-mirror-web-server-packages">Example: Only Mirror Web Server Packages</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/workflows.html#selective-mirroring-workflow">Selective Mirroring Workflow</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/workflows.html#example-only-mirror-web-server-packages">Example: Only Mirror Web Server Packages</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="workflows.html#multi-architecture-workflow">Multi-Architecture Workflow</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="workflows.html#configuration">Configuration</a></li>
-<li class="toctree-l3"><a class="reference internal" href="workflows.html#sync-both-architectures">Sync Both Architectures</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/workflows.html#multi-architecture-workflow">Multi-Architecture Workflow</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/workflows.html#configuration">Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/workflows.html#sync-both-architectures">Sync Both Architectures</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="workflows.html#scheduled-sync-workflow">Scheduled Sync Workflow</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="workflows.html#cron-example">Cron Example</a></li>
-<li class="toctree-l3"><a class="reference internal" href="workflows.html#systemd-timer-example">Systemd Timer Example</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/workflows.html#scheduled-sync-workflow">Scheduled Sync Workflow</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/workflows.html#cron-example">Cron Example</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/workflows.html#systemd-timer-example">Systemd Timer Example</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="workflows.html#disaster-recovery-workflow">Disaster Recovery Workflow</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="workflows.html#backup">Backup</a></li>
-<li class="toctree-l3"><a class="reference internal" href="workflows.html#restore">Restore</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/workflows.html#disaster-recovery-workflow">Disaster Recovery Workflow</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/workflows.html#backup">Backup</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/workflows.html#restore">Restore</a></li>
 </ul>
 </li>
 </ul>
@@ -565,146 +565,146 @@
 </li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Plugins</span></p>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="../plugins/overview.html">Plugins Overview</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../plugins/overview.html#what-are-plugins">What are Plugins?</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../plugins/overview.html#available-plugins">Available Plugins</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../plugins/overview.html#plugin-architecture">Plugin Architecture</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../plugins/overview.html#how-plugins-work">How Plugins Work</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="../plugins/overview.html#sync-plugin-workflow">Sync Plugin Workflow</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../plugins/overview.html#publisher-plugin-workflow">Publisher Plugin Workflow</a></li>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="overview.html">Plugins Overview</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="overview.html#what-are-plugins">What are Plugins?</a></li>
+<li class="toctree-l2"><a class="reference internal" href="overview.html#available-plugins">Available Plugins</a></li>
+<li class="toctree-l2"><a class="reference internal" href="overview.html#plugin-architecture">Plugin Architecture</a></li>
+<li class="toctree-l2"><a class="reference internal" href="overview.html#how-plugins-work">How Plugins Work</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="overview.html#sync-plugin-workflow">Sync Plugin Workflow</a></li>
+<li class="toctree-l3"><a class="reference internal" href="overview.html#publisher-plugin-workflow">Publisher Plugin Workflow</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="../plugins/overview.html#plugin-types">Plugin Types</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="../plugins/overview.html#rpm-plugin">RPM Plugin</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../plugins/overview.html#deb-apt-plugin-planned">DEB/APT Plugin (Planned)</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../plugins/overview.html#pypi-plugin-planned">PyPI Plugin (Planned)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="overview.html#plugin-types">Plugin Types</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="overview.html#rpm-plugin">RPM Plugin</a></li>
+<li class="toctree-l3"><a class="reference internal" href="overview.html#deb-apt-plugin-planned">DEB/APT Plugin (Planned)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="overview.html#pypi-plugin-planned">PyPI Plugin (Planned)</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="../plugins/overview.html#creating-custom-plugins">Creating Custom Plugins</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../plugins/overview.html#plugin-configuration">Plugin Configuration</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../plugins/overview.html#plugin-registry">Plugin Registry</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../plugins/overview.html#plugin-best-practices">Plugin Best Practices</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../plugins/overview.html#further-reading">Further Reading</a></li>
+<li class="toctree-l2"><a class="reference internal" href="overview.html#creating-custom-plugins">Creating Custom Plugins</a></li>
+<li class="toctree-l2"><a class="reference internal" href="overview.html#plugin-configuration">Plugin Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="overview.html#plugin-registry">Plugin Registry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="overview.html#plugin-best-practices">Plugin Best Practices</a></li>
+<li class="toctree-l2"><a class="reference internal" href="overview.html#further-reading">Further Reading</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="../plugins/rpm-plugin.html">RPM Plugin</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../plugins/rpm-plugin.html#overview">Overview</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../plugins/rpm-plugin.html#features">Features</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../plugins/rpm-plugin.html#configuration">Configuration</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="../plugins/rpm-plugin.html#basic-rpm-repository">Basic RPM Repository</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../plugins/rpm-plugin.html#with-filters">With Filters</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../plugins/rpm-plugin.html#rhel-with-client-certificates">RHEL with Client Certificates</a></li>
+<li class="toctree-l1"><a class="reference internal" href="rpm-plugin.html">RPM Plugin</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="rpm-plugin.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="rpm-plugin.html#features">Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="rpm-plugin.html#configuration">Configuration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="rpm-plugin.html#basic-rpm-repository">Basic RPM Repository</a></li>
+<li class="toctree-l3"><a class="reference internal" href="rpm-plugin.html#with-filters">With Filters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="rpm-plugin.html#rhel-with-client-certificates">RHEL with Client Certificates</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="../plugins/rpm-plugin.html#how-it-works">How It Works</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="../plugins/rpm-plugin.html#sync-process">Sync Process</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../plugins/rpm-plugin.html#publish-process">Publish Process</a></li>
+<li class="toctree-l2"><a class="reference internal" href="rpm-plugin.html#how-it-works">How It Works</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="rpm-plugin.html#sync-process">Sync Process</a></li>
+<li class="toctree-l3"><a class="reference internal" href="rpm-plugin.html#publish-process">Publish Process</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="../plugins/rpm-plugin.html#metadata-files">Metadata Files</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="../plugins/rpm-plugin.html#repomd-xml">repomd.xml</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../plugins/rpm-plugin.html#primary-xml-gz">primary.xml.gz</a></li>
+<li class="toctree-l2"><a class="reference internal" href="rpm-plugin.html#metadata-files">Metadata Files</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="rpm-plugin.html#repomd-xml">repomd.xml</a></li>
+<li class="toctree-l3"><a class="reference internal" href="rpm-plugin.html#primary-xml-gz">primary.xml.gz</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="../plugins/rpm-plugin.html#rpm-specific-filters">RPM-Specific Filters</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="../plugins/rpm-plugin.html#exclude-source-rpms">Exclude Source RPMs</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../plugins/rpm-plugin.html#group-filtering">Group Filtering</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../plugins/rpm-plugin.html#license-filtering">License Filtering</a></li>
+<li class="toctree-l2"><a class="reference internal" href="rpm-plugin.html#rpm-specific-filters">RPM-Specific Filters</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="rpm-plugin.html#exclude-source-rpms">Exclude Source RPMs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="rpm-plugin.html#group-filtering">Group Filtering</a></li>
+<li class="toctree-l3"><a class="reference internal" href="rpm-plugin.html#license-filtering">License Filtering</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="../plugins/rpm-plugin.html#supported-distributions">Supported Distributions</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="../plugins/rpm-plugin.html#red-hat-enterprise-linux-rhel">Red Hat Enterprise Linux (RHEL)</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../plugins/rpm-plugin.html#centos-stream">CentOS Stream</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../plugins/rpm-plugin.html#fedora">Fedora</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../plugins/rpm-plugin.html#epel-extra-packages-for-enterprise-linux">EPEL (Extra Packages for Enterprise Linux)</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../plugins/rpm-plugin.html#rocky-linux">Rocky Linux</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../plugins/rpm-plugin.html#almalinux">AlmaLinux</a></li>
+<li class="toctree-l2"><a class="reference internal" href="rpm-plugin.html#supported-distributions">Supported Distributions</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="rpm-plugin.html#red-hat-enterprise-linux-rhel">Red Hat Enterprise Linux (RHEL)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="rpm-plugin.html#centos-stream">CentOS Stream</a></li>
+<li class="toctree-l3"><a class="reference internal" href="rpm-plugin.html#fedora">Fedora</a></li>
+<li class="toctree-l3"><a class="reference internal" href="rpm-plugin.html#epel-extra-packages-for-enterprise-linux">EPEL (Extra Packages for Enterprise Linux)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="rpm-plugin.html#rocky-linux">Rocky Linux</a></li>
+<li class="toctree-l3"><a class="reference internal" href="rpm-plugin.html#almalinux">AlmaLinux</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="../plugins/rpm-plugin.html#troubleshooting">Troubleshooting</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="../plugins/rpm-plugin.html#metadata-not-found">Metadata Not Found</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../plugins/rpm-plugin.html#checksum-mismatch">Checksum Mismatch</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../plugins/rpm-plugin.html#no-packages-after-filtering">No Packages After Filtering</a></li>
+<li class="toctree-l2"><a class="reference internal" href="rpm-plugin.html#troubleshooting">Troubleshooting</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="rpm-plugin.html#metadata-not-found">Metadata Not Found</a></li>
+<li class="toctree-l3"><a class="reference internal" href="rpm-plugin.html#checksum-mismatch">Checksum Mismatch</a></li>
+<li class="toctree-l3"><a class="reference internal" href="rpm-plugin.html#no-packages-after-filtering">No Packages After Filtering</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="../plugins/rpm-plugin.html#future-enhancements">Future Enhancements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="rpm-plugin.html#future-enhancements">Future Enhancements</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="../plugins/helm-plugin.html">Helm Plugin</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../plugins/helm-plugin.html#overview">Overview</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../plugins/helm-plugin.html#features">Features</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../plugins/helm-plugin.html#configuration">Configuration</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="../plugins/helm-plugin.html#basic-helm-repository">Basic Helm Repository</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../plugins/helm-plugin.html#with-filters">With Filters</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../plugins/helm-plugin.html#with-authentication">With Authentication</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Helm Plugin</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#features">Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#configuration">Configuration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#basic-helm-repository">Basic Helm Repository</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#with-filters">With Filters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#with-authentication">With Authentication</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="../plugins/helm-plugin.html#how-it-works">How It Works</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="../plugins/helm-plugin.html#sync-process">Sync Process</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../plugins/helm-plugin.html#publish-process">Publish Process</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#how-it-works">How It Works</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#sync-process">Sync Process</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#publish-process">Publish Process</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="../plugins/helm-plugin.html#chart-filtering">Chart Filtering</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="../plugins/helm-plugin.html#pattern-filters">Pattern Filters</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../plugins/helm-plugin.html#version-filtering">Version Filtering</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#chart-filtering">Chart Filtering</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#pattern-filters">Pattern Filters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#version-filtering">Version Filtering</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="../plugins/helm-plugin.html#common-use-cases">Common Use Cases</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="../plugins/helm-plugin.html#mirror-official-kubernetes-charts">Mirror Official Kubernetes Charts</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../plugins/helm-plugin.html#mirror-bitnami-charts-selective">Mirror Bitnami Charts (Selective)</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../plugins/helm-plugin.html#mirror-harbor-registry">Mirror Harbor Registry</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../plugins/helm-plugin.html#private-chart-repository">Private Chart Repository</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#common-use-cases">Common Use Cases</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#mirror-official-kubernetes-charts">Mirror Official Kubernetes Charts</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#mirror-bitnami-charts-selective">Mirror Bitnami Charts (Selective)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#mirror-harbor-registry">Mirror Harbor Registry</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#private-chart-repository">Private Chart Repository</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="../plugins/helm-plugin.html#publishing-helm-repositories">Publishing Helm Repositories</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="../plugins/helm-plugin.html#publish-latest-repository">Publish Latest Repository</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../plugins/helm-plugin.html#publish-snapshot">Publish Snapshot</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../plugins/helm-plugin.html#configure-helm-client">Configure Helm Client</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../plugins/helm-plugin.html#configure-helm-with-snapshot">Configure Helm with Snapshot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#publishing-helm-repositories">Publishing Helm Repositories</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#publish-latest-repository">Publish Latest Repository</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#publish-snapshot">Publish Snapshot</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#configure-helm-client">Configure Helm Client</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#configure-helm-with-snapshot">Configure Helm with Snapshot</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="../plugins/helm-plugin.html#chart-metadata">Chart Metadata</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../plugins/helm-plugin.html#troubleshooting">Troubleshooting</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="../plugins/helm-plugin.html#charts-not-syncing">Charts Not Syncing</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../plugins/helm-plugin.html#publishing-issues">Publishing Issues</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../plugins/helm-plugin.html#client-certificate-issues">Client Certificate Issues</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#chart-metadata">Chart Metadata</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#troubleshooting">Troubleshooting</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#charts-not-syncing">Charts Not Syncing</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#publishing-issues">Publishing Issues</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#client-certificate-issues">Client Certificate Issues</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="../plugins/helm-plugin.html#best-practices">Best Practices</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../plugins/helm-plugin.html#integration-with-ci-cd">Integration with CI/CD</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="../plugins/helm-plugin.html#gitops-workflow">GitOps Workflow</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../plugins/helm-plugin.html#jenkins-pipeline">Jenkins Pipeline</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#best-practices">Best Practices</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#integration-with-ci-cd">Integration with CI/CD</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#gitops-workflow">GitOps Workflow</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#jenkins-pipeline">Jenkins Pipeline</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="../plugins/helm-plugin.html#further-reading">Further Reading</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#further-reading">Further Reading</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="../plugins/custom-plugins.html">Creating Custom Plugins</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="../plugins/custom-plugins.html#overview">Overview</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../plugins/custom-plugins.html#prerequisites">Prerequisites</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../plugins/custom-plugins.html#step-1-create-plugin-files">Step 1: Create Plugin Files</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../plugins/custom-plugins.html#step-2-implement-sync-plugin">Step 2: Implement Sync Plugin</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="../plugins/custom-plugins.html#basic-structure">Basic Structure</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../plugins/custom-plugins.html#helper-methods">Helper Methods</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="../plugins/custom-plugins.html#http-client">HTTP Client</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../plugins/custom-plugins.html#download-file">Download File</a></li>
+<li class="toctree-l1"><a class="reference internal" href="custom-plugins.html">Creating Custom Plugins</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="custom-plugins.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="custom-plugins.html#prerequisites">Prerequisites</a></li>
+<li class="toctree-l2"><a class="reference internal" href="custom-plugins.html#step-1-create-plugin-files">Step 1: Create Plugin Files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="custom-plugins.html#step-2-implement-sync-plugin">Step 2: Implement Sync Plugin</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="custom-plugins.html#basic-structure">Basic Structure</a></li>
+<li class="toctree-l3"><a class="reference internal" href="custom-plugins.html#helper-methods">Helper Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="custom-plugins.html#http-client">HTTP Client</a></li>
+<li class="toctree-l4"><a class="reference internal" href="custom-plugins.html#download-file">Download File</a></li>
 </ul>
 </li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="../plugins/custom-plugins.html#step-3-implement-publisher-plugin">Step 3: Implement Publisher Plugin</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="../plugins/custom-plugins.html#id1">Basic Structure</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../plugins/custom-plugins.html#metadata-generation-example">Metadata Generation Example</a></li>
+<li class="toctree-l2"><a class="reference internal" href="custom-plugins.html#step-3-implement-publisher-plugin">Step 3: Implement Publisher Plugin</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="custom-plugins.html#id1">Basic Structure</a></li>
+<li class="toctree-l3"><a class="reference internal" href="custom-plugins.html#metadata-generation-example">Metadata Generation Example</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="../plugins/custom-plugins.html#step-4-register-plugin">Step 4: Register Plugin</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../plugins/custom-plugins.html#step-5-add-configuration-support">Step 5: Add Configuration Support</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../plugins/custom-plugins.html#step-6-write-tests">Step 6: Write Tests</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../plugins/custom-plugins.html#example-simple-http-archive-plugin">Example: Simple HTTP Archive Plugin</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../plugins/custom-plugins.html#best-practices">Best Practices</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../plugins/custom-plugins.html#testing-your-plugin">Testing Your Plugin</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../plugins/custom-plugins.html#contributing-your-plugin">Contributing Your Plugin</a></li>
+<li class="toctree-l2"><a class="reference internal" href="custom-plugins.html#step-4-register-plugin">Step 4: Register Plugin</a></li>
+<li class="toctree-l2"><a class="reference internal" href="custom-plugins.html#step-5-add-configuration-support">Step 5: Add Configuration Support</a></li>
+<li class="toctree-l2"><a class="reference internal" href="custom-plugins.html#step-6-write-tests">Step 6: Write Tests</a></li>
+<li class="toctree-l2"><a class="reference internal" href="custom-plugins.html#example-simple-http-archive-plugin">Example: Simple HTTP Archive Plugin</a></li>
+<li class="toctree-l2"><a class="reference internal" href="custom-plugins.html#best-practices">Best Practices</a></li>
+<li class="toctree-l2"><a class="reference internal" href="custom-plugins.html#testing-your-plugin">Testing Your Plugin</a></li>
+<li class="toctree-l2"><a class="reference internal" href="custom-plugins.html#contributing-your-plugin">Contributing Your Plugin</a></li>
 </ul>
 </li>
 </ul>
@@ -891,9 +891,9 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
-      <li class="breadcrumb-item active">Quick Start</li>
+      <li class="breadcrumb-item active">Helm Plugin</li>
       <li class="wy-breadcrumbs-aside">
-              <a href="https://github.com/slauger/chantal/blob/main/docs/user-guide/quickstart.md" class="fa fa-github"> Edit on GitHub</a>
+              <a href="https://github.com/slauger/chantal/blob/main/docs/plugins/helm-plugin.md" class="fa fa-github"> Edit on GitHub</a>
       </li>
   </ul>
   <hr/>
@@ -901,141 +901,417 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="quick-start">
-<h1>Quick Start<a class="headerlink" href="#quick-start" title="Link to this heading"></a></h1>
-<p>This guide will help you get started with Chantal in minutes.</p>
-<section id="initialize-chantal">
-<h2>1. Initialize Chantal<a class="headerlink" href="#initialize-chantal" title="Link to this heading"></a></h2>
-<p>Create the database and directory structure:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Production</span>
-sudo<span class="w"> </span>chantal<span class="w"> </span>init
-
-<span class="c1"># Development/Testing</span>
-chantal<span class="w"> </span>init
-</pre></div>
-</div>
-<p>Output:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>Chantal initialization...
-Database: postgresql://chantal:***@localhost/chantal
-Storage base path: /var/lib/chantal
-Pool path: /var/lib/chantal/pool
-Published path: /var/www/repos
-
-Creating directories...
-  ✓ Created: /var/lib/chantal
-  ✓ Created: /var/lib/chantal/pool
-  ✓ Created: /var/www/repos
-
-Initializing database...
-  ✓ Database schema created
-
-✓ Chantal initialization complete!
+  <section id="helm-plugin">
+<h1>Helm Plugin<a class="headerlink" href="#helm-plugin" title="Link to this heading"></a></h1>
+<p>The Helm plugin provides support for Kubernetes Helm chart repositories.</p>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading"></a></h2>
+<p><strong>Status:</strong> ✅ Available</p>
+<p>The Helm plugin consists of:</p>
+<ul class="simple">
+<li><p><strong>HelmSyncer</strong> - Syncs Helm charts from upstream chart repositories</p></li>
+<li><p><strong>HelmPublisher</strong> - Publishes Helm chart repositories with metadata</p></li>
+</ul>
+</section>
+<section id="features">
+<h2>Features<a class="headerlink" href="#features" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>✅ index.yaml parsing</p></li>
+<li><p>✅ Helm chart downloading (.tgz files)</p></li>
+<li><p>✅ SHA256 checksum verification</p></li>
+<li><p>✅ Pattern-based chart filtering</p></li>
+<li><p>✅ Version filtering (only latest)</p></li>
+<li><p>✅ Metadata generation (index.yaml)</p></li>
+<li><p>✅ Chart deduplication via content-addressed storage</p></li>
+<li><p>✅ Snapshot support</p></li>
+<li><p>🚧 Chart signing/verification - Planned</p></li>
+<li><p>🚧 OCI registry support - Planned</p></li>
+</ul>
+</section>
+<section id="configuration">
+<h2>Configuration<a class="headerlink" href="#configuration" title="Link to this heading"></a></h2>
+<section id="basic-helm-repository">
+<h3>Basic Helm Repository<a class="headerlink" href="#basic-helm-repository" title="Link to this heading"></a></h3>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">repositories</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ingress-nginx</span>
+<span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Ingress NGINX Helm Charts</span>
+<span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">helm</span>
+<span class="w">    </span><span class="nt">feed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://kubernetes.github.io/ingress-nginx</span>
+<span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
 </pre></div>
 </div>
 </section>
-<section id="configure-repositories">
-<h2>2. Configure Repositories<a class="headerlink" href="#configure-repositories" title="Link to this heading"></a></h2>
-<p>Create <code class="docutils literal notranslate"><span class="pre">/etc/chantal/config.yaml</span></code>:</p>
-<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="c1"># Database</span>
-<span class="nt">database</span><span class="p">:</span>
-<span class="w">  </span><span class="nt">url</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">postgresql://chantal:password@localhost/chantal</span>
-<span class="w">  </span><span class="c1"># or for development: sqlite:///chantal.db</span>
-
-<span class="c1"># Storage paths</span>
-<span class="nt">storage</span><span class="p">:</span>
-<span class="w">  </span><span class="nt">base_path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/var/lib/chantal</span>
-<span class="w">  </span><span class="nt">pool_path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/var/lib/chantal/pool</span>
-<span class="w">  </span><span class="nt">published_path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/var/www/repos</span>
-
-<span class="c1"># Include repository definitions</span>
-<span class="nt">include</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/etc/chantal/conf.d/*.yaml</span>
-</pre></div>
-</div>
-<p>Create a repository definition in <code class="docutils literal notranslate"><span class="pre">conf.d/epel9.yaml</span></code>:</p>
+<section id="with-filters">
+<h3>With Filters<a class="headerlink" href="#with-filters" title="Link to this heading"></a></h3>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">repositories</span><span class="p">:</span>
-<span class="w">  </span><span class="c1"># EPEL 9 - vim packages only (latest version)</span>
-<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">epel9-vim-latest</span>
-<span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">EPEL 9 - vim (latest)</span>
-<span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rpm</span>
-<span class="w">    </span><span class="nt">feed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://dl.fedoraproject.org/pub/epel/9/Everything/x86_64/</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">bitnami-databases</span>
+<span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Bitnami Charts - Databases Only</span>
+<span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">helm</span>
+<span class="w">    </span><span class="nt">feed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://charts.bitnami.com/bitnami</span>
 <span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
 <span class="w">    </span><span class="nt">filters</span><span class="p">:</span>
 <span class="w">      </span><span class="nt">patterns</span><span class="p">:</span>
-<span class="w">        </span><span class="nt">include</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;^vim-.*&quot;</span><span class="p p-Indicator">]</span>
-<span class="w">        </span><span class="nt">exclude</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;.*-debug.*&quot;</span><span class="p p-Indicator">]</span>
-<span class="w">      </span><span class="nt">metadata</span><span class="p">:</span>
-<span class="w">        </span><span class="nt">architectures</span><span class="p">:</span>
-<span class="w">          </span><span class="nt">include</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;x86_64&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;noarch&quot;</span><span class="p p-Indicator">]</span>
-<span class="w">      </span><span class="nt">rpm</span><span class="p">:</span>
-<span class="w">        </span><span class="nt">exclude_source_rpms</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">        </span><span class="nt">include</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;^postgresql$&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;^mysql$&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;^mongodb$&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;^redis$&quot;</span><span class="p p-Indicator">]</span>
 <span class="w">      </span><span class="nt">post_processing</span><span class="p">:</span>
 <span class="w">        </span><span class="nt">only_latest_version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
 </pre></div>
 </div>
 </section>
-<section id="list-configured-repositories">
-<h2>3. List Configured Repositories<a class="headerlink" href="#list-configured-repositories" title="Link to this heading"></a></h2>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>chantal<span class="w"> </span>repo<span class="w"> </span>list
+<section id="with-authentication">
+<h3>With Authentication<a class="headerlink" href="#with-authentication" title="Link to this heading"></a></h3>
+<p>Some Helm repositories require authentication:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">repositories</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">private-charts</span>
+<span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Private Helm Charts</span>
+<span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">helm</span>
+<span class="w">    </span><span class="nt">feed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://charts.example.com/</span>
+<span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">    </span><span class="nt">ssl</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">ca_bundle</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem</span>
+<span class="w">      </span><span class="nt">client_cert</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/etc/pki/helm/client.pem</span>
+<span class="w">      </span><span class="nt">client_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/etc/pki/helm/client-key.pem</span>
+<span class="w">      </span><span class="nt">verify</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
 </pre></div>
 </div>
 </section>
-<section id="sync-repository">
-<h2>4. Sync Repository<a class="headerlink" href="#sync-repository" title="Link to this heading"></a></h2>
-<p>Sync a single repository:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>chantal<span class="w"> </span>repo<span class="w"> </span>sync<span class="w"> </span>--repo-id<span class="w"> </span>epel9-vim-latest
-</pre></div>
-</div>
-<p>Output:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>Syncing repository: epel9-vim-latest
-Feed URL: https://dl.fedoraproject.org/pub/epel/9/Everything/x86_64/
-Fetching repomd.xml...
-Primary metadata location: repodata/c80c...d2f3-primary.xml.gz
-Fetching primary.xml.gz...
-Found 24868 packages in repository
-Filtered out 24865 packages, 3 remaining
-
-[1/3] Processing vim-common-9.0.2120-1.el9.x86_64
-  → Downloading from https://dl.fedoraproject.org/...
-  → Downloaded 7.42 MB
-
-✓ Sync completed successfully!
-  Total packages: 3
-  Downloaded: 2
-  Skipped (already in pool): 1
-  Data transferred: 9.31 MB
-</pre></div>
-</div>
 </section>
-<section id="check-for-updates">
-<h2>5. Check for Updates<a class="headerlink" href="#check-for-updates" title="Link to this heading"></a></h2>
-<p>Check for updates without downloading:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>chantal<span class="w"> </span>repo<span class="w"> </span>check-updates<span class="w"> </span>--repo-id<span class="w"> </span>epel9-vim-latest
+<section id="how-it-works">
+<h2>How It Works<a class="headerlink" href="#how-it-works" title="Link to this heading"></a></h2>
+<section id="sync-process">
+<h3>Sync Process<a class="headerlink" href="#sync-process" title="Link to this heading"></a></h3>
+<ol class="arabic">
+<li><p><strong>Fetch index.yaml</strong></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">GET</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">charts</span><span class="o">.</span><span class="n">example</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">index</span><span class="o">.</span><span class="n">yaml</span>
 </pre></div>
 </div>
-</section>
-<section id="create-snapshot">
-<h2>6. Create Snapshot<a class="headerlink" href="#create-snapshot" title="Link to this heading"></a></h2>
-<p>Create an immutable snapshot:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>chantal<span class="w"> </span>snapshot<span class="w"> </span>create<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>--repo-id<span class="w"> </span>epel9-vim-latest<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>--name<span class="w"> </span><span class="m">20250110</span><span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>--description<span class="w"> </span><span class="s2">&quot;January 2025 baseline&quot;</span>
-</pre></div>
-</div>
-</section>
-<section id="publish-repository">
-<h2>7. Publish Repository<a class="headerlink" href="#publish-repository" title="Link to this heading"></a></h2>
-<p>Publish the repository (creates hardlinks to published directory):</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>chantal<span class="w"> </span>publish<span class="w"> </span>repo<span class="w"> </span>--repo-id<span class="w"> </span>epel9-vim-latest
-</pre></div>
-</div>
-</section>
-<section id="next-steps">
-<h2>Next Steps<a class="headerlink" href="#next-steps" title="Link to this heading"></a></h2>
+<p>Parse to find available charts and versions</p>
+</li>
+<li><p><strong>Parse chart metadata</strong></p>
 <ul class="simple">
-<li><p>Learn about <a class="reference internal" href="cli-commands.html"><span class="std std-doc">CLI commands</span></a> in detail</p></li>
-<li><p>Configure <a class="reference internal" href="../configuration/ssl-authentication.html"><span class="std std-doc">RHEL subscriptions</span></a> for Red Hat repos</p></li>
-<li><p>Understand <a class="reference internal" href="workflows.html"><span class="std std-doc">workflows</span></a> for patch management</p></li>
+<li><p>Chart name and version</p></li>
+<li><p>Chart URL (may be relative or absolute)</p></li>
+<li><p>Chart digest (SHA256)</p></li>
+<li><p>Dependencies, maintainers, etc.</p></li>
+</ul>
+</li>
+<li><p><strong>Apply filters</strong></p>
+<ul class="simple">
+<li><p>Pattern matching (include/exclude regex)</p></li>
+<li><p>Version filtering (only latest)</p></li>
+</ul>
+</li>
+<li><p><strong>Download charts</strong></p>
+<ul class="simple">
+<li><p>Download .tgz files to content-addressed pool</p></li>
+<li><p>Verify SHA256 checksums</p></li>
+<li><p>Deduplicate identical charts</p></li>
+</ul>
+</li>
+<li><p><strong>Store metadata</strong></p>
+<ul class="simple">
+<li><p>Create ContentItem records</p></li>
+<li><p>Store Helm metadata in database</p></li>
+<li><p>Link charts to repository</p></li>
+</ul>
+</li>
+</ol>
+</section>
+<section id="publish-process">
+<h3>Publish Process<a class="headerlink" href="#publish-process" title="Link to this heading"></a></h3>
+<ol class="arabic simple">
+<li><p><strong>Query database</strong> for charts in repository/snapshot</p></li>
+<li><p><strong>Create directory structure</strong> for published repository</p></li>
+<li><p><strong>Create hardlinks</strong> from pool to published directory</p></li>
+<li><p><strong>Generate index.yaml</strong> with chart metadata and URLs</p></li>
+<li><p><strong>Set correct file permissions</strong> for web server access</p></li>
+</ol>
+</section>
+</section>
+<section id="chart-filtering">
+<h2>Chart Filtering<a class="headerlink" href="#chart-filtering" title="Link to this heading"></a></h2>
+<section id="pattern-filters">
+<h3>Pattern Filters<a class="headerlink" href="#pattern-filters" title="Link to this heading"></a></h3>
+<p>Include specific charts by name:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">filters</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">patterns</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">include</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;^nginx-.*&quot;</span><span class="w">       </span><span class="c1"># All nginx-related charts</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;^prometheus$&quot;</span><span class="w">    </span><span class="c1"># Exact match: prometheus chart</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;^grafana-.*&quot;</span><span class="w">     </span><span class="c1"># All grafana-related charts</span>
+</pre></div>
+</div>
+<p>Exclude charts by pattern:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">filters</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">patterns</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">exclude</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;.*-alpha$&quot;</span><span class="w">       </span><span class="c1"># Exclude alpha versions</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;.*-beta$&quot;</span><span class="w">        </span><span class="c1"># Exclude beta versions</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;^deprecated-.*&quot;</span><span class="w">  </span><span class="c1"># Exclude deprecated charts</span>
+</pre></div>
+</div>
+</section>
+<section id="version-filtering">
+<h3>Version Filtering<a class="headerlink" href="#version-filtering" title="Link to this heading"></a></h3>
+<p>Keep only the latest version of each chart:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">filters</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">post_processing</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">only_latest_version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+</pre></div>
+</div>
+<p>This is useful for:</p>
+<ul class="simple">
+<li><p>Reducing storage usage</p></li>
+<li><p>Simplifying chart selection for users</p></li>
+<li><p>Automatically staying current with upstream</p></li>
+</ul>
+</section>
+</section>
+<section id="common-use-cases">
+<h2>Common Use Cases<a class="headerlink" href="#common-use-cases" title="Link to this heading"></a></h2>
+<section id="mirror-official-kubernetes-charts">
+<h3>Mirror Official Kubernetes Charts<a class="headerlink" href="#mirror-official-kubernetes-charts" title="Link to this heading"></a></h3>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">repositories</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">kubernetes-charts</span>
+<span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Official Kubernetes Charts</span>
+<span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">helm</span>
+<span class="w">    </span><span class="nt">feed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://kubernetes.github.io/ingress-nginx</span>
+<span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+</pre></div>
+</div>
+</section>
+<section id="mirror-bitnami-charts-selective">
+<h3>Mirror Bitnami Charts (Selective)<a class="headerlink" href="#mirror-bitnami-charts-selective" title="Link to this heading"></a></h3>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">repositories</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">bitnami-webservers</span>
+<span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Bitnami - Web Servers</span>
+<span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">helm</span>
+<span class="w">    </span><span class="nt">feed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://charts.bitnami.com/bitnami</span>
+<span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">    </span><span class="nt">filters</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">patterns</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">include</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;^nginx$&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;^apache$&quot;</span><span class="p p-Indicator">]</span>
+<span class="w">      </span><span class="nt">post_processing</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">only_latest_version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+</pre></div>
+</div>
+</section>
+<section id="mirror-harbor-registry">
+<h3>Mirror Harbor Registry<a class="headerlink" href="#mirror-harbor-registry" title="Link to this heading"></a></h3>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">repositories</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">harbor</span>
+<span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Harbor Helm Charts</span>
+<span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">helm</span>
+<span class="w">    </span><span class="nt">feed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://helm.goharbor.io</span>
+<span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+</pre></div>
+</div>
+</section>
+<section id="private-chart-repository">
+<h3>Private Chart Repository<a class="headerlink" href="#private-chart-repository" title="Link to this heading"></a></h3>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">repositories</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">company-charts</span>
+<span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Company Internal Charts</span>
+<span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">helm</span>
+<span class="w">    </span><span class="nt">feed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://charts.internal.company.com/</span>
+<span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">    </span><span class="nt">ssl</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">client_cert</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/etc/pki/helm/company-client.pem</span>
+<span class="w">      </span><span class="nt">client_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/etc/pki/helm/company-client-key.pem</span>
+<span class="w">      </span><span class="nt">verify</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="publishing-helm-repositories">
+<h2>Publishing Helm Repositories<a class="headerlink" href="#publishing-helm-repositories" title="Link to this heading"></a></h2>
+<section id="publish-latest-repository">
+<h3>Publish Latest Repository<a class="headerlink" href="#publish-latest-repository" title="Link to this heading"></a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>chantal<span class="w"> </span>publish<span class="w"> </span>repo<span class="w"> </span>--repo-id<span class="w"> </span>ingress-nginx
+</pre></div>
+</div>
+<p>Published structure:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>/var/www/repos/ingress-nginx/latest/
+├── index.yaml
+├── ingress-nginx-4.0.15.tgz
+├── ingress-nginx-4.0.14.tgz
+└── ...
+</pre></div>
+</div>
+</section>
+<section id="publish-snapshot">
+<h3>Publish Snapshot<a class="headerlink" href="#publish-snapshot" title="Link to this heading"></a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>chantal<span class="w"> </span>snapshot<span class="w"> </span>create<span class="w"> </span>--repo-id<span class="w"> </span>ingress-nginx<span class="w"> </span>--name<span class="w"> </span><span class="m">2025</span>-01-10
+chantal<span class="w"> </span>publish<span class="w"> </span>snapshot<span class="w"> </span>--snapshot<span class="w"> </span>ingress-nginx-2025-01-10
+</pre></div>
+</div>
+<p>Published structure:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>/var/www/repos/ingress-nginx/snapshots/2025-01-10/
+├── index.yaml
+└── ingress-nginx-4.0.15.tgz
+</pre></div>
+</div>
+</section>
+<section id="configure-helm-client">
+<h3>Configure Helm Client<a class="headerlink" href="#configure-helm-client" title="Link to this heading"></a></h3>
+<p>Point Helm CLI to your mirrored repository:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Add repository</span>
+helm<span class="w"> </span>repo<span class="w"> </span>add<span class="w"> </span>ingress-nginx<span class="w"> </span>http://mirror.example.com/repos/ingress-nginx/latest/
+
+<span class="c1"># Update repository index</span>
+helm<span class="w"> </span>repo<span class="w"> </span>update
+
+<span class="c1"># Install chart</span>
+helm<span class="w"> </span>install<span class="w"> </span>my-ingress<span class="w"> </span>ingress-nginx/ingress-nginx
+</pre></div>
+</div>
+</section>
+<section id="configure-helm-with-snapshot">
+<h3>Configure Helm with Snapshot<a class="headerlink" href="#configure-helm-with-snapshot" title="Link to this heading"></a></h3>
+<p>Use a specific snapshot for reproducible deployments:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Add snapshot repository</span>
+helm<span class="w"> </span>repo<span class="w"> </span>add<span class="w"> </span>ingress-nginx-2025-01-10<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>http://mirror.example.com/repos/ingress-nginx/snapshots/2025-01-10/
+
+<span class="c1"># Install from snapshot</span>
+helm<span class="w"> </span>install<span class="w"> </span>my-ingress<span class="w"> </span>ingress-nginx-2025-01-10/ingress-nginx
+</pre></div>
+</div>
+</section>
+</section>
+<section id="chart-metadata">
+<h2>Chart Metadata<a class="headerlink" href="#chart-metadata" title="Link to this heading"></a></h2>
+<p>Chantal stores comprehensive metadata for each chart:</p>
+<ul class="simple">
+<li><p><strong>name</strong> - Chart name</p></li>
+<li><p><strong>version</strong> - Chart version (SemVer)</p></li>
+<li><p><strong>description</strong> - Chart description</p></li>
+<li><p><strong>home</strong> - Project home page URL</p></li>
+<li><p><strong>sources</strong> - Source code URLs</p></li>
+<li><p><strong>keywords</strong> - Chart keywords</p></li>
+<li><p><strong>maintainers</strong> - Maintainer information</p></li>
+<li><p><strong>icon</strong> - Chart icon URL</p></li>
+<li><p><strong>appVersion</strong> - Application version</p></li>
+<li><p><strong>deprecated</strong> - Deprecation status</p></li>
+<li><p><strong>annotations</strong> - Chart annotations</p></li>
+<li><p><strong>dependencies</strong> - Chart dependencies</p></li>
+<li><p><strong>type</strong> - Chart type (application/library)</p></li>
+<li><p><strong>apiVersion</strong> - Helm API version</p></li>
+</ul>
+<p>This metadata is:</p>
+<ul class="simple">
+<li><p>Stored in the database for querying</p></li>
+<li><p>Included in published index.yaml</p></li>
+<li><p>Available via Chantal CLI commands</p></li>
+</ul>
+</section>
+<section id="troubleshooting">
+<h2>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Link to this heading"></a></h2>
+<section id="charts-not-syncing">
+<h3>Charts Not Syncing<a class="headerlink" href="#charts-not-syncing" title="Link to this heading"></a></h3>
+<p>Check index.yaml is accessible:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-I<span class="w"> </span>https://charts.example.com/index.yaml
+</pre></div>
+</div>
+<p>Verify repository configuration:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>chantal<span class="w"> </span>repo<span class="w"> </span>show<span class="w"> </span>--repo-id<span class="w"> </span>my-helm-repo
+</pre></div>
+</div>
+<p>Check sync logs for errors:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>chantal<span class="w"> </span>repo<span class="w"> </span>sync<span class="w"> </span>--repo-id<span class="w"> </span>my-helm-repo
+</pre></div>
+</div>
+</section>
+<section id="publishing-issues">
+<h3>Publishing Issues<a class="headerlink" href="#publishing-issues" title="Link to this heading"></a></h3>
+<p>Verify charts were synced:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>chantal<span class="w"> </span>package<span class="w"> </span>list<span class="w"> </span>--repo-id<span class="w"> </span>my-helm-repo
+</pre></div>
+</div>
+<p>Check published directory permissions:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ls<span class="w"> </span>-la<span class="w"> </span>/var/www/repos/my-helm-repo/latest/
+</pre></div>
+</div>
+<p>Verify index.yaml was generated:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>cat<span class="w"> </span>/var/www/repos/my-helm-repo/latest/index.yaml
+</pre></div>
+</div>
+</section>
+<section id="client-certificate-issues">
+<h3>Client Certificate Issues<a class="headerlink" href="#client-certificate-issues" title="Link to this heading"></a></h3>
+<p>Verify certificate files exist and are readable:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ls<span class="w"> </span>-la<span class="w"> </span>/etc/pki/helm/client.pem
+ls<span class="w"> </span>-la<span class="w"> </span>/etc/pki/helm/client-key.pem
+</pre></div>
+</div>
+<p>Test with curl:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>--cert<span class="w"> </span>/etc/pki/helm/client.pem<span class="w"> </span><span class="se">\</span>
+<span class="w">     </span>--key<span class="w"> </span>/etc/pki/helm/client-key.pem<span class="w"> </span><span class="se">\</span>
+<span class="w">     </span>https://charts.example.com/index.yaml
+</pre></div>
+</div>
+</section>
+</section>
+<section id="best-practices">
+<h2>Best Practices<a class="headerlink" href="#best-practices" title="Link to this heading"></a></h2>
+<ol class="arabic simple">
+<li><p><strong>Use snapshots for production</strong> - Create dated snapshots for reproducible deployments</p></li>
+<li><p><strong>Filter by patterns</strong> - Only mirror charts you need to reduce storage</p></li>
+<li><p><strong>Keep latest only</strong> - Use <code class="docutils literal notranslate"><span class="pre">only_latest_version:</span> <span class="pre">true</span></code> unless you need version history</p></li>
+<li><p><strong>Regular syncing</strong> - Schedule regular syncs to stay current</p></li>
+<li><p><strong>Verify checksums</strong> - Chantal automatically verifies SHA256 checksums</p></li>
+<li><p><strong>Document your mirrors</strong> - Keep notes on why specific charts are mirrored</p></li>
+<li><p><strong>Test before production</strong> - Test snapshots in staging before promoting to production</p></li>
+</ol>
+</section>
+<section id="integration-with-ci-cd">
+<h2>Integration with CI/CD<a class="headerlink" href="#integration-with-ci-cd" title="Link to this heading"></a></h2>
+<section id="gitops-workflow">
+<h3>GitOps Workflow<a class="headerlink" href="#gitops-workflow" title="Link to this heading"></a></h3>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="c1"># ArgoCD Application</span>
+<span class="nt">apiVersion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">argoproj.io/v1alpha1</span>
+<span class="nt">kind</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Application</span>
+<span class="nt">metadata</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my-app</span>
+<span class="nt">spec</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">source</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">repoURL</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http://mirror.example.com/repos/ingress-nginx/snapshots/2025-01-10/</span>
+<span class="w">    </span><span class="nt">chart</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ingress-nginx</span>
+<span class="w">    </span><span class="nt">targetRevision</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">4.0.15</span>
+</pre></div>
+</div>
+</section>
+<section id="jenkins-pipeline">
+<h3>Jenkins Pipeline<a class="headerlink" href="#jenkins-pipeline" title="Link to this heading"></a></h3>
+<div class="highlight-groovy notranslate"><div class="highlight"><pre><span></span><span class="n">pipeline</span><span class="w"> </span><span class="o">{</span>
+<span class="w">    </span><span class="n">stages</span><span class="w"> </span><span class="o">{</span>
+<span class="w">        </span><span class="n">stage</span><span class="o">(</span><span class="s1">&#39;Sync Helm Charts&#39;</span><span class="o">)</span><span class="w"> </span><span class="o">{</span>
+<span class="w">            </span><span class="n">steps</span><span class="w"> </span><span class="o">{</span>
+<span class="w">                </span><span class="n">sh</span><span class="w"> </span><span class="s1">&#39;chantal repo sync --repo-id ingress-nginx&#39;</span>
+<span class="w">            </span><span class="o">}</span>
+<span class="w">        </span><span class="o">}</span>
+<span class="w">        </span><span class="n">stage</span><span class="o">(</span><span class="s1">&#39;Create Snapshot&#39;</span><span class="o">)</span><span class="w"> </span><span class="o">{</span>
+<span class="w">            </span><span class="n">steps</span><span class="w"> </span><span class="o">{</span>
+<span class="w">                </span><span class="n">sh</span><span class="w"> </span><span class="s1">&#39;chantal snapshot create --repo-id ingress-nginx --name ${BUILD_ID}&#39;</span>
+<span class="w">            </span><span class="o">}</span>
+<span class="w">        </span><span class="o">}</span>
+<span class="w">        </span><span class="n">stage</span><span class="o">(</span><span class="s1">&#39;Publish Snapshot&#39;</span><span class="o">)</span><span class="w"> </span><span class="o">{</span>
+<span class="w">            </span><span class="n">steps</span><span class="w"> </span><span class="o">{</span>
+<span class="w">                </span><span class="n">sh</span><span class="w"> </span><span class="s1">&#39;chantal publish snapshot --snapshot ingress-nginx-${BUILD_ID}&#39;</span>
+<span class="w">            </span><span class="o">}</span>
+<span class="w">        </span><span class="o">}</span>
+<span class="w">    </span><span class="o">}</span>
+<span class="o">}</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="further-reading">
+<h2>Further Reading<a class="headerlink" href="#further-reading" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><a class="reference internal" href="overview.html"><span class="std std-doc">Plugins Overview</span></a> - Plugin architecture</p></li>
+<li><p><a class="reference internal" href="custom-plugins.html"><span class="std std-doc">Custom Plugins</span></a> - Creating custom plugins</p></li>
+<li><p><a class="reference internal" href="../configuration/repositories.html"><span class="std std-doc">Repository Configuration</span></a> - Repository settings</p></li>
+<li><p><a class="reference internal" href="../user-guide/cli-commands.html"><span class="std std-doc">CLI Commands</span></a> - Command reference</p></li>
 </ul>
 </section>
 </section>
@@ -1044,8 +1320,8 @@ Filtered out 24865 packages, 3 remaining
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="installation.html" class="btn btn-neutral float-left" title="Installation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="cli-commands.html" class="btn btn-neutral float-right" title="CLI Commands" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="rpm-plugin.html" class="btn btn-neutral float-left" title="RPM Plugin" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="custom-plugins.html" class="btn btn-neutral float-right" title="Creating Custom Plugins" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>
