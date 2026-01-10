@@ -58,7 +58,7 @@ chantal --version
 
 ```bash
 # Create database and directory structure
-chantal --config config.yaml init
+chantal init
 ```
 
 Output:
@@ -153,7 +153,7 @@ repositories:
 ### 3. List Configured Repositories
 
 ```bash
-chantal --config .dev/config.yaml repo list
+chantal repo list
 ```
 
 Output:
@@ -175,7 +175,7 @@ Total: 16 repository(ies)
 
 ```bash
 # Sync single repository (downloads packages to pool)
-chantal --config .dev/config.yaml repo sync --repo-id epel9-vim-latest
+chantal repo sync --repo-id epel9-vim-latest
 ```
 
 Output:
@@ -217,16 +217,16 @@ Sync complete!
 
 ```bash
 # Sync all EPEL repositories
-chantal --config .dev/config.yaml repo sync --pattern "epel9-*"
+chantal repo sync --pattern "epel9-*"
 
 # Sync all enabled repositories
-chantal --config .dev/config.yaml repo sync --all
+chantal repo sync --all
 
 # Sync only RPM repositories
-chantal --config .dev/config.yaml repo sync --all --type rpm
+chantal repo sync --all --type rpm
 
 # Parallel workers (future feature)
-chantal --config .dev/config.yaml repo sync --all --workers 3
+chantal repo sync --all --workers 3
 ```
 
 ### 5. Check for Updates
@@ -234,7 +234,7 @@ chantal --config .dev/config.yaml repo sync --all --workers 3
 Check for available updates **without downloading**:
 
 ```bash
-chantal --config .dev/config.yaml repo check-updates --repo-id rhel9-appstream-nginx-latest
+chantal repo check-updates --repo-id rhel9-appstream-nginx-latest
 ```
 
 Output when repository is up-to-date:
@@ -273,16 +273,16 @@ Run 'chantal repo sync --repo-id rhel9-appstream-nginx-latest' to download updat
 
 ```bash
 # Check all EPEL repos
-chantal --config .dev/config.yaml repo check-updates --pattern "epel9-*"
+chantal repo check-updates --pattern "epel9-*"
 
 # Check all enabled repositories
-chantal --config .dev/config.yaml repo check-updates --all
+chantal repo check-updates --all
 ```
 
 ### 6. Show Repository Details
 
 ```bash
-chantal --config .dev/config.yaml repo show --repo-id epel9-vim-latest
+chantal repo show --repo-id epel9-vim-latest
 ```
 
 Output:
@@ -315,24 +315,24 @@ Packages (showing first 10):
 
 ```bash
 # Create snapshot after sync (immutable point-in-time freeze)
-chantal --config .dev/config.yaml snapshot create \
+chantal snapshot create \
   --repo-id rhel9-baseos-vim-latest \
   --name 20250110 \
   --description "January 2025 patch baseline"
 
 # List snapshots
-chantal --config .dev/config.yaml snapshot list
+chantal snapshot list
 
 # List snapshots for specific repository
-chantal --config .dev/config.yaml snapshot list --repo-id rhel9-baseos-vim-latest
+chantal snapshot list --repo-id rhel9-baseos-vim-latest
 
 # Compare snapshots (show added/removed/updated packages)
-chantal --config .dev/config.yaml snapshot diff \
+chantal snapshot diff \
   --repo-id rhel9-baseos-vim-latest \
   20250110 20250109
 
 # Delete snapshot
-chantal --config .dev/config.yaml snapshot delete \
+chantal snapshot delete \
   --repo-id rhel9-baseos-vim-latest \
   20250108
 ```
@@ -461,12 +461,36 @@ chantal repo list --format json   # Machine-readable
 
 ## Configuration
 
+### Configuration File Priority
+
+Chantal looks for configuration files in this order:
+
+1. **`--config` CLI flag** (highest priority)
+   ```bash
+   chantal --config /path/to/config.yaml repo list
+   ```
+
+2. **`CHANTAL_CONFIG` environment variable**
+   ```bash
+   export CHANTAL_CONFIG=/path/to/config.yaml
+   chantal repo list
+   ```
+
+3. **Default locations** (searched in order):
+   - `/etc/chantal/config.yaml` (production)
+   - `~/.config/chantal/config.yaml` (user)
+   - `./config.yaml` (current directory)
+
+**Development tip:** Use `CHANTAL_CONFIG` to avoid typing `--config .dev/config.yaml` repeatedly:
+```bash
+export CHANTAL_CONFIG=.dev/config.yaml
+chantal repo sync --repo-id epel9-vim-latest
+chantal repo check-updates --all
+```
+
 ### Global Configuration
 
-The main config file can be placed in:
-- `/etc/chantal/config.yaml` (production)
-- `.dev/config.yaml` (development)
-- Custom path via `--config` flag
+The main config file can be placed in any of the locations above
 
 ```yaml
 # Database connection
@@ -825,9 +849,10 @@ pytest tests/test_cli.py -v
 # Run with coverage
 pytest --cov=chantal --cov-report=term-missing
 
-# Test end-to-end sync (requires internet connection)
-chantal --config .dev/config.yaml init
-chantal --config .dev/config.yaml repo sync --repo-id epel9-htop-latest
+# Test end-to-end sync (requires internet connection, using dev config)
+export CHANTAL_CONFIG=.dev/config.yaml
+chantal init
+chantal repo sync --repo-id epel9-htop-latest
 ```
 
 ### Code Quality

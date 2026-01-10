@@ -28,7 +28,7 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
     "--config",
     type=click.Path(exists=True, path_type=Path),
     default=None,
-    help="Path to configuration file (default: /etc/chantal/config.yaml)",
+    help="Path to configuration file (default: /etc/chantal/config.yaml, or $CHANTAL_CONFIG)",
 )
 @click.option("--verbose", "-v", is_flag=True, help="Verbose output")
 @click.pass_context

@@ -445,8 +445,13 @@ class ConfigLoader:
 def load_config(config_path: Optional[Path] = None) -> GlobalConfig:
     """Load configuration from file.
 
+    Priority:
+    1. Explicit config_path parameter (--config CLI flag)
+    2. CHANTAL_CONFIG environment variable
+    3. Default locations (/etc/chantal/config.yaml, ~/.config/chantal/config.yaml, ./config.yaml)
+
     Args:
-        config_path: Path to config file. If None, tries default locations.
+        config_path: Path to config file. If None, tries CHANTAL_CONFIG env or default locations.
 
     Returns:
         GlobalConfig instance
@@ -454,6 +459,8 @@ def load_config(config_path: Optional[Path] = None) -> GlobalConfig:
     Raises:
         FileNotFoundError: If no config file found
     """
+    import os
+
     # Default config locations
     default_paths = [
         Path("/etc/chantal/config.yaml"),
@@ -462,8 +469,13 @@ def load_config(config_path: Optional[Path] = None) -> GlobalConfig:
     ]
 
     if config_path:
+        # Explicit path from CLI flag
         paths_to_try = [config_path]
+    elif os.environ.get("CHANTAL_CONFIG"):
+        # CHANTAL_CONFIG environment variable
+        paths_to_try = [Path(os.environ["CHANTAL_CONFIG"])]
     else:
+        # Default locations
         paths_to_try = default_paths
 
     # Try each path
@@ -475,6 +487,8 @@ def load_config(config_path: Optional[Path] = None) -> GlobalConfig:
     # No config found
     if config_path:
         raise FileNotFoundError(f"Configuration file not found: {config_path}")
+    elif os.environ.get("CHANTAL_CONFIG"):
+        raise FileNotFoundError(f"Configuration file not found: {os.environ['CHANTAL_CONFIG']} (from CHANTAL_CONFIG)")
     else:
         # Return default config if no file found
         return GlobalConfig()
