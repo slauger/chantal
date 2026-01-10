@@ -1,6 +1,6 @@
 ---
-name: update-docs
 description: Updates the Sphinx documentation in docs/ based on recent code changes. Analyzes commits, updates relevant .md files, rebuilds HTML, and commits changes.
+allowed-tools: Bash(git *), Read, Edit, Write
 ---
 
 # Update Sphinx Documentation

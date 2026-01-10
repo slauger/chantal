@@ -1,6 +1,6 @@
 ---
-name: update-readme
 description: Updates README.md based on recent code changes. Keeps README concise (~250-300 lines), preserves emoji features, and ensures links to Sphinx docs are correct.
+allowed-tools: Bash(git *), Read, Edit
 ---
 
 # Update README.md
