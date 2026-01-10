@@ -106,8 +106,10 @@ def repo() -> None:
 @repo.command("list")
 @click.option("--format", "output_format", type=click.Choice(["table", "json"]),
               default="table", help="Output format")
+@click.option("--type", "repo_type", type=click.Choice(["rpm", "apt", "helm"]),
+              default=None, help="Filter by repository type")
 @click.pass_context
-def repo_list(ctx: click.Context, output_format: str) -> None:
+def repo_list(ctx: click.Context, output_format: str, repo_type: str = None) -> None:
     """List configured repositories.
 
     Shows all repositories from config with their current sync status.
@@ -119,6 +121,10 @@ def repo_list(ctx: click.Context, output_format: str) -> None:
     with db_manager.session() as session:
         # Get all repositories from config (source of truth)
         config_repos = config.repositories
+
+        # Filter by type if specified
+        if repo_type:
+            config_repos = [repo for repo in config_repos if repo.type == repo_type]
 
         # Get DB status for all repos
         db_repos = {repo.repo_id: repo for repo in session.query(Repository).all()}

@@ -65,7 +65,9 @@ class HelmSyncer:
         logger.info(f"Syncing Helm repository: {repository.repo_id}")
 
         # Fetch and parse index.yaml
-        index_url = urljoin(config.feed, "index.yaml")
+        # Ensure feed URL ends with / for proper urljoin behavior
+        feed_url = config.feed if config.feed.endswith('/') else config.feed + '/'
+        index_url = urljoin(feed_url, "index.yaml")
         index_data = self._fetch_index(index_url, config)
 
         # Parse charts from index
@@ -105,18 +107,23 @@ class HelmSyncer:
                 chart_url = chart_entry["urls"][0]  # Use first URL
                 if not chart_url.startswith(("http://", "https://")):
                     # Relative URL - make absolute
-                    chart_url = urljoin(config.feed, chart_url)
+                    # Ensure feed URL ends with / for proper urljoin behavior
+                    feed_url = config.feed if config.feed.endswith('/') else config.feed + '/'
+                    chart_url = urljoin(feed_url, chart_url)
 
-                chart_path, sha256, size = self._download_chart(chart_url, config)
+                pool_path, sha256, size = self._download_chart(chart_url, config)
 
                 # Create metadata
                 metadata = HelmMetadata(**chart_entry)
 
                 # Create ContentItem
                 content_item = ContentItem(
+                    name=metadata.name,
+                    version=metadata.version,
                     sha256=sha256,
                     filename=Path(chart_url).name,
-                    size=size,
+                    size_bytes=size,
+                    pool_path=pool_path,
                     content_type="helm",
                     content_metadata=metadata.model_dump(mode="json"),
                 )
@@ -159,7 +166,20 @@ class HelmSyncer:
         response = requests.get(url, **kwargs, timeout=30)
         response.raise_for_status()
 
-        return yaml.safe_load(response.text)
+        # Handle encoding - response.content is bytes, decode as UTF-8
+        # Some index.yaml files may have special chars, ignore errors
+        try:
+            content = response.content.decode('utf-8')
+        except UnicodeDecodeError:
+            # Fallback to latin-1 if UTF-8 fails
+            content = response.content.decode('latin-1')
+
+        # Remove control characters that YAML doesn't allow
+        # Keep tab (\x09), newline (\x0A), carriage return (\x0D)
+        import re
+        content = re.sub(r'[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F-\x9F]', '', content)
+
+        return yaml.safe_load(content)
 
     def _parse_index(self, index_data: dict) -> List[dict]:
         """Parse chart entries from index.yaml.
@@ -267,21 +287,14 @@ class HelmSyncer:
 
         # Download to temp file
         with tempfile.NamedTemporaryFile(delete=False, suffix=".tgz") as tmp:
-            hasher = hashlib.sha256()
-            size = 0
-
             for chunk in response.iter_content(chunk_size=8192):
                 tmp.write(chunk)
-                hasher.update(chunk)
-                size += len(chunk)
-
             tmp_path = Path(tmp.name)
 
-        sha256 = hasher.hexdigest()
         filename = Path(url).name
 
-        # Move to pool
-        pool_path = self.storage.store_file(tmp_path, sha256, filename)
+        # Add to pool (this calculates SHA256, deduplicates, and moves file)
+        sha256, pool_path, size = self.storage.add_package(tmp_path, filename)
 
         # Clean up temp file
         tmp_path.unlink(missing_ok=True)
