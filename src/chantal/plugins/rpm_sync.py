@@ -6,17 +6,29 @@ This module implements syncing RPM repositories from upstream sources.
 
 import gzip
 import hashlib
+import re
 import tempfile
 import xml.etree.ElementTree as ET
+from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from urllib.parse import urljoin
 
 import requests
+from packaging import version
 from sqlalchemy.orm import Session
 
-from chantal.core.config import ProxyConfig, RepositoryConfig
+from chantal.core.config import (
+    FilterConfig,
+    ListFilterConfig,
+    MetadataFilterConfig,
+    PatternFilterConfig,
+    ProxyConfig,
+    RepositoryConfig,
+    SizeFilterConfig,
+    TimeFilterConfig,
+)
 from chantal.core.storage import StorageManager
 from chantal.db.models import Package, Repository
 
@@ -25,6 +37,7 @@ from chantal.db.models import Package, Repository
 class PackageMetadata:
     """Package metadata from primary.xml."""
 
+    # Basic package info
     name: str
     version: str
     release: str
@@ -33,8 +46,18 @@ class PackageMetadata:
     sha256: str
     size_bytes: int
     location: str  # Relative URL to package file
+
+    # Optional metadata
     summary: Optional[str] = None
     description: Optional[str] = None
+
+    # Extended metadata for filtering
+    build_time: Optional[int] = None      # Unix timestamp (when built)
+    file_time: Optional[int] = None       # Unix timestamp (file modification)
+    group: Optional[str] = None           # RPM group (e.g., "Applications/Internet")
+    license: Optional[str] = None         # License string
+    vendor: Optional[str] = None          # Vendor/Packager
+    sourcerpm: Optional[str] = None       # Source RPM filename (to identify .src.rpm)
 
 
 @dataclass
@@ -90,6 +113,27 @@ class RpmSyncPlugin:
             if proxy_config.username and proxy_config.password:
                 self.session.auth = (proxy_config.username, proxy_config.password)
 
+        # Setup client certificate authentication (for RHEL CDN)
+        if config.auth and config.auth.type == "client_cert":
+            if config.auth.cert_file and config.auth.key_file:
+                # Specific cert/key files provided
+                self.session.cert = (config.auth.cert_file, config.auth.key_file)
+            elif config.auth.cert_dir:
+                # Find cert/key in directory (RHEL entitlement pattern)
+                cert_dir = Path(config.auth.cert_dir)
+                if cert_dir.exists():
+                    # Find first .pem certificate (not -key.pem)
+                    certs = [f for f in cert_dir.glob("*.pem") if not f.name.endswith("-key.pem")]
+                    if certs:
+                        cert_file = certs[0]
+                        # Look for corresponding key file
+                        key_file = cert_dir / cert_file.name.replace(".pem", "-key.pem")
+                        if key_file.exists():
+                            self.session.cert = (str(cert_file), str(key_file))
+                            print(f"Using client certificate: {cert_file.name}")
+                        else:
+                            print(f"Warning: Key file not found for {cert_file.name}")
+
     def sync_repository(
         self, session: Session, repository: Repository
     ) -> SyncResult:
@@ -119,11 +163,19 @@ class RpmSyncPlugin:
             packages = self._fetch_primary_xml(self.config.feed, primary_location)
             print(f"Found {len(packages)} packages in repository")
 
-            # Step 4: Get existing packages from database
+            # Step 4: Apply filters if configured
+            if self.config.filters:
+                original_count = len(packages)
+                packages = self._apply_filters(packages, self.config.filters)
+                filtered_out = original_count - len(packages)
+                if filtered_out > 0:
+                    print(f"Filtered out {filtered_out} packages, {len(packages)} remaining")
+
+            # Step 5: Get existing packages from database
             existing_packages = self._get_existing_packages(session)
             print(f"Already have {len(existing_packages)} packages in pool")
 
-            # Step 5: Download new packages
+            # Step 6: Download new packages
             packages_downloaded = 0
             packages_skipped = 0
             bytes_downloaded = 0
@@ -279,19 +331,53 @@ class RpmSyncPlugin:
 
         for pkg_elem in package_elems:
             try:
-                # Extract basic info - use full namespace URI in find()
-                name_elem = pkg_elem.find("{http://linux.duke.edu/metadata/common}name")
-                arch_elem = pkg_elem.find("{http://linux.duke.edu/metadata/common}arch")
-                version_elem = pkg_elem.find("{http://linux.duke.edu/metadata/common}version")
-                checksum_elem = pkg_elem.find("{http://linux.duke.edu/metadata/common}checksum")
-                size_elem = pkg_elem.find("{http://linux.duke.edu/metadata/common}size")
-                location_elem = pkg_elem.find("{http://linux.duke.edu/metadata/common}location")
-                summary_elem = pkg_elem.find("{http://linux.duke.edu/metadata/common}summary")
-                desc_elem = pkg_elem.find("{http://linux.duke.edu/metadata/common}description")
+                # Namespace URI for common elements
+                ns_uri = "{http://linux.duke.edu/metadata/common}"
+                rpm_ns = "{http://linux.duke.edu/metadata/rpm}"
+
+                # Extract basic info
+                name_elem = pkg_elem.find(f"{ns_uri}name")
+                arch_elem = pkg_elem.find(f"{ns_uri}arch")
+                version_elem = pkg_elem.find(f"{ns_uri}version")
+                checksum_elem = pkg_elem.find(f"{ns_uri}checksum")
+                size_elem = pkg_elem.find(f"{ns_uri}size")
+                location_elem = pkg_elem.find(f"{ns_uri}location")
+                summary_elem = pkg_elem.find(f"{ns_uri}summary")
+                desc_elem = pkg_elem.find(f"{ns_uri}description")
+
+                # Extract extended metadata
+                time_elem = pkg_elem.find(f"{ns_uri}time")
+                format_elem = pkg_elem.find(f"{ns_uri}format")
+
+                # Extract RPM-specific metadata from <format> element
+                group = None
+                license_str = None
+                vendor = None
+                sourcerpm = None
+                if format_elem is not None:
+                    group_elem = format_elem.find(f"{rpm_ns}group")
+                    license_elem = format_elem.find(f"{rpm_ns}license")
+                    vendor_elem = format_elem.find(f"{rpm_ns}vendor")
+                    sourcerpm_elem = format_elem.find(f"{rpm_ns}sourcerpm")
+
+                    group = group_elem.text if group_elem is not None else None
+                    license_str = license_elem.text if license_elem is not None else None
+                    vendor = vendor_elem.text if vendor_elem is not None else None
+                    sourcerpm = sourcerpm_elem.text if sourcerpm_elem is not None else None
+
+                # Extract time metadata
+                build_time = None
+                file_time = None
+                if time_elem is not None:
+                    build_time_str = time_elem.get("build")
+                    file_time_str = time_elem.get("file")
+                    build_time = int(build_time_str) if build_time_str else None
+                    file_time = int(file_time_str) if file_time_str else None
 
                 # ElementTree elements can be falsy even if not None, so check explicitly
                 if name_elem is None or arch_elem is None or version_elem is None or checksum_elem is None or location_elem is None:
                     continue  # Skip incomplete packages
+
                 pkg_meta = PackageMetadata(
                     name=name_elem.text,
                     version=version_elem.get("ver"),
@@ -303,6 +389,12 @@ class RpmSyncPlugin:
                     location=location_elem.get("href"),
                     summary=summary_elem.text if summary_elem is not None else None,
                     description=desc_elem.text if desc_elem is not None else None,
+                    build_time=build_time,
+                    file_time=file_time,
+                    group=group,
+                    license=license_str,
+                    vendor=vendor,
+                    sourcerpm=sourcerpm,
                 )
                 packages.append(pkg_meta)
 
@@ -312,6 +404,243 @@ class RpmSyncPlugin:
                 continue
 
         return packages
+
+    def _apply_filters(
+        self, packages: List[PackageMetadata], filters: FilterConfig
+    ) -> List[PackageMetadata]:
+        """Apply package filters using generic filter engine.
+
+        Args:
+            packages: List of package metadata
+            filters: Filter configuration
+
+        Returns:
+            Filtered list of packages
+        """
+        # Normalize legacy config to new structure
+        filters = filters.normalize()
+
+        filtered_packages = []
+
+        for pkg in packages:
+            # Apply metadata filters
+            if filters.metadata:
+                if not self._check_metadata_filters(pkg, filters.metadata):
+                    continue
+
+            # Apply pattern filters
+            if filters.patterns:
+                if not self._check_pattern_filters(pkg, filters.patterns):
+                    continue
+
+            # Package passed all filters
+            filtered_packages.append(pkg)
+
+        # Apply post-processing (after all filters)
+        if filters.post_processing:
+            filtered_packages = self._apply_post_processing(
+                filtered_packages, filters.post_processing
+            )
+
+        return filtered_packages
+
+    def _check_metadata_filters(
+        self, pkg: PackageMetadata, metadata: MetadataFilterConfig
+    ) -> bool:
+        """Check if package passes metadata filters.
+
+        Args:
+            pkg: Package metadata
+            metadata: Metadata filter config
+
+        Returns:
+            True if package passes all metadata filters
+        """
+        # Size filter
+        if metadata.size_bytes:
+            if metadata.size_bytes.min and pkg.size_bytes < metadata.size_bytes.min:
+                return False
+            if metadata.size_bytes.max and pkg.size_bytes > metadata.size_bytes.max:
+                return False
+
+        # Build time filter
+        if metadata.build_time and pkg.build_time:
+            from datetime import datetime, timedelta
+
+            # Convert package build_time (Unix timestamp) to datetime
+            pkg_build_dt = datetime.fromtimestamp(pkg.build_time)
+
+            if metadata.build_time.newer_than:
+                newer_than_dt = datetime.fromisoformat(metadata.build_time.newer_than)
+                if pkg_build_dt < newer_than_dt:
+                    return False
+
+            if metadata.build_time.older_than:
+                older_than_dt = datetime.fromisoformat(metadata.build_time.older_than)
+                if pkg_build_dt > older_than_dt:
+                    return False
+
+            if metadata.build_time.last_n_days:
+                cutoff_dt = datetime.now() - timedelta(days=metadata.build_time.last_n_days)
+                if pkg_build_dt < cutoff_dt:
+                    return False
+
+        # Architecture filter
+        if metadata.architectures:
+            if not self._check_list_filter(pkg.arch, metadata.architectures):
+                return False
+
+        # Group filter
+        if metadata.groups and pkg.group:
+            if not self._check_list_filter(pkg.group, metadata.groups):
+                return False
+
+        # License filter
+        if metadata.licenses and pkg.license:
+            if not self._check_list_filter(pkg.license, metadata.licenses):
+                return False
+
+        # Vendor filter
+        if metadata.vendors and pkg.vendor:
+            if not self._check_list_filter(pkg.vendor, metadata.vendors):
+                return False
+
+        # Source RPM filter
+        if metadata.exclude_source_rpms:
+            if pkg.arch == "src":
+                return False
+            # Also check if this is a source RPM by looking at sourcerpm field
+            if pkg.sourcerpm and pkg.sourcerpm.endswith(".src.rpm"):
+                # This package WAS built from a source RPM, but is not itself a source RPM
+                pass  # Allow binary RPMs built from source
+
+        return True
+
+    def _check_list_filter(self, value: str, list_filter: ListFilterConfig) -> bool:
+        """Check if value passes list filter (include/exclude).
+
+        Args:
+            value: Value to check
+            list_filter: List filter config
+
+        Returns:
+            True if value passes filter
+        """
+        # Check include list
+        if list_filter.include:
+            if value not in list_filter.include:
+                return False
+
+        # Check exclude list
+        if list_filter.exclude:
+            if value in list_filter.exclude:
+                return False
+
+        return True
+
+    def _check_pattern_filters(
+        self, pkg: PackageMetadata, patterns: PatternFilterConfig
+    ) -> bool:
+        """Check if package passes pattern filters.
+
+        Args:
+            pkg: Package metadata
+            patterns: Pattern filter config
+
+        Returns:
+            True if package passes all pattern filters
+        """
+        pkg_name_full = f"{pkg.name}-{pkg.version}-{pkg.release}.{pkg.arch}"
+
+        # Include patterns - at least one must match
+        if patterns.include:
+            matched = False
+            for pattern in patterns.include:
+                if re.search(pattern, pkg.name) or re.search(pattern, pkg_name_full):
+                    matched = True
+                    break
+            if not matched:
+                return False
+
+        # Exclude patterns - none must match
+        if patterns.exclude:
+            for pattern in patterns.exclude:
+                if re.search(pattern, pkg.name) or re.search(pattern, pkg_name_full):
+                    return False
+
+        return True
+
+    def _apply_post_processing(
+        self, packages: List[PackageMetadata], post_proc: "PostProcessingConfig"
+    ) -> List[PackageMetadata]:
+        """Apply post-processing to filtered packages.
+
+        Args:
+            packages: Filtered packages
+            post_proc: Post-processing config
+
+        Returns:
+            Post-processed packages
+        """
+        from chantal.core.config import PostProcessingConfig
+
+        if post_proc.only_latest_version:
+            return self._keep_only_latest_versions(packages, n=1)
+        elif post_proc.only_latest_n_versions:
+            return self._keep_only_latest_versions(packages, n=post_proc.only_latest_n_versions)
+
+        return packages
+
+    def _keep_only_latest_versions(
+        self, packages: List[PackageMetadata], n: int = 1
+    ) -> List[PackageMetadata]:
+        """Keep only the latest N versions of each package (by name and arch).
+
+        Args:
+            packages: List of packages
+            n: Number of versions to keep (default: 1)
+
+        Returns:
+            Filtered list with only latest N versions per (name, arch)
+        """
+        # Group packages by (name, arch)
+        grouped: Dict[Tuple[str, str], List[PackageMetadata]] = defaultdict(list)
+        for pkg in packages:
+            key = (pkg.name, pkg.arch)
+            grouped[key].append(pkg)
+
+        # For each group, keep only latest N versions
+        result = []
+        for (name, arch), pkg_list in grouped.items():
+            # Sort by version (newest first)
+            # Use tuple comparison: (epoch, version, release) for RPM version semantics
+            try:
+                sorted_pkgs = sorted(
+                    pkg_list,
+                    key=lambda p: (
+                        int(p.epoch) if p.epoch else 0,  # Epoch as int
+                        version.parse(p.version),  # Parse version (without epoch/release)
+                        p.release,  # Release as string
+                    ),
+                    reverse=True,
+                )
+            except Exception as e:
+                # If version parsing fails, fall back to simple tuple comparison
+                print(f"Warning: Version parsing failed for {name}.{arch}: {e}")
+                sorted_pkgs = sorted(
+                    pkg_list,
+                    key=lambda p: (
+                        int(p.epoch) if p.epoch else 0,
+                        p.version,
+                        p.release,
+                    ),
+                    reverse=True,
+                )
+
+            # Keep only latest N versions
+            result.extend(sorted_pkgs[:n])
+
+        return result
 
     def _get_existing_packages(self, session: Session) -> Dict[str, Package]:
         """Get existing packages from database.

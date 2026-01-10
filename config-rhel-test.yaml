@@ -1,0 +1,70 @@
+# RHEL CDN test configuration with package filtering
+# Tests Client Certificate authentication + selective sync
+
+database:
+  url: sqlite:///chantal-dev.db
+
+storage:
+  base_path: ./dev-storage
+  pool_path: ./dev-storage/pool
+  published_path: ./dev-storage/published
+
+repositories:
+  # RHEL 9 BaseOS with aggressive filtering
+  # Only sync a few essential packages instead of all 4000+
+  - id: rhel9-baseos-filtered
+    name: RHEL 9 BaseOS (Filtered - nginx, curl, systemd only)
+    type: rpm
+    feed: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/os
+    enabled: true
+
+    # Client certificate authentication
+    auth:
+      type: client_cert
+      cert_dir: /tmp/rhel-certs
+
+    # Package filters - only sync specific packages
+    filters:
+      # Include only these packages (regex patterns)
+      include_packages:
+        - "^nginx$"
+        - "^nginx-.*"
+        - "^curl$"
+        - "^curl-.*"
+        - "^systemd$"
+        - "^systemd-.*"
+
+      # Exclude debuginfo and devel packages
+      exclude_packages:
+        - ".*-debuginfo$"
+        - ".*-debugsource$"
+        - ".*-devel$"
+
+      # Only x86_64 and noarch
+      include_architectures:
+        - "x86_64"
+        - "noarch"
+
+  # Alternative: CentOS Stream for comparison (no auth needed)
+  - id: centos9-baseos-filtered
+    name: CentOS Stream 9 BaseOS (Filtered - same filters)
+    type: rpm
+    feed: https://mirror.stream.centos.org/9-stream/BaseOS/x86_64/os/
+    enabled: false
+
+    # Same filters for comparison
+    filters:
+      include_packages:
+        - "^nginx$"
+        - "^nginx-.*"
+        - "^curl$"
+        - "^curl-.*"
+        - "^systemd$"
+        - "^systemd-.*"
+      exclude_packages:
+        - ".*-debuginfo$"
+        - ".*-debugsource$"
+        - ".*-devel$"
+      include_architectures:
+        - "x86_64"
+        - "noarch"

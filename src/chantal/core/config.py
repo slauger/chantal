@@ -59,6 +59,119 @@ class ScheduleConfig(BaseModel):
     snapshot_name_template: str = "{repo_id}-{date}"
 
 
+class SizeFilterConfig(BaseModel):
+    """Size-based filtering."""
+
+    min: Optional[int] = None  # Minimum size in bytes
+    max: Optional[int] = None  # Maximum size in bytes
+
+
+class TimeFilterConfig(BaseModel):
+    """Time-based filtering."""
+
+    newer_than: Optional[str] = None  # ISO date string (e.g., "2025-01-01")
+    older_than: Optional[str] = None  # ISO date string
+    last_n_days: Optional[int] = None  # Last N days from now
+
+
+class ListFilterConfig(BaseModel):
+    """Generic list-based filtering (include/exclude)."""
+
+    include: Optional[List[str]] = None
+    exclude: Optional[List[str]] = None
+
+
+class MetadataFilterConfig(BaseModel):
+    """Metadata-based filters."""
+
+    size_bytes: Optional[SizeFilterConfig] = None
+    build_time: Optional[TimeFilterConfig] = None
+    groups: Optional[ListFilterConfig] = None
+    architectures: Optional[ListFilterConfig] = None
+    licenses: Optional[ListFilterConfig] = None
+    vendors: Optional[ListFilterConfig] = None
+    exclude_source_rpms: bool = False  # Skip .src.rpm packages
+
+
+class PatternFilterConfig(BaseModel):
+    """Pattern-based filters (regex)."""
+
+    include: Optional[List[str]] = None  # Include patterns
+    exclude: Optional[List[str]] = None  # Exclude patterns
+
+    @field_validator("include", "exclude")
+    @classmethod
+    def validate_patterns(cls, v: Optional[List[str]]) -> Optional[List[str]]:
+        """Validate regex patterns."""
+        if v is not None:
+            import re
+            for pattern in v:
+                try:
+                    re.compile(pattern)
+                except re.error as e:
+                    raise ValueError(f"Invalid regex pattern '{pattern}': {e}")
+        return v
+
+
+class PostProcessingConfig(BaseModel):
+    """Post-processing configuration (applied after filtering)."""
+
+    only_latest_version: bool = False  # Keep only latest version per (name, arch)
+    only_latest_n_versions: Optional[int] = None  # Keep last N versions
+
+
+class FilterConfig(BaseModel):
+    """Package filtering configuration.
+
+    Supports both new generics structure and legacy flat structure for backward compatibility.
+    """
+
+    # New generic structure
+    metadata: Optional[MetadataFilterConfig] = None
+    patterns: Optional[PatternFilterConfig] = None
+    post_processing: Optional[PostProcessingConfig] = None
+
+    # Legacy flat structure (backward compatibility)
+    include_packages: Optional[List[str]] = None  # DEPRECATED: use patterns.include
+    exclude_packages: Optional[List[str]] = None  # DEPRECATED: use patterns.exclude
+    include_architectures: Optional[List[str]] = None  # DEPRECATED: use metadata.architectures.include
+    exclude_architectures: Optional[List[str]] = None  # DEPRECATED: use metadata.architectures.exclude
+
+    @field_validator("include_packages", "exclude_packages")
+    @classmethod
+    def validate_patterns_legacy(cls, v: Optional[List[str]]) -> Optional[List[str]]:
+        """Validate regex patterns (legacy)."""
+        if v is not None:
+            import re
+            for pattern in v:
+                try:
+                    re.compile(pattern)
+                except re.error as e:
+                    raise ValueError(f"Invalid regex pattern '{pattern}': {e}")
+        return v
+
+    def normalize(self) -> "FilterConfig":
+        """Normalize legacy config to new structure."""
+        # If using legacy structure, migrate to new structure
+        if self.metadata is None and (
+            self.include_architectures or self.exclude_architectures
+        ):
+            self.metadata = MetadataFilterConfig(
+                architectures=ListFilterConfig(
+                    include=self.include_architectures,
+                    exclude=self.exclude_architectures,
+                )
+            )
+
+        if self.patterns is None and (self.include_packages or self.exclude_packages):
+            self.patterns = PatternFilterConfig(
+                include=self.include_packages,
+                exclude=self.exclude_packages,
+            )
+
+        return self
+
+
 class RepositoryConfig(BaseModel):
     """Repository configuration."""
 
@@ -80,6 +193,9 @@ class RepositoryConfig(BaseModel):
 
     # Scheduling
     schedule: Optional[ScheduleConfig] = Field(default_factory=lambda: ScheduleConfig())
+
+    # Package filtering
+    filters: Optional[FilterConfig] = None
 
     # Per-repository proxy override
     proxy: Optional[ProxyConfig] = None
