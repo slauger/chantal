@@ -60,6 +60,7 @@ jobs:
             org.opencontainers.image.vendor=Sebastian Lauger
 
       - name: Build and push Docker image
+        id: build
         uses: docker/build-push-action@v5
         with:
           context: .
