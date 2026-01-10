@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [
-    {name = "Sebastian Lauger", email = "mail@slauger.de"}
+    {name = "Simon Lauger", email = "simon@lauger.de"}
 ]
 keywords = ["rpm", "yum", "dnf", "repository", "mirror", "sync", "rhel", "centos"]
 classifiers = [

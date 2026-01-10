@@ -7,7 +7,7 @@ snapshots.
 """
 
 __version__ = "0.1.0"
-__author__ = "Sebastian Lauger"
+__author__ = "Simon Lauger"
 __license__ = "MIT"
 
 # Make version accessible
