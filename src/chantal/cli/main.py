@@ -18,6 +18,7 @@ from chantal.db.connection import DatabaseManager
 from chantal.db.models import Repository, Snapshot, SyncHistory, ContentItem
 from chantal.plugins.rpm_sync import RpmSyncPlugin, CheckUpdatesResult, PackageUpdate
 from chantal.plugins.rpm import RpmPublisher
+from chantal.plugins.helm import HelmSyncer, HelmPublisher
 
 # Click context settings to enable -h as alias for --help
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
@@ -334,6 +335,22 @@ def _sync_single_repository(session, storage, global_config, repo_config):
             proxy_config=effective_proxy,
             ssl_config=effective_ssl,
         )
+    elif repo_config.type == "helm":
+        helm_syncer = HelmSyncer(storage=storage)
+        stats = helm_syncer.sync_repository(session, repository, repo_config)
+
+        # Update last sync timestamp
+        from datetime import datetime, timezone
+        repository.last_sync_at = datetime.now(timezone.utc)
+        session.commit()
+
+        # Display result
+        click.echo(f"\n✓ Helm sync completed successfully!")
+        click.echo(f"  Charts added: {stats['charts_added']}")
+        click.echo(f"  Charts updated: {stats['charts_updated']}")
+        click.echo(f"  Charts skipped: {stats['charts_skipped']}")
+        click.echo(f"  Data transferred: {stats['bytes_downloaded'] / 1024 / 1024:.2f} MB")
+        return
     else:
         click.echo(f"Error: Unsupported repository type: {repo_config.type}")
         return
@@ -2469,25 +2486,41 @@ def _publish_single_repository(session, storage, global_config, repo_config, cus
     # Initialize publisher based on repository type
     if repo_config.type == "rpm":
         publisher = RpmPublisher(storage=storage)
+        # Publish repository
+        try:
+            publisher.publish_repository(
+                session=session,
+                repository=repository,
+                config=repo_config,
+                target_path=target_path
+            )
+            click.echo(f"\n✓ Repository published successfully!")
+            click.echo(f"  Location: {target_path}")
+            click.echo(f"  Packages directory: {target_path}/Packages")
+            click.echo(f"  Metadata directory: {target_path}/repodata")
+        except Exception as e:
+            click.echo(f"\n✗ Publishing failed: {e}", err=True)
+            raise
+    elif repo_config.type == "helm":
+        publisher = HelmPublisher(storage=storage)
+        # Publish repository
+        try:
+            publisher.publish_repository(
+                session=session,
+                repository=repository,
+                config=repo_config,
+                target_path=target_path
+            )
+            click.echo(f"\n✓ Helm repository published successfully!")
+            click.echo(f"  Location: {target_path}")
+            click.echo(f"  Chart files: {target_path}/*.tgz")
+            click.echo(f"  Index file: {target_path}/index.yaml")
+        except Exception as e:
+            click.echo(f"\n✗ Publishing failed: {e}", err=True)
+            raise
     else:
         click.echo(f"Error: Unsupported repository type: {repo_config.type}")
         return
-
-    # Publish repository
-    try:
-        publisher.publish_repository(
-            session=session,
-            repository=repository,
-            config=repo_config,
-            target_path=target_path
-        )
-        click.echo(f"\n✓ Repository published successfully!")
-        click.echo(f"  Location: {target_path}")
-        click.echo(f"  Packages directory: {target_path}/Packages")
-        click.echo(f"  Metadata directory: {target_path}/repodata")
-    except Exception as e:
-        click.echo(f"\n✗ Publishing failed: {e}", err=True)
-        raise
 
 
 @publish.command("snapshot")
