@@ -201,31 +201,26 @@ See [Workflows Documentation](https://slauger.github.io/chantal/user-guide/workf
 
 ## Status
 
-**🚀 Active Development - MVP Phase**
+**🚀 Active Development - v0.1.0**
 
-### ✅ Completed
-- Content-Addressed Storage (SHA256-based pool)
-- RPM Sync Plugin (repomd.xml, primary.xml.gz)
-- RPM Publisher (metadata generation)
-- Snapshots (immutable point-in-time states)
-- Views (virtual repositories)
-- Filtering (patterns, architectures, post-processing)
-- Update checking (`chantal repo check-updates`)
+### Current Release: v0.1.0-dev
+
+**✅ RPM MVP Complete:**
+- Content-addressed storage (SHA256 deduplication)
+- RPM repository sync (RHEL, CentOS, Fedora, EPEL)
+- Immutable snapshots
+- Views (virtual repositories combining multiple repos)
 - RHEL CDN support (client certificates)
+- Generic content model (extensible for APT, PyPI, Helm, etc.)
 - 74 tests passing
 
-### 🚧 In Progress
-- Statistics & Database Management (Milestone 6)
+**🔄 Next Up:**
+- Database management commands
+- Errata/advisory support (updateinfo.xml)
+- APT/DEB repository support
+- Helm chart repository support
 
-### 📋 Planned
-- DEB/APT support
-- PyPI, Alpine APK, Helm support
-- Automated scheduling (cron integration)
-- Web UI (read-only)
-- REST API
-- Prometheus metrics
-
-**See:** [GitHub Issues](https://github.com/slauger/chantal/issues) for detailed roadmap.
+**📋 Full Roadmap:** See [ROADMAP.md](ROADMAP.md) for detailed milestone plan and [GitHub Issues](https://github.com/slauger/chantal/issues)
 
 ---
 
