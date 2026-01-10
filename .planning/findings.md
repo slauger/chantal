@@ -1626,8 +1626,264 @@ impl PluginRegistry {
 ### Nächste Schritte:
 
 - [x] APT-Tools analysieren (apt-mirror, aptly)
-- [ ] Architektur-Proposal erstellen (detailliertes Design-Doc)
-- [ ] MVP-Scope definieren
-- [ ] Technology-Stack finalisieren (Rust Crates Selection)
-- [ ] Proof-of-Concept: RHEL CDN Auth testen
-- [ ] Proof-of-Concept: Content-Addressed Storage implementieren
+- [x] Architektur-Proposal erstellen (detailliertes Design-Doc)
+- [x] MVP-Scope definieren
+- [x] Technology-Stack finalisieren (Python + Click + SQLAlchemy + Pydantic)
+- [x] Proof-of-Concept: RHEL CDN Auth testen
+- [x] Proof-of-Concept: Content-Addressed Storage implementieren
+
+---
+
+## Implementation Decisions (January 2026)
+
+Die folgenden Design-Entscheidungen wurden während der Implementation (2026-01-09 bis 2026-01-10) getroffen:
+
+### 1. Generic ContentItem Model (2026-01-10)
+
+**Problem:** Ursprüngliche Schema hatte separate `packages` Tabelle für RPM-Pakete. Bei Unterstützung weiterer Content-Typen (APT, Helm, PyPI) wären separate Tabellen (`deb_packages`, `helm_charts`, etc.) notwendig → Schema-Changes für jeden neuen Plugin.
+
+**Entscheidung:** Generic ContentItem Model mit JSON Metadata (inspiriert von Pulp 3 Ansatz)
+
+**Implementation:**
+```python
+class ContentItem(Base):
+    __tablename__ = "content_items"
+
+    id = Column(Integer, primary_key=True)
+    sha256 = Column(String(64), unique=True, nullable=False, index=True)
+    filename = Column(String, nullable=False)
+    size = Column(BigInteger, nullable=False)
+    content_type = Column(String, nullable=False, index=True)  # 'rpm', 'deb', 'helm', etc.
+    content_metadata = Column(JSON, nullable=False)  # Type-specific metadata
+    created_at = Column(DateTime, default=datetime.utcnow)
+```
+
+**Type-Safe Metadata via Pydantic:**
+```python
+class RpmMetadata(BaseModel):
+    """Type-safe RPM metadata model"""
+    name: str
+    version: str
+    release: str
+    epoch: Optional[int] = None
+    arch: str
+    source_rpm: Optional[str] = None
+    # ... weitere RPM-spezifische Fields
+```
+
+**Vorteile:**
+- ✅ Keine Schema-Changes für neue Plugins nötig
+- ✅ Type-Safety durch Pydantic Models
+- ✅ Flexibel für verschiedene Content-Typen
+- ✅ Einfache Migration: Generic `content_items` statt `packages`
+
+**Referenzen:**
+- Issue #15: Generic Content Model Migration
+- Alembic Migration: `a4a922fdfc63` (packages → content_items)
+- Code: `src/chantal/db/models.py:ContentItem`
+- Code: `src/chantal/plugins/rpm/models.py:RpmMetadata`
+
+### 2. View Publishing Without DB Sync (2026-01-10)
+
+**Problem:** Ursprüngliche Implementation erforderte `chantal view sync` vor `chantal publish view` → Views mussten in DB gespeichert werden, obwohl sie nur Gruppierungen von Repositories sind.
+
+**User-Feedback:** "warum view sync? wir haben doch gesagt nur nen publish? warum müssen wir da was zur db syncen?"
+
+**Entscheidung:** Views werden direkt aus Config published, KEINE DB-Persistenz notwendig
+
+**Implementation:**
+```python
+# ViewPublisher.publish_view_from_config()
+def publish_view_from_config(
+    self,
+    session: Session,
+    repo_ids: List[str],  # Direct from YAML config
+    target_path: Path,
+) -> int:
+    """Publish view directly from config (no DB view object needed)"""
+    repositories = []
+    for repo_id in repo_ids:
+        repo = session.query(Repository).filter_by(repo_id=repo_id).first()
+        if not repo:
+            raise ValueError(f"Repository '{repo_id}' not found")
+        repositories.append(repo)
+
+    packages = self._get_packages_from_repositories(session, repositories)
+    self._publish_packages(packages, target_path)
+    return len(packages)
+```
+
+**Workflow:**
+```bash
+# YAML Config
+views:
+  - name: rhel9-complete
+    repos: [rhel9-baseos, rhel9-appstream, epel9]
+
+# Publishing (OHNE vorherigen view sync!)
+chantal publish view --name rhel9-complete
+```
+
+**Vorteile:**
+- ✅ Einfacherer Workflow (ein Schritt weniger)
+- ✅ Views sind stateless (nur Gruppierung)
+- ✅ Keine unnötige DB-Persistenz
+- ✅ Config ist Single Source of Truth
+
+**Code:**
+- `src/chantal/cli/main.py:publish_view()` - Refactored
+- `src/chantal/plugins/view_publisher.py:publish_view_from_config()` - New method
+
+### 3. Snapshot Copy for Promotion Workflows (2026-01-10)
+
+**Use-Case:** Promotion Workflows (testing → stable → production)
+
+**User-Request:** "können wir vielleicht noch schauen das wir einen snapshot copy einbauen? damit man quasi von redhat-base-os-2025-01 nach redhat-base-os-stable kopieren kann?"
+
+**Entscheidung:** Zero-Copy Snapshot Copy (nur DB, keine File-Operationen)
+
+**Implementation:**
+```python
+# CLI Command
+@snapshot.command("copy")
+@click.option("--source", required=True)
+@click.option("--target", required=True)
+@click.option("--repo-id", required=True)
+def snapshot_copy(ctx, source, target, repo_id, description):
+    """Copy a snapshot to a new name (enables promotion workflows)."""
+    source_snapshot = session.query(Snapshot).filter_by(
+        repository_id=repo.id,
+        name=source
+    ).first()
+
+    # Create new snapshot with SAME content_items references
+    new_snapshot = Snapshot(
+        repository_id=source_snapshot.repository_id,
+        name=target,
+        description=description or f"Copy of '{source}'",
+        package_count=source_snapshot.package_count,
+        total_size_bytes=source_snapshot.total_size_bytes,
+    )
+    new_snapshot.content_items = list(source_snapshot.content_items)  # Reference copy!
+    session.add(new_snapshot)
+```
+
+**Workflow:**
+```bash
+# Testing Phase
+chantal snapshot create --repo-id rhel9-baseos --name 2025-01
+chantal publish snapshot --name rhel9-baseos-2025-01
+
+# After Testing: Promote to Stable
+chantal snapshot copy --repo-id rhel9-baseos --source 2025-01 --target stable
+chantal publish snapshot --name rhel9-baseos-stable
+
+# Later: Promote to Production
+chantal snapshot copy --repo-id rhel9-baseos --source stable --target production
+chantal publish snapshot --name rhel9-baseos-production
+```
+
+**Vorteile:**
+- ✅ Zero-Copy (nur DB-Einträge, keine File-Kopien)
+- ✅ Instant Operation (Millisekunden)
+- ✅ Ermöglicht Promotion Pipelines
+- ✅ Nutzt Content-Addressed Storage optimal
+
+**Code:**
+- `src/chantal/cli/main.py:snapshot_copy()` - Lines 1326-1409
+
+### 4. SQLite as Default Database (2026-01-09)
+
+**Original Plan:** PostgreSQL (wie in findings.md dokumentiert)
+
+**Entscheidung:** SQLite als Default, PostgreSQL optional
+
+**Begründung:**
+- ✅ Einfacheres Setup für MVP und kleinere Deployments
+- ✅ Keine externe DB-Installation notwendig
+- ✅ Ausreichend für typische Use-Cases (bis ~100k Packages)
+- ✅ SQLAlchemy macht Migration zu PostgreSQL trivial
+- ✅ Embedded DB besser für CLI-Tool
+
+**Configuration:**
+```python
+# Config
+database_url = os.getenv(
+    "CHANTAL_DATABASE_URL",
+    "sqlite:///var/lib/chantal/chantal.db"
+)
+
+# PostgreSQL möglich via:
+export CHANTAL_DATABASE_URL="postgresql://user:pass@localhost/chantal"
+```
+
+**Migration Path:**
+- SQLite für Entwicklung, Testing, kleine Deployments
+- PostgreSQL für große Production Deployments (> 100k Packages)
+- Beide nutzen gleiche SQLAlchemy Models → kein Code-Change
+
+**Code:**
+- `src/chantal/db/connection.py:DatabaseManager`
+
+### 5. View Deduplication Strategy (2026-01-10)
+
+**Frage:** Sollten Views Pakete deduplizieren wenn mehrere Repos dasselbe Package haben?
+
+**Beispiel:**
+```yaml
+views:
+  - name: rhel9-complete
+    repos: [rhel9-baseos, rhel9-appstream]
+    # Beide Repos haben möglicherweise "bash-5.1-1.el9.x86_64.rpm"
+```
+
+**Entscheidung:** KEINE Deduplikation in Views
+
+**Begründung:**
+- DNF/YUM Client entscheidet welche Package-Version zu nutzen ist
+- Repository-Priorität wird vom Client gesteuert (nicht von Chantal)
+- View ist nur eine Gruppierung, keine intelligente Merge-Operation
+- Wenn Deduplikation gewünscht ist → Snapshot-Merge nutzen
+
+**Implementation:**
+```python
+def _get_packages_from_repositories(self, session, repositories):
+    """Get all packages from repositories (NO deduplication)"""
+    all_packages = []
+    for repo in repositories:
+        all_packages.extend(repo.content_items)
+    return all_packages  # Duplicates möglich!
+```
+
+**Alternative:** Für deduplizierte Views → Snapshot-Merge verwenden:
+```bash
+chantal snapshot create --repo-id rhel9-baseos --name baseos-latest
+chantal snapshot create --repo-id rhel9-appstream --name appstream-latest
+chantal snapshot merge \
+  --sources baseos-latest,appstream-latest \
+  --target rhel9-merged \
+  --strategy latest  # Höchste Version gewinnt
+chantal publish snapshot --name rhel9-merged
+```
+
+**Code:**
+- `src/chantal/plugins/view_publisher.py:_get_packages_from_repositories()`
+
+---
+
+## Aktuelle Architektur (Stand 2026-01-10)
+
+**Implemented:**
+- ✅ Content-Addressed Storage (SHA256 Pool)
+- ✅ Generic ContentItem Model (RPM functional, APT/Helm vorbereitet)
+- ✅ Pydantic Configuration System
+- ✅ RPM Plugin (RHEL CDN Auth, Filtering, Post-Processing)
+- ✅ Immutable Snapshots (Reference-based)
+- ✅ Snapshot Copy (Zero-Copy Promotion)
+- ✅ Views (Virtual Repositories, Config-based Publishing)
+- ✅ Hardlink-based Publishing (Zero-Copy)
+- ✅ SQLite Database (PostgreSQL optional)
+
+**Test Coverage:** 74 tests passing
+
+**Next Steps:** Database Management Commands (Issue #14)
