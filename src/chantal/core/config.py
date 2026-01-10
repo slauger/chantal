@@ -137,6 +137,14 @@ class DebFilterConfig(BaseModel):
     sections: Optional[ListFilterConfig] = None  # admin, devel, libs
 
 
+class ApkConfig(BaseModel):
+    """Alpine APK-specific configuration."""
+
+    branch: str  # Alpine branch (v3.19, v3.18, edge, etc.)
+    repository: str = "main"  # Repository (main, community, testing)
+    architecture: str = "x86_64"  # Architecture (x86_64, aarch64, armhf, armv7, x86)
+
+
 class PatternFilterConfig(BaseModel):
     """Pattern-based filters (regex)."""
 
@@ -274,11 +282,14 @@ class RepositoryConfig(BaseModel):
     # Per-repository SSL/TLS override (overrides global ssl config)
     ssl: Optional[SSLConfig] = None
 
+    # Plugin-specific configuration
+    apk: Optional[ApkConfig] = None  # APK-specific config (branch, repository, architecture)
+
     @field_validator("type")
     @classmethod
     def validate_type(cls, v: str) -> str:
         """Validate repository type."""
-        valid_types = ["rpm", "apt", "helm"]
+        valid_types = ["rpm", "apt", "helm", "apk"]
         if v not in valid_types:
             raise ValueError(f"Invalid repository type: {v}. Must be one of {valid_types}")
         return v

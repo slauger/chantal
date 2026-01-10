@@ -19,6 +19,7 @@ from chantal.db.models import Repository, Snapshot, SyncHistory, ContentItem
 from chantal.plugins.rpm_sync import RpmSyncPlugin, CheckUpdatesResult, PackageUpdate
 from chantal.plugins.rpm import RpmPublisher
 from chantal.plugins.helm import HelmSyncer, HelmPublisher
+from chantal.plugins.apk import ApkSyncer, ApkPublisher
 
 # Click context settings to enable -h as alias for --help
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
@@ -355,6 +356,22 @@ def _sync_single_repository(session, storage, global_config, repo_config):
         click.echo(f"  Charts added: {stats['charts_added']}")
         click.echo(f"  Charts updated: {stats['charts_updated']}")
         click.echo(f"  Charts skipped: {stats['charts_skipped']}")
+        click.echo(f"  Data transferred: {stats['bytes_downloaded'] / 1024 / 1024:.2f} MB")
+        return
+    elif repo_config.type == "apk":
+        apk_syncer = ApkSyncer(storage=storage)
+        stats = apk_syncer.sync_repository(session, repository, repo_config)
+
+        # Update last sync timestamp
+        from datetime import datetime, timezone
+        repository.last_sync_at = datetime.now(timezone.utc)
+        session.commit()
+
+        # Display result
+        click.echo(f"\n✓ APK sync completed successfully!")
+        click.echo(f"  Packages added: {stats['packages_added']}")
+        click.echo(f"  Packages updated: {stats['packages_updated']}")
+        click.echo(f"  Packages skipped: {stats['packages_skipped']}")
         click.echo(f"  Data transferred: {stats['bytes_downloaded'] / 1024 / 1024:.2f} MB")
         return
     else:
@@ -2638,6 +2655,25 @@ def _publish_single_repository(session, storage, global_config, repo_config, cus
             click.echo(f"  Location: {target_path}")
             click.echo(f"  Chart files: {target_path}/*.tgz")
             click.echo(f"  Index file: {target_path}/index.yaml")
+        except Exception as e:
+            click.echo(f"\n✗ Publishing failed: {e}", err=True)
+            raise
+    elif repo_config.type == "apk":
+        publisher = ApkPublisher(storage=storage)
+        # Publish repository
+        try:
+            publisher.publish_repository(
+                session=session,
+                repository=repository,
+                config=repo_config,
+                target_path=target_path
+            )
+            apk_config = repo_config.apk
+            arch_path = target_path / apk_config.branch / apk_config.repository / apk_config.architecture
+            click.echo(f"\n✓ APK repository published successfully!")
+            click.echo(f"  Location: {target_path}")
+            click.echo(f"  Package directory: {arch_path}")
+            click.echo(f"  Index file: {arch_path}/APKINDEX.tar.gz")
         except Exception as e:
             click.echo(f"\n✗ Publishing failed: {e}", err=True)
             raise
