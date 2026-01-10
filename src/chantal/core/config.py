@@ -25,13 +25,22 @@ class ProxyConfig(BaseModel):
 class AuthConfig(BaseModel):
     """Repository authentication configuration."""
 
-    type: str  # client_cert, basic, bearer
-    cert_dir: Optional[str] = None  # For client_cert
-    cert_file: Optional[str] = None  # For client_cert
-    key_file: Optional[str] = None  # For client_cert
-    username: Optional[str] = None  # For basic
-    password: Optional[str] = None  # For basic
-    token: Optional[str] = None  # For bearer
+    type: str  # client_cert, basic, bearer, custom
+
+    # Client certificate authentication (RHEL CDN)
+    cert_dir: Optional[str] = None
+    cert_file: Optional[str] = None
+    key_file: Optional[str] = None
+
+    # HTTP Basic authentication
+    username: Optional[str] = None
+    password: Optional[str] = None
+
+    # Bearer token authentication
+    token: Optional[str] = None
+
+    # Custom HTTP headers
+    headers: Optional[Dict[str, str]] = None  # e.g., {"X-API-Key": "secret"}
 
 
 class RetentionConfig(BaseModel):

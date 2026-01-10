@@ -113,26 +113,49 @@ class RpmSyncPlugin:
             if proxy_config.username and proxy_config.password:
                 self.session.auth = (proxy_config.username, proxy_config.password)
 
-        # Setup client certificate authentication (for RHEL CDN)
-        if config.auth and config.auth.type == "client_cert":
-            if config.auth.cert_file and config.auth.key_file:
-                # Specific cert/key files provided
-                self.session.cert = (config.auth.cert_file, config.auth.key_file)
-            elif config.auth.cert_dir:
-                # Find cert/key in directory (RHEL entitlement pattern)
-                cert_dir = Path(config.auth.cert_dir)
-                if cert_dir.exists():
-                    # Find first .pem certificate (not -key.pem)
-                    certs = [f for f in cert_dir.glob("*.pem") if not f.name.endswith("-key.pem")]
-                    if certs:
-                        cert_file = certs[0]
-                        # Look for corresponding key file
-                        key_file = cert_dir / cert_file.name.replace(".pem", "-key.pem")
-                        if key_file.exists():
-                            self.session.cert = (str(cert_file), str(key_file))
-                            print(f"Using client certificate: {cert_file.name}")
-                        else:
-                            print(f"Warning: Key file not found for {cert_file.name}")
+        # Setup repository authentication
+        if config.auth:
+            if config.auth.type == "client_cert":
+                # Client certificate authentication (RHEL CDN)
+                if config.auth.cert_file and config.auth.key_file:
+                    # Specific cert/key files provided
+                    self.session.cert = (config.auth.cert_file, config.auth.key_file)
+                    print(f"Using client certificate authentication")
+                elif config.auth.cert_dir:
+                    # Find cert/key in directory (RHEL entitlement pattern)
+                    cert_dir = Path(config.auth.cert_dir)
+                    if cert_dir.exists():
+                        # Find first .pem certificate (not -key.pem)
+                        certs = [f for f in cert_dir.glob("*.pem") if not f.name.endswith("-key.pem")]
+                        if certs:
+                            cert_file = certs[0]
+                            # Look for corresponding key file
+                            key_file = cert_dir / cert_file.name.replace(".pem", "-key.pem")
+                            if key_file.exists():
+                                self.session.cert = (str(cert_file), str(key_file))
+                                print(f"Using client certificate: {cert_file.name}")
+                            else:
+                                print(f"Warning: Key file not found for {cert_file.name}")
+
+            elif config.auth.type == "basic":
+                # HTTP Basic authentication
+                if config.auth.username and config.auth.password:
+                    self.session.auth = (config.auth.username, config.auth.password)
+                    print(f"Using HTTP Basic authentication (user: {config.auth.username})")
+
+            elif config.auth.type == "bearer":
+                # Bearer token authentication
+                if config.auth.token:
+                    self.session.headers.update({
+                        "Authorization": f"Bearer {config.auth.token}"
+                    })
+                    print(f"Using Bearer token authentication")
+
+            elif config.auth.type == "custom":
+                # Custom HTTP headers
+                if config.auth.headers:
+                    self.session.headers.update(config.auth.headers)
+                    print(f"Using custom headers: {list(config.auth.headers.keys())}")
 
     def sync_repository(
         self, session: Session, repository: Repository

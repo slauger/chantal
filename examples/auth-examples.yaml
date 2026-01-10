@@ -1,0 +1,123 @@
+# Authentication Examples for Chantal
+# Demonstrates all supported authentication methods
+
+database:
+  url: sqlite:///chantal.db
+
+storage:
+  base_path: ./storage
+  pool_path: ./storage/pool
+  published_path: ./storage/published
+
+repositories:
+  # ========================================
+  # 1. No Authentication (Public Repos)
+  # ========================================
+  - id: nginx-stable
+    name: nginx stable (public, no auth)
+    type: rpm
+    feed: https://nginx.org/packages/centos/9/x86_64/
+    enabled: false
+
+  # ========================================
+  # 2. HTTP Basic Authentication
+  # ========================================
+  # Use case: Private Artifactory, Nexus, or custom repos
+  - id: private-artifactory
+    name: Private Artifactory Repository
+    type: rpm
+    feed: https://artifactory.example.com/repo/rhel9/
+    enabled: false
+    auth:
+      type: basic
+      username: repo-user
+      password: secret-password
+
+  # ========================================
+  # 3. Bearer Token Authentication
+  # ========================================
+  # Use case: Modern API-based repository managers, GitLab Package Registry
+  - id: gitlab-packages
+    name: GitLab Package Registry
+    type: rpm
+    feed: https://gitlab.example.com/api/v4/projects/123/packages/
+    enabled: false
+    auth:
+      type: bearer
+      token: glpat-xxxxxxxxxxxxxxxxxxxx
+
+  # ========================================
+  # 4. Client Certificate Authentication
+  # ========================================
+  # Use case: Red Hat CDN (subscription-manager)
+
+  # Option A: Auto-discover from cert_dir (RHEL entitlement pattern)
+  - id: rhel9-baseos
+    name: RHEL 9 BaseOS (via subscription-manager)
+    type: rpm
+    feed: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/os
+    enabled: false
+    auth:
+      type: client_cert
+      cert_dir: /etc/pki/entitlement  # Auto-finds *.pem and *-key.pem
+
+  # Option B: Explicit cert/key files
+  - id: rhel9-appstream
+    name: RHEL 9 AppStream (explicit cert files)
+    type: rpm
+    feed: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os
+    enabled: false
+    auth:
+      type: client_cert
+      cert_file: /etc/pki/entitlement/8504956652370847584.pem
+      key_file: /etc/pki/entitlement/8504956652370847584-key.pem
+
+  # ========================================
+  # 5. Custom HTTP Headers
+  # ========================================
+  # Use case: Custom API keys, proprietary authentication schemes
+  - id: custom-repo
+    name: Repository with Custom Auth Headers
+    type: rpm
+    feed: https://repo.example.com/rpm/
+    enabled: false
+    auth:
+      type: custom
+      headers:
+        X-API-Key: "your-api-key-here"
+        X-Auth-Token: "additional-token"
+        X-Customer-ID: "12345"
+
+  # ========================================
+  # 6. Proxy + Repository Auth Combined
+  # ========================================
+  # Use case: Corporate proxy + authenticated upstream repo
+  - id: corporate-repo
+    name: Corporate Repo via Proxy
+    type: rpm
+    feed: https://repo.corporate.com/rhel9/
+    enabled: false
+
+    # Repository authentication
+    auth:
+      type: basic
+      username: repo-user
+      password: repo-pass
+
+    # Proxy configuration (per-repo override)
+    proxy:
+      http_proxy: http://proxy.corporate.com:8080
+      https_proxy: http://proxy.corporate.com:8080
+      username: proxy-user
+      password: proxy-pass
+
+# ========================================
+# Global Proxy Configuration (optional)
+# ========================================
+# Applied to all repos unless overridden
+proxy:
+  http_proxy: http://proxy.example.com:8080
+  https_proxy: http://proxy.example.com:8080
+  no_proxy: localhost,127.0.0.1,.internal.domain
+  username: global-proxy-user
+  password: global-proxy-pass
