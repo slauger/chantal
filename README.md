@@ -18,7 +18,7 @@ A Python-based CLI tool for offline repository mirroring, inspired by pulp-admin
 
 ## Features
 
-- 🔄 **Unified Mirroring** - RPM and APT repositories in one tool (MVP: RPM only)
+- 🔄 **Unified Mirroring** - Multiple repository types in one tool (RPM, APT, PyPI, Helm, and more)
 - 📦 **Deduplication** - Content-addressed storage (SHA256), packages stored once
 - 📸 **Snapshots** - Immutable point-in-time repository states for patch management
 - 🔍 **Views** - Virtual repositories combining multiple repos (e.g., BaseOS + AppStream + EPEL)
