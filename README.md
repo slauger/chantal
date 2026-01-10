@@ -9,6 +9,7 @@
 - 🔄 **Unified Mirroring** - RPM and APT repositories in one tool (MVP: RPM only)
 - 📦 **Deduplication** - Content-addressed storage (SHA256), packages stored once
 - 📸 **Snapshots** - Immutable point-in-time repository states for patch management
+- 🔍 **Views** - Virtual repositories combining multiple repos (e.g., BaseOS + AppStream + EPEL)
 - 🔌 **Modular** - Plugin architecture for repository types
 - 🚫 **No Daemons** - Simple CLI tool (optional scheduler for future automation)
 - 📁 **Static Output** - Serve with any webserver (Apache, NGINX)
@@ -49,6 +50,90 @@ chantal --version
 **Requirements:**
 - Python 3.10+ (required for `Path.hardlink_to()`)
 - PostgreSQL or SQLite (for metadata storage)
+
+### Container Image (Recommended)
+
+Pre-built container images based on Red Hat UBI9 are available from GitHub Container Registry:
+
+```bash
+# Pull the latest image
+docker pull ghcr.io/slauger/chantal:latest
+
+# Or use podman
+podman pull ghcr.io/slauger/chantal:latest
+```
+
+**Run with Docker/Podman:**
+
+```bash
+# Create directories for persistent storage
+mkdir -p config data repos
+
+# Run chantal commands
+docker run --rm \
+  -v $(pwd)/config:/etc/chantal:ro \
+  -v $(pwd)/data:/var/lib/chantal \
+  -v $(pwd)/repos:/var/www/repos \
+  ghcr.io/slauger/chantal:latest --help
+
+# Initialize chantal
+docker run --rm \
+  -v $(pwd)/config:/etc/chantal \
+  -v $(pwd)/data:/var/lib/chantal \
+  -v $(pwd)/repos:/var/www/repos \
+  ghcr.io/slauger/chantal:latest init
+
+# Sync repositories
+docker run --rm \
+  -v $(pwd)/config:/etc/chantal:ro \
+  -v $(pwd)/data:/var/lib/chantal \
+  -v $(pwd)/repos:/var/www/repos \
+  ghcr.io/slauger/chantal:latest repo sync --all
+```
+
+**Using Docker Compose:**
+
+Create `docker-compose.yml`:
+
+```yaml
+version: '3.8'
+
+services:
+  chantal:
+    image: ghcr.io/slauger/chantal:latest
+    volumes:
+      - ./config:/etc/chantal:ro
+      - ./data:/var/lib/chantal
+      - ./repos:/var/www/repos
+    environment:
+      - CHANTAL_CONFIG=/etc/chantal/config.yaml
+    # Override entrypoint for long-running commands
+    entrypoint: []
+    command: chantal repo sync --all
+
+  # Optional: PostgreSQL database
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: chantal
+      POSTGRES_USER: chantal
+      POSTGRES_PASSWORD: password
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+volumes:
+  postgres-data:
+```
+
+**Volumes:**
+- `/etc/chantal` - Configuration files (read-only recommended)
+- `/var/lib/chantal` - Storage pool and database
+- `/var/www/repos` - Published repositories (served via web server)
+
+**Available Tags:**
+- `latest` - Latest build from main branch
+- `v1.0.0`, `v1.0`, `v1` - Semantic version tags
+- `main-<sha>` - Specific commit builds
 
 ---
 
@@ -337,6 +422,136 @@ chantal snapshot delete \
   20250108
 ```
 
+### 8. Create Views (Virtual Repositories)
+
+**Views** combine multiple repositories into a single virtual repository. This is useful for:
+- **Combining RHEL channels**: BaseOS + AppStream + CRB in one repository
+- **Adding EPEL to RHEL**: Create "RHEL + EPEL" view for mixed packages
+- **Custom stacks**: Web server stack (BaseOS + nginx + httpd), monitoring stack (EPEL tools), etc.
+
+**Important**: All packages from all repositories are included (NO deduplication). The client (yum/dnf) decides which version to use based on repository priority.
+
+#### Configure Views
+
+Create `conf.d/views.yaml`:
+
+```yaml
+views:
+  # RHEL 9 Complete - All channels combined
+  - name: rhel9-complete
+    description: "RHEL 9 - All repositories (BaseOS + AppStream + CRB)"
+    repos:
+      - rhel9-baseos-vim-latest
+      - rhel9-appstream-nginx-latest
+      - rhel9-appstream-httpd-latest
+      - rhel9-crb-python-latest
+
+  # RHEL 9 Web Server Stack
+  - name: rhel9-webserver
+    description: "RHEL 9 Web Server Stack (BaseOS + nginx + httpd)"
+    repos:
+      - rhel9-baseos-vim-latest
+      - rhel9-appstream-nginx-latest
+      - rhel9-appstream-httpd-latest
+
+  # Mixed RHEL + EPEL
+  - name: rhel9-plus-epel
+    description: "RHEL 9 + EPEL Combined"
+    repos:
+      - rhel9-baseos-vim-latest
+      - rhel9-appstream-nginx-latest
+      - epel9-htop-latest
+      - epel9-monitoring-latest
+```
+
+#### List and Show Views
+
+```bash
+# List all configured views
+chantal view list
+
+# Show view details (repositories, package count)
+chantal view show --name rhel9-complete
+```
+
+#### Publish Views
+
+```bash
+# Publish view (combines all repos at current state)
+chantal publish view --name rhel9-complete
+
+# Result: published/views/rhel9-complete/latest/
+# Configure on clients:
+#   [rhel9-complete]
+#   name=RHEL 9 Complete
+#   baseurl=http://mirror.example.com/chantal/views/rhel9-complete/latest/
+#   enabled=1
+#   gpgcheck=0
+```
+
+#### Create Atomic View Snapshots
+
+Create snapshots of ALL repositories in a view simultaneously:
+
+```bash
+# Create atomic snapshot of entire view
+chantal snapshot create \
+  --view rhel9-complete \
+  --name 2025-01-10 \
+  --description "January 2025 baseline"
+
+# This creates:
+# - Individual snapshots for each repository in the view
+# - A view snapshot that references all repository snapshots
+# - Ensures all repositories are frozen at the same point in time
+
+# Publish view snapshot
+chantal publish snapshot \
+  --view rhel9-complete \
+  --snapshot 2025-01-10
+
+# Result: published/views/rhel9-complete/snapshots/2025-01-10/
+```
+
+**Benefits of View Snapshots:**
+- **Atomic freezes**: All repositories in view frozen simultaneously
+- **Patch baselines**: Create monthly baselines across all RHEL channels
+- **Testing**: Freeze environment for testing, then promote to production
+- **Rollback**: Roll back entire stack (BaseOS + AppStream + EPEL) to previous snapshot
+
+#### Compliance/Audit: Export Snapshot Content
+
+For compliance or audit purposes, export exactly what was in a snapshot:
+
+```bash
+# Show package list (human-readable table)
+chantal snapshot content --view rhel9-webserver --snapshot 2025-01-10
+
+# Export as JSON (for tools/automation)
+chantal snapshot content \
+  --view rhel9-webserver \
+  --snapshot 2025-01-10 \
+  --format json > audit/rhel9-webserver-2025-01-10.json
+
+# Export as CSV (for Excel/reporting)
+chantal snapshot content \
+  --view rhel9-webserver \
+  --snapshot 2025-01-10 \
+  --format csv > audit/rhel9-webserver-2025-01-10.csv
+```
+
+**CSV includes:**
+- View name, snapshot name, repository ID
+- Package name, epoch, version, release, architecture
+- NEVRA (full package identifier)
+- SHA256 checksum (for integrity verification)
+- File size, filename
+
+Perfect for:
+- Compliance reports ("What was deployed on 2025-01-10?")
+- Security audits (verify exact package versions)
+- Change management (track package changes over time)
+
 ---
 
 ## CLI Commands
@@ -370,17 +585,37 @@ chantal repo history --repo-id <repo-id> [--limit 10]
 # List snapshots
 chantal snapshot list [--repo-id <repo-id>]
 
-# Create snapshot
+# Create repository snapshot
 chantal snapshot create \
   --repo-id <repo-id> \
   --name <name> \
   [--description "..."]
+
+# Create view snapshot (atomic snapshot of all repos in view)
+chantal snapshot create \
+  --view <view-name> \
+  --name <name> \
+  [--description "..."]
+
+# Show snapshot content (package list) - for compliance/audit
+chantal snapshot content --repo-id <repo-id> --snapshot <name> [--format table|json|csv]
+chantal snapshot content --view <view-name> --snapshot <name> [--format table|json|csv]
 
 # Compare two snapshots (show added/removed/updated packages)
 chantal snapshot diff --repo-id <repo-id> <snapshot1> <snapshot2>
 
 # Delete snapshot
 chantal snapshot delete --repo-id <repo-id> <snapshot-name>
+```
+
+### View Management
+
+```bash
+# List all configured views
+chantal view list
+
+# Show view details (repositories, package count)
+chantal view show --name <view-name>
 ```
 
 ### Package Management
@@ -404,8 +639,14 @@ chantal package show <sha256>
 chantal publish repo --repo-id <repo-id>
 chantal publish repo --all
 
-# Publish specific snapshot
-chantal publish snapshot --snapshot <repo-id>-<name>
+# Publish view (combines all repos into one virtual repository)
+chantal publish view --name <view-name>
+
+# Publish repository snapshot
+chantal publish snapshot --snapshot <name> --repo-id <repo-id>
+
+# Publish view snapshot
+chantal publish snapshot --snapshot <name> --view <view-name>
 
 # List published repositories and snapshots
 chantal publish list
@@ -787,23 +1028,27 @@ Extensible plugin system for package types:
 - ✅ Hardlink-based publishing (zero-copy)
 - ✅ CLI commands: `chantal publish repo`, `chantal publish snapshot`
 
+**Milestone 5: Views (Virtual Repositories)**
+- ✅ Database models (View, ViewRepository, ViewSnapshot)
+- ✅ Alembic migration for view tables
+- ✅ ViewConfig Pydantic models (YAML configuration)
+- ✅ CLI commands: `chantal view list`, `chantal view show`
+- ✅ ViewPublisher plugin (extends RpmPublisher)
+- ✅ View publishing: `chantal publish view --name <name>`
+- ✅ View snapshots: `chantal snapshot create --view <name>`
+- ✅ View snapshot publishing: `chantal publish snapshot --view <name> --snapshot <name>`
+- ✅ 10 view tests passing
+
 **Other Completed**
 - ✅ Database models (SQLAlchemy with PostgreSQL + SQLite support)
 - ✅ CLI framework (Click with comprehensive commands)
 - ✅ Configuration validation (YAML syntax errors caught at startup)
-- ✅ 64 tests passing
+- ✅ 74 tests passing (64 core + 10 views)
 - ✅ Python 3.10+ support
 
 ### ⏳ In Progress / Upcoming
 
-**Milestone 5: Snapshot Management** (Next)
-- ⏳ Snapshot creation (`snapshot create`)
-- ⏳ Snapshot listing (`snapshot list`)
-- ⏳ Snapshot diff (`snapshot diff`) - compare package versions
-- ⏳ Snapshot deletion (`snapshot delete`)
-- ⏳ Snapshot publishing
-
-**Milestone 6: Statistics & Database Management** (MVP Required)
+**Milestone 6: Statistics & Database Management** (Next - MVP Required)
 - ⏳ Global statistics (`chantal stats`)
 - ⏳ Repository statistics (`chantal stats --repo-id`)
 - ⏳ Database statistics (`chantal db stats`)
@@ -829,7 +1074,7 @@ Extensible plugin system for package types:
 - Prometheus metrics
 - Advanced retention policies
 
-**Progress:** ~65% of MVP complete
+**Progress:** ~75% of MVP complete
 
 See [`.planning/status.md`](.planning/status.md) for detailed status.
 
@@ -840,11 +1085,12 @@ See [`.planning/status.md`](.planning/status.md) for detailed status.
 ### Running Tests
 
 ```bash
-# Run all tests (64 passing)
+# Run all tests (74 passing)
 pytest
 
 # Run specific test file
 pytest tests/test_cli.py -v
+pytest tests/test_views.py -v
 
 # Run with coverage
 pytest --cov=chantal --cov-report=term-missing
@@ -853,6 +1099,12 @@ pytest --cov=chantal --cov-report=term-missing
 export CHANTAL_CONFIG=.dev/config.yaml
 chantal init
 chantal repo sync --repo-id epel9-htop-latest
+
+# Test views
+chantal view list
+chantal publish view --name rhel9-webserver
+chantal snapshot create --view rhel9-webserver --name 2025-01-10
+chantal publish snapshot --view rhel9-webserver --snapshot 2025-01-10
 ```
 
 ### Code Quality
@@ -906,7 +1158,7 @@ MIT License - See LICENSE file for details.
 
 ---
 
-**Current Phase:** MVP Development - Milestone 3+ Complete (RPM Sync + Update Checking)
-**Next Milestone:** Snapshot Management (Milestone 5)
-**Test Coverage:** 64 tests passing
-**Real-world Testing:** RHEL 9, CentOS 9, EPEL 9 repositories synced successfully
+**Current Phase:** MVP Development - Milestone 5 Complete (Views - Virtual Repositories)
+**Next Milestone:** Statistics & Database Management (Milestone 6)
+**Test Coverage:** 74 tests passing (64 core + 10 views)
+**Real-world Testing:** RHEL 9, CentOS 9, EPEL 9 repositories synced successfully + Views tested
