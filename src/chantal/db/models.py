@@ -14,6 +14,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Integer,
+    JSON,
     String,
     Table,
     Text,
@@ -249,3 +250,125 @@ class SyncHistory(Base):
             delta = self.completed_at - self.started_at
             return delta.total_seconds()
         return None
+
+
+class View(Base):
+    """View model - groups multiple repositories into a single virtual repository.
+
+    A view is a collection of repositories that can be published together as one.
+    Views can be published as "latest" (mutable) or as snapshots (immutable).
+    """
+
+    __tablename__ = "views"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+
+    # View identification
+    name: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Repository type (all repos in view must have same type)
+    repo_type: Mapped[str] = mapped_column(String(50), nullable=False)  # rpm, apt
+
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
+
+    # Publishing status (for "latest" publish)
+    is_published: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    published_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    published_path: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Relationships
+    view_repositories: Mapped[list["ViewRepository"]] = relationship(
+        "ViewRepository", back_populates="view", cascade="all, delete-orphan"
+    )
+    view_snapshots: Mapped[list["ViewSnapshot"]] = relationship(
+        "ViewSnapshot", back_populates="view", cascade="all, delete-orphan"
+    )
+
+    def __repr__(self) -> str:
+        return f"<View(name='{self.name}', type='{self.repo_type}')>"
+
+
+class ViewRepository(Base):
+    """Junction table: View -> Repositories (with ordering).
+
+    Defines which repositories are part of a view and their precedence order.
+    """
+
+    __tablename__ = "view_repositories"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    view_id: Mapped[int] = mapped_column(Integer, ForeignKey("views.id"), nullable=False)
+    repository_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("repositories.id"), nullable=False
+    )
+
+    # Order/precedence for metadata merging (lower = higher priority)
+    order: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    # Timestamps
+    added_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, nullable=False
+    )
+
+    # Relationships
+    view: Mapped["View"] = relationship("View", back_populates="view_repositories")
+    repository: Mapped["Repository"] = relationship("Repository")
+
+    # Unique constraint: repository can only be in view once
+    __table_args__ = (
+        UniqueConstraint("view_id", "repository_id", name="uq_view_repository"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<ViewRepository(view_id={self.view_id}, repository_id={self.repository_id}, order={self.order})>"
+
+
+class ViewSnapshot(Base):
+    """View snapshot model - represents an atomic snapshot of all repositories in a view.
+
+    When creating a view snapshot, all repositories in the view are snapshotted
+    simultaneously, creating an immutable point-in-time state of the entire view.
+    """
+
+    __tablename__ = "view_snapshots"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    view_id: Mapped[int] = mapped_column(Integer, ForeignKey("views.id"), nullable=False)
+
+    # Snapshot identification
+    name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # State
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, nullable=False
+    )
+
+    # Which repository snapshots are included (JSON array of snapshot IDs)
+    # Example: [12, 45, 67] - references Snapshot.id
+    snapshot_ids: Mapped[list[int]] = mapped_column(JSON, nullable=False)
+
+    # Publishing status
+    is_published: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    published_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    published_path: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Statistics (cached for performance)
+    package_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    total_size_bytes: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+    # Relationships
+    view: Mapped["View"] = relationship("View", back_populates="view_snapshots")
+
+    # Unique constraint: snapshot name must be unique per view
+    __table_args__ = (UniqueConstraint("view_id", "name", name="uq_view_snapshot_name"),)
+
+    def __repr__(self) -> str:
+        return f"<ViewSnapshot(name='{self.name}', view_id={self.view_id}, snapshots={len(self.snapshot_ids)})>"

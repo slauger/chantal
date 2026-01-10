@@ -319,6 +319,45 @@ class StorageConfig(BaseModel):
         return Path(self.base_path) / "tmp"
 
 
+class ViewConfig(BaseModel):
+    """View configuration - groups multiple repositories into one virtual repository."""
+
+    name: str
+    description: Optional[str] = None
+    repos: List[str]  # List of repository IDs
+
+    # Optional: Override publish path
+    publish_path: Optional[str] = None
+
+    def validate_repos(self, all_repos: List[RepositoryConfig]) -> None:
+        """Validate that all referenced repositories exist and have same type.
+
+        Args:
+            all_repos: List of all repository configurations
+
+        Raises:
+            ValueError: If repo doesn't exist or types don't match
+        """
+        repo_ids = {repo.id for repo in all_repos}
+        repo_types = {}
+
+        for repo_id in self.repos:
+            if repo_id not in repo_ids:
+                raise ValueError(f"View '{self.name}' references unknown repository: {repo_id}")
+
+            # Get repo type
+            repo = next(r for r in all_repos if r.id == repo_id)
+            repo_types[repo_id] = repo.type
+
+        # Check all repos have same type
+        types = set(repo_types.values())
+        if len(types) > 1:
+            raise ValueError(
+                f"View '{self.name}' contains repositories of different types: {types}. "
+                f"All repositories in a view must have the same type."
+            )
+
+
 class GlobalConfig(BaseModel):
     """Global Chantal configuration."""
 
@@ -327,6 +366,7 @@ class GlobalConfig(BaseModel):
     proxy: Optional[ProxyConfig] = None
     ssl: Optional[SSLConfig] = None
     repositories: List[RepositoryConfig] = Field(default_factory=list)
+    views: List[ViewConfig] = Field(default_factory=list)
 
     # Include pattern for additional config files
     include: Optional[str] = None
@@ -345,6 +385,17 @@ class GlobalConfig(BaseModel):
     def get_repositories_by_type(self, repo_type: str) -> List[RepositoryConfig]:
         """Get all repositories of a specific type."""
         return [repo for repo in self.repositories if repo.type == repo_type]
+
+    def get_view(self, view_name: str) -> Optional[ViewConfig]:
+        """Get view configuration by name."""
+        for view in self.views:
+            if view.name == view_name:
+                return view
+        return None
+
+    def get_views_for_repository(self, repo_id: str) -> List[ViewConfig]:
+        """Get all views that contain a specific repository."""
+        return [view for view in self.views if repo_id in view.repos]
 
 
 class ConfigLoader:
@@ -381,12 +432,17 @@ class ConfigLoader:
         # Handle includes
         if "include" in config_data:
             include_pattern = config_data["include"]
-            included_repos = self._load_includes(include_pattern)
+            included_repos, included_views = self._load_includes(include_pattern)
 
             # Merge included repositories
             if "repositories" not in config_data:
                 config_data["repositories"] = []
             config_data["repositories"].extend(included_repos)
+
+            # Merge included views
+            if "views" not in config_data:
+                config_data["views"] = []
+            config_data["views"].extend(included_views)
 
         # Validate and create GlobalConfig
         try:
@@ -394,14 +450,14 @@ class ConfigLoader:
         except Exception as e:
             raise ValueError(f"Configuration validation error in {self.config_path}:\n{e}")
 
-    def _load_includes(self, include_pattern: str) -> List[Dict[str, Any]]:
+    def _load_includes(self, include_pattern: str) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
         """Load included configuration files.
 
         Args:
             include_pattern: Glob pattern for include files (e.g., "conf.d/*.yaml")
 
         Returns:
-            List of repository configurations from included files
+            Tuple of (repositories, views) from included files
         """
         # Resolve pattern relative to main config directory
         config_dir = self.config_path.parent
@@ -429,6 +485,7 @@ class ConfigLoader:
 
         # Load all included files
         all_repos = []
+        all_views = []
         for config_file in config_files:
             if config_file.suffix in [".yaml", ".yml"]:
                 try:
@@ -436,10 +493,12 @@ class ConfigLoader:
                         data = yaml.safe_load(f) or {}
                         if "repositories" in data:
                             all_repos.extend(data["repositories"])
+                        if "views" in data:
+                            all_views.extend(data["views"])
                 except yaml.YAMLError as e:
                     raise ValueError(f"YAML syntax error in {config_file}:\n{e}")
 
-        return all_repos
+        return all_repos, all_views
 
 
 def load_config(config_path: Optional[Path] = None) -> GlobalConfig:
