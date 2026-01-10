@@ -12,9 +12,12 @@
 
 A Python-based CLI tool for offline repository mirroring, inspired by pulp-admin, reposync, and aptly.
 
-**The Problem:** Enterprise environments need offline mirrors of RPM/APT repositories with version control, efficient storage, RHEL subscription support, and simple management.
+**The Problem:** Enterprise environments need offline mirrors of RPM/APT repositories with version control, efficient storage, RHEL subscription support, and simple management. Existing tools either:
+- Support only one repository type (`reposync` for RPM, `apt-mirror` for APT)
+- Require complex infrastructure (Pulp needs Celery, RabbitMQ, Redis, PostgreSQL)
+- Lack proper snapshot and deduplication features
 
-**The Solution:** One tool. One workflow. Content-addressed storage. Immutable snapshots.
+**The Solution:** One simple CLI tool. No daemons, no message queues, no complex setup. Just sync repositories, create snapshots, and publish static files. Works with any webserver (Apache, NGINX) - because it's just files.
 
 ## Features
 
