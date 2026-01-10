@@ -57,7 +57,7 @@ jobs:
           labels: |
             org.opencontainers.image.title=Chantal
             org.opencontainers.image.description=Unified offline repository mirroring for RPM and APT
-            org.opencontainers.image.vendor=Sebastian Lauger
+            org.opencontainers.image.vendor=Simon Lauger
 
       - name: Build and push Docker image
         id: build
