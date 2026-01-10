@@ -21,11 +21,12 @@ from sqlalchemy.orm import Session
 
 from chantal.core.config import (
     FilterConfig,
+    GenericMetadataFilterConfig,
     ListFilterConfig,
-    MetadataFilterConfig,
     PatternFilterConfig,
     ProxyConfig,
     RepositoryConfig,
+    RpmFilterConfig,
     SizeFilterConfig,
     TimeFilterConfig,
 )
@@ -443,12 +444,20 @@ class RpmSyncPlugin:
         # Normalize legacy config to new structure
         filters = filters.normalize()
 
+        # Validate filter config for RPM repository
+        filters.validate_for_repo_type("rpm")
+
         filtered_packages = []
 
         for pkg in packages:
-            # Apply metadata filters
+            # Apply generic metadata filters
             if filters.metadata:
-                if not self._check_metadata_filters(pkg, filters.metadata):
+                if not self._check_generic_metadata_filters(pkg, filters.metadata):
+                    continue
+
+            # Apply RPM-specific filters
+            if filters.rpm:
+                if not self._check_rpm_filters(pkg, filters.rpm):
                     continue
 
             # Apply pattern filters
@@ -467,17 +476,17 @@ class RpmSyncPlugin:
 
         return filtered_packages
 
-    def _check_metadata_filters(
-        self, pkg: PackageMetadata, metadata: MetadataFilterConfig
+    def _check_generic_metadata_filters(
+        self, pkg: PackageMetadata, metadata: GenericMetadataFilterConfig
     ) -> bool:
-        """Check if package passes metadata filters.
+        """Check if package passes generic metadata filters.
 
         Args:
             pkg: Package metadata
-            metadata: Metadata filter config
+            metadata: Generic metadata filter config
 
         Returns:
-            True if package passes all metadata filters
+            True if package passes all generic metadata filters
         """
         # Size filter
         if metadata.size_bytes:
@@ -513,29 +522,47 @@ class RpmSyncPlugin:
             if not self._check_list_filter(pkg.arch, metadata.architectures):
                 return False
 
-        # Group filter
-        if metadata.groups and pkg.group:
-            if not self._check_list_filter(pkg.group, metadata.groups):
-                return False
+        return True
 
-        # License filter
-        if metadata.licenses and pkg.license:
-            if not self._check_list_filter(pkg.license, metadata.licenses):
-                return False
+    def _check_rpm_filters(
+        self, pkg: PackageMetadata, rpm_filters: RpmFilterConfig
+    ) -> bool:
+        """Check if package passes RPM-specific filters.
 
-        # Vendor filter
-        if metadata.vendors and pkg.vendor:
-            if not self._check_list_filter(pkg.vendor, metadata.vendors):
-                return False
+        Args:
+            pkg: Package metadata
+            rpm_filters: RPM filter config
 
+        Returns:
+            True if package passes all RPM filters
+        """
         # Source RPM filter
-        if metadata.exclude_source_rpms:
+        if rpm_filters.exclude_source_rpms:
             if pkg.arch == "src":
                 return False
             # Also check if this is a source RPM by looking at sourcerpm field
-            if pkg.sourcerpm and pkg.sourcerpm.endswith(".src.rpm"):
-                # This package WAS built from a source RPM, but is not itself a source RPM
-                pass  # Allow binary RPMs built from source
+            # (Note: binary RPMs have sourcerpm pointing to the .src.rpm they were built from)
+            # We only want to exclude actual source RPMs (arch == "src")
+
+        # Group filter
+        if rpm_filters.groups and pkg.group:
+            if not self._check_list_filter(pkg.group, rpm_filters.groups):
+                return False
+
+        # License filter
+        if rpm_filters.licenses and pkg.license:
+            if not self._check_list_filter(pkg.license, rpm_filters.licenses):
+                return False
+
+        # Vendor filter
+        if rpm_filters.vendors and pkg.vendor:
+            if not self._check_list_filter(pkg.vendor, rpm_filters.vendors):
+                return False
+
+        # Epoch filter
+        if rpm_filters.epochs and pkg.epoch:
+            if not self._check_list_filter(pkg.epoch, rpm_filters.epochs):
+                return False
 
         return True
 

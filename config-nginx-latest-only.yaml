@@ -16,17 +16,23 @@ repositories:
     feed: https://nginx.org/packages/centos/9/x86_64/
     enabled: true
 
-    # NEW: Generic filter structure with post-processing
+    # NEW: Generic filter structure with plugin-specific filters
     filters:
+      # Generic metadata filters (all package types)
       metadata:
         architectures:
-          include: ["x86_64"]  # Only x86_64, exclude i686/src
+          include: ["x86_64"]  # Only x86_64, exclude i686
+
+      # RPM-specific filters
+      rpm:
         exclude_source_rpms: true  # No .src.rpm packages
 
+      # Pattern filters (generic)
       patterns:
         exclude:
           - ".*-debuginfo$"     # No debuginfo packages
           - ".*-debugsource$"   # No debugsource packages
 
+      # Post-processing (applied after filtering)
       post_processing:
         only_latest_version: true  # KEEP ONLY LATEST VERSION!

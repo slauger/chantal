@@ -1,0 +1,218 @@
+# Filter Examples for Chantal
+# Demonstrates all filter capabilities with plugin-specific separation
+
+database:
+  url: sqlite:///chantal.db
+
+storage:
+  base_path: ./storage
+  pool_path: ./storage/pool
+  published_path: ./storage/published
+
+repositories:
+  # ========================================
+  # 1. Generic Filters (work for all plugins)
+  # ========================================
+  - id: example-generic
+    name: Generic Filters Example
+    type: rpm
+    feed: https://nginx.org/packages/centos/9/x86_64/
+    enabled: false
+    filters:
+      metadata:
+        # Size filtering - skip huge packages
+        size_bytes:
+          min: 1024           # Skip packages < 1 KB
+          max: 104857600      # Skip packages > 100 MB (kernel-debuginfo!)
+
+        # Time-based filtering
+        build_time:
+          newer_than: "2024-01-01"  # Only packages built after this date
+          # OR:
+          # older_than: "2025-01-01"
+          # last_n_days: 30  # Only packages from last 30 days
+
+        # Architecture filtering (generic concept)
+        architectures:
+          include: ["x86_64", "noarch"]
+          # exclude: ["i686", "armhfp"]
+
+  # ========================================
+  # 2. RPM-Specific Filters
+  # ========================================
+  - id: example-rpm
+    name: RPM-Specific Filters Example
+    type: rpm
+    feed: https://nginx.org/packages/centos/9/x86_64/
+    enabled: false
+    filters:
+      # RPM-specific metadata
+      rpm:
+        # Exclude source RPMs
+        exclude_source_rpms: true
+
+        # RPM groups (categories)
+        groups:
+          include:
+            - "Applications/Internet"
+            - "System Environment/Base"
+          # exclude:
+          #   - "Development/Libraries"
+          #   - "Documentation"
+
+        # License filtering (compliance!)
+        licenses:
+          include:
+            - "GPL"
+            - "GPLv2"
+            - "MIT"
+            - "Apache"
+          # exclude:
+          #   - "Proprietary"
+
+        # Vendor filtering
+        vendors:
+          include:
+            - "nginx, Inc."
+          # exclude:
+          #   - "Third Party"
+
+        # Epoch filtering (advanced RPM versioning)
+        epochs:
+          include: ["0", "1"]
+          # exclude: ["10"]
+
+  # ========================================
+  # 3. DEB-Specific Filters (Future)
+  # ========================================
+  - id: example-deb
+    name: DEB-Specific Filters Example
+    type: deb  # When APT support is added
+    feed: http://deb.debian.org/debian
+    enabled: false
+    filters:
+      # DEB-specific metadata
+      deb:
+        # Debian components
+        components:
+          include: ["main", "contrib"]
+          exclude: ["non-free"]
+
+        # Package priorities
+        priorities:
+          include: ["required", "important", "standard"]
+          # exclude: ["optional", "extra"]
+
+        # Package sections
+        sections:
+          include: ["admin", "devel", "libs"]
+          # exclude: ["games"]
+
+  # ========================================
+  # 4. Pattern Filters (Generic)
+  # ========================================
+  - id: example-patterns
+    name: Pattern Filters Example
+    type: rpm
+    feed: https://nginx.org/packages/centos/9/x86_64/
+    enabled: false
+    filters:
+      patterns:
+        # Include patterns - only these packages
+        include:
+          - "^nginx$"           # Exact match: nginx
+          - "^nginx-.*"         # Anything starting with nginx-
+          - "^(curl|wget|httpd)$"  # Multiple exact matches
+
+        # Exclude patterns - filter these out
+        exclude:
+          - ".*-debuginfo$"     # No debuginfo packages
+          - ".*-debugsource$"   # No debugsource packages
+          - ".*-devel$"         # No development packages
+          - ".*-doc$"           # No documentation packages
+
+  # ========================================
+  # 5. Post-Processing
+  # ========================================
+  - id: example-postprocessing
+    name: Post-Processing Example
+    type: rpm
+    feed: https://nginx.org/packages/centos/9/x86_64/
+    enabled: false
+    filters:
+      post_processing:
+        # Keep only latest version per (name, arch)
+        only_latest_version: true
+
+        # OR: Keep last 3 versions
+        # only_latest_n_versions: 3
+
+  # ========================================
+  # 6. Combined Example (Real-World)
+  # ========================================
+  - id: rhel9-production
+    name: RHEL 9 BaseOS for Production (Filtered)
+    type: rpm
+    feed: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/os
+    enabled: false
+
+    auth:
+      type: client_cert
+      cert_dir: /etc/pki/entitlement
+
+    filters:
+      # Generic filters
+      metadata:
+        size_bytes:
+          max: 524288000      # Skip packages > 500 MB
+
+        build_time:
+          last_n_days: 90     # Only packages from last 90 days
+
+        architectures:
+          include: ["x86_64", "noarch"]
+
+      # RPM-specific filters
+      rpm:
+        exclude_source_rpms: true
+
+        groups:
+          exclude:
+            - "Development/Libraries"
+            - "Development/Tools"
+
+        licenses:
+          include:
+            - "GPL"
+            - "GPLv2"
+            - "GPLv3"
+            - "MIT"
+            - "Apache"
+
+      # Pattern filters
+      patterns:
+        exclude:
+          - ".*-debuginfo$"
+          - ".*-debugsource$"
+          - ".*-devel$"
+          - ".*-doc$"
+
+      # Post-processing
+      post_processing:
+        only_latest_version: true
+
+  # ========================================
+  # 7. Minimal Example
+  # ========================================
+  - id: nginx-minimal
+    name: nginx latest only (minimal config)
+    type: rpm
+    feed: https://nginx.org/packages/centos/9/x86_64/
+    enabled: false
+    filters:
+      rpm:
+        exclude_source_rpms: true
+      patterns:
+        exclude: [".*-debuginfo$"]
+      post_processing:
+        only_latest_version: true

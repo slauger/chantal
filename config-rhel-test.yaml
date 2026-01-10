@@ -25,25 +25,28 @@ repositories:
 
     # Package filters - only sync specific packages
     filters:
-      # Include only these packages (regex patterns)
-      include_packages:
-        - "^nginx$"
-        - "^nginx-.*"
-        - "^curl$"
-        - "^curl-.*"
-        - "^systemd$"
-        - "^systemd-.*"
+      # Generic metadata filters
+      metadata:
+        architectures:
+          include: ["x86_64", "noarch"]
 
-      # Exclude debuginfo and devel packages
-      exclude_packages:
-        - ".*-debuginfo$"
-        - ".*-debugsource$"
-        - ".*-devel$"
+      # RPM-specific filters
+      rpm:
+        exclude_source_rpms: true
 
-      # Only x86_64 and noarch
-      include_architectures:
-        - "x86_64"
-        - "noarch"
+      # Pattern filters (regex)
+      patterns:
+        include:
+          - "^nginx$"
+          - "^nginx-.*"
+          - "^curl$"
+          - "^curl-.*"
+          - "^systemd$"
+          - "^systemd-.*"
+        exclude:
+          - ".*-debuginfo$"
+          - ".*-debugsource$"
+          - ".*-devel$"
 
   # Alternative: CentOS Stream for comparison (no auth needed)
   - id: centos9-baseos-filtered
@@ -54,17 +57,20 @@ repositories:
 
     # Same filters for comparison
     filters:
-      include_packages:
-        - "^nginx$"
-        - "^nginx-.*"
-        - "^curl$"
-        - "^curl-.*"
-        - "^systemd$"
-        - "^systemd-.*"
-      exclude_packages:
-        - ".*-debuginfo$"
-        - ".*-debugsource$"
-        - ".*-devel$"
-      include_architectures:
-        - "x86_64"
-        - "noarch"
+      metadata:
+        architectures:
+          include: ["x86_64", "noarch"]
+      rpm:
+        exclude_source_rpms: true
+      patterns:
+        include:
+          - "^nginx$"
+          - "^nginx-.*"
+          - "^curl$"
+          - "^curl-.*"
+          - "^systemd$"
+          - "^systemd-.*"
+        exclude:
+          - ".*-debuginfo$"
+          - ".*-debugsource$"
+          - ".*-devel$"

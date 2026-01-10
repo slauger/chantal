@@ -90,16 +90,30 @@ class ListFilterConfig(BaseModel):
     exclude: Optional[List[str]] = None
 
 
-class MetadataFilterConfig(BaseModel):
-    """Metadata-based filters."""
+class GenericMetadataFilterConfig(BaseModel):
+    """Generic metadata filters (work for all package types)."""
 
     size_bytes: Optional[SizeFilterConfig] = None
     build_time: Optional[TimeFilterConfig] = None
-    groups: Optional[ListFilterConfig] = None
     architectures: Optional[ListFilterConfig] = None
+
+
+class RpmFilterConfig(BaseModel):
+    """RPM-specific filters."""
+
+    exclude_source_rpms: bool = False  # Skip .src.rpm packages
+    groups: Optional[ListFilterConfig] = None
     licenses: Optional[ListFilterConfig] = None
     vendors: Optional[ListFilterConfig] = None
-    exclude_source_rpms: bool = False  # Skip .src.rpm packages
+    epochs: Optional[ListFilterConfig] = None
+
+
+class DebFilterConfig(BaseModel):
+    """DEB/APT-specific filters (future support)."""
+
+    components: Optional[ListFilterConfig] = None  # main, contrib, non-free
+    priorities: Optional[ListFilterConfig] = None  # required, important, standard
+    sections: Optional[ListFilterConfig] = None  # admin, devel, libs
 
 
 class PatternFilterConfig(BaseModel):
@@ -132,13 +146,23 @@ class PostProcessingConfig(BaseModel):
 class FilterConfig(BaseModel):
     """Package filtering configuration.
 
-    Supports both new generics structure and legacy flat structure for backward compatibility.
+    Supports both new structure and legacy flat structure for backward compatibility.
+
+    Structure:
+    - metadata: Generic filters (all package types)
+    - rpm/deb/helm: Plugin-specific filters
+    - patterns: Generic regex patterns
+    - post_processing: Applied after all filters
     """
 
-    # New generic structure
-    metadata: Optional[MetadataFilterConfig] = None
+    # Generic filters (all package types)
+    metadata: Optional[GenericMetadataFilterConfig] = None
     patterns: Optional[PatternFilterConfig] = None
     post_processing: Optional[PostProcessingConfig] = None
+
+    # Plugin-specific filters
+    rpm: Optional[RpmFilterConfig] = None
+    deb: Optional[DebFilterConfig] = None
 
     # Legacy flat structure (backward compatibility)
     include_packages: Optional[List[str]] = None  # DEPRECATED: use patterns.include
@@ -165,7 +189,7 @@ class FilterConfig(BaseModel):
         if self.metadata is None and (
             self.include_architectures or self.exclude_architectures
         ):
-            self.metadata = MetadataFilterConfig(
+            self.metadata = GenericMetadataFilterConfig(
                 architectures=ListFilterConfig(
                     include=self.include_architectures,
                     exclude=self.exclude_architectures,
@@ -179,6 +203,20 @@ class FilterConfig(BaseModel):
             )
 
         return self
+
+    def validate_for_repo_type(self, repo_type: str) -> None:
+        """Validate that only appropriate plugin-specific filters are used.
+
+        Args:
+            repo_type: Repository type (rpm, deb, etc.)
+
+        Raises:
+            ValueError: If incompatible filters are specified
+        """
+        if repo_type == "rpm" and self.deb is not None:
+            raise ValueError("Cannot use 'deb' filters with RPM repository")
+        if repo_type == "deb" and self.rpm is not None:
+            raise ValueError("Cannot use 'rpm' filters with DEB repository")
 
 
 class RepositoryConfig(BaseModel):
