@@ -254,7 +254,7 @@ MIT License - See [LICENSE](LICENSE) file for details.
 
 ## Credits
 
-Developed by [Sebastian Lauger](https://github.com/slauger)
+Developed by [Simon Lauger](https://github.com/slauger)
 
 Inspired by: pulp-admin, reposync, aptly, apt-mirror, bandersnatch
 
