@@ -7,6 +7,7 @@ This module implements syncing and publishing for Helm chart repositories.
 import gzip
 import hashlib
 import logging
+import os
 import shutil
 import tempfile
 from datetime import datetime
@@ -390,13 +391,13 @@ class HelmPublisher(PublisherPlugin):
 
         # Hardlink chart files to target directory
         for chart in charts:
-            pool_path = self.storage.get_pool_path(chart.sha256, chart.filename)
+            pool_path = self.storage.get_absolute_pool_path(chart.sha256, chart.filename)
             target_file = target_path / chart.filename
 
             # Create hardlink
             if target_file.exists():
                 target_file.unlink()
-            pool_path.hardlink_to(target_file)
+            os.link(pool_path, target_file)
 
         # Generate index.yaml
         self._generate_index_yaml(charts, target_path, config)
@@ -435,8 +436,9 @@ class HelmPublisher(PublisherPlugin):
             entry = metadata.to_index_entry()
 
             # Update URLs to point to published location
-            if config.publish and config.publish.base_url:
-                entry["urls"] = [f"{config.publish.base_url}/{chart.filename}"]
+            publish_config = getattr(config, 'publish', None)
+            if publish_config and getattr(publish_config, 'base_url', None):
+                entry["urls"] = [f"{publish_config.base_url}/{chart.filename}"]
             else:
                 entry["urls"] = [chart.filename]
 
