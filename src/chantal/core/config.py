@@ -278,7 +278,7 @@ class RepositoryConfig(BaseModel):
     @classmethod
     def validate_type(cls, v: str) -> str:
         """Validate repository type."""
-        valid_types = ["rpm", "apt"]
+        valid_types = ["rpm", "apt", "helm"]
         if v not in valid_types:
             raise ValueError(f"Invalid repository type: {v}. Must be one of {valid_types}")
         return v
