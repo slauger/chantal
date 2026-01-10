@@ -10,13 +10,24 @@
 
 ## What is Chantal?
 
-Chantal is a Python-based CLI tool for offline repository mirroring with:
-- **Content-addressed storage** (SHA256) - packages stored once, shared across repositories
-- **Immutable snapshots** - point-in-time freezes for patch management and rollback
-- **Virtual repositories (Views)** - combine multiple repos (e.g., BaseOS + AppStream + EPEL)
-- **RHEL CDN support** - client certificate authentication for Red Hat subscriptions
-- **Smart filtering** - pattern-based package selection with post-processing
-- **Zero-copy publishing** - hardlinks instead of file copies
+A Python-based CLI tool for offline repository mirroring, inspired by pulp-admin, reposync, and aptly.
+
+**The Problem:** Enterprise environments need offline mirrors of RPM/APT repositories with version control, efficient storage, RHEL subscription support, and simple management.
+
+**The Solution:** One tool. One workflow. Content-addressed storage. Immutable snapshots.
+
+## Features
+
+- 🔄 **Unified Mirroring** - RPM and APT repositories in one tool (MVP: RPM only)
+- 📦 **Deduplication** - Content-addressed storage (SHA256), packages stored once
+- 📸 **Snapshots** - Immutable point-in-time repository states for patch management
+- 🔍 **Views** - Virtual repositories combining multiple repos (e.g., BaseOS + AppStream + EPEL)
+- 🔌 **Modular** - Plugin architecture for repository types
+- 🚫 **No Daemons** - Simple CLI tool (optional scheduler for future automation)
+- 📁 **Static Output** - Serve with any webserver (Apache, NGINX)
+- 🔐 **RHEL CDN Support** - Client certificate authentication for Red Hat repos
+- 🎯 **Smart Filtering** - Pattern-based package filtering with post-processing
+- ⚡ **Fast Updates** - Check for updates without downloading (like `dnf check-update`)
 
 **Supported Repository Types:**
 - ✅ **RPM/DNF/YUM** (RHEL, CentOS, Fedora, Rocky, AlmaLinux, EPEL) - Available
