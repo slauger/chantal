@@ -1,0 +1,391 @@
+# ==============================================================================
+# PostgreSQL - Official PostgreSQL RPM Repository
+# ==============================================================================
+#
+# PostgreSQL is a powerful, open-source object-relational database system.
+# This repository provides the latest PostgreSQL versions directly from the
+# PostgreSQL Global Development Group.
+#
+# Official Documentation:
+# - PostgreSQL: https://www.postgresql.org/docs/
+# - Installation: https://www.postgresql.org/download/linux/redhat/
+#
+# Repository Size: ~500 MB - 1 GB per major version
+# Update Frequency: Minor releases every ~3 months, patch releases as needed
+#
+# ==============================================================================
+
+repositories:
+  # ============================================================================
+  # PostgreSQL 16 - Latest Stable (Current as of 2024)
+  # ============================================================================
+  - id: postgresql16-el9
+    name: "PostgreSQL 16 (EL9/x86_64)"
+    type: rpm
+    feed: https://download.postgresql.org/pub/repos/yum/16/redhat/rhel-9-x86_64/
+    enabled: true
+
+    # Public repository, no authentication required
+
+    filters:
+      patterns:
+        include:
+          - "^postgresql16-.*"         # PostgreSQL 16 server and client
+          - "^pgaudit16-.*"            # Audit logging extension
+          - "^pg_repack16-.*"          # Table reorganization
+          - "^postgis34_16-.*"         # Spatial database extension
+          # Additional extensions (uncomment as needed):
+          # - "^pgrouting_16-.*"       # Routing extension for PostGIS
+          # - "^pgvector_16-.*"        # Vector similarity search
+          # - "^timescaledb-.*"        # Time-series database
+          # - "^citus_16-.*"           # Distributed PostgreSQL
+        exclude:
+          - ".*-debuginfo$"
+          - ".*-debugsource$"
+      metadata:
+        architectures:
+          include: ["x86_64"]
+      rpm:
+        exclude_source_rpms: true
+      post_processing:
+        only_latest_version: true
+
+  # ============================================================================
+  # PostgreSQL 15 - Previous Stable (Supported until 2027)
+  # ============================================================================
+  - id: postgresql15-el9
+    name: "PostgreSQL 15 (EL9/x86_64)"
+    type: rpm
+    feed: https://download.postgresql.org/pub/repos/yum/15/redhat/rhel-9-x86_64/
+    enabled: false  # Enable if you need PostgreSQL 15
+
+    filters:
+      patterns:
+        include:
+          - "^postgresql15-.*"
+          - "^pgaudit15-.*"
+          - "^pg_repack15-.*"
+          - "^postgis33_15-.*"
+        exclude:
+          - ".*-debuginfo$"
+      metadata:
+        architectures:
+          include: ["x86_64"]
+      rpm:
+        exclude_source_rpms: true
+      post_processing:
+        only_latest_version: true
+
+  # ============================================================================
+  # PostgreSQL Common - Shared packages for all versions
+  # ============================================================================
+  #
+  # The common repository contains packages that work across all PostgreSQL versions.
+  #
+  # - id: postgresql-common-el9
+  #   name: "PostgreSQL Common (EL9/x86_64)"
+  #   type: rpm
+  #   feed: https://download.postgresql.org/pub/repos/yum/common/redhat/rhel-9-x86_64/
+  #   enabled: true
+  #
+  #   filters:
+  #     patterns:
+  #       include:
+  #         - "^pgadmin4-.*"           # pgAdmin 4 web interface
+  #         - "^pgbouncer-.*"          # Connection pooler
+  #         - "^pgpool-II-.*"          # Connection pool and load balancer
+  #         - "^pg_top-.*"             # PostgreSQL process monitor
+  #       exclude:
+  #         - ".*-debuginfo$"
+  #     metadata:
+  #       architectures:
+  #         include: ["x86_64", "noarch"]
+  #     rpm:
+  #       exclude_source_rpms: true
+  #     post_processing:
+  #       only_latest_version: true
+
+
+# ==============================================================================
+# Usage Examples
+# ==============================================================================
+#
+# 1. Sync PostgreSQL 16 repository:
+#    chantal repo sync --repo-id postgresql16-el9
+#
+# 2. Create quarterly snapshot (aligned with PostgreSQL minor releases):
+#    chantal snapshot create --repo-id postgresql16-el9 --name pg16-$(date +%Y-Q%q)
+#
+# 3. Publish repository:
+#    chantal publish repo --repo-id postgresql16-el9
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# Client Configuration
+# ==============================================================================
+#
+# /etc/yum.repos.d/postgresql-16.repo:
+#   [postgresql16]
+#   name=PostgreSQL 16 for RHEL/CentOS 9 - x86_64
+#   baseurl=http://your-mirror.example.com/chantal/repositories/postgresql16-el9
+#   enabled=1
+#   gpgcheck=1
+#   gpgkey=https://download.postgresql.org/pub/repos/yum/keys/PGDG-RPM-GPG-KEY-RHEL
+#
+# Install PostgreSQL 16:
+#   sudo yum install postgresql16-server postgresql16-contrib
+#
+# Initialize database:
+#   sudo /usr/pgsql-16/bin/postgresql-16-setup initdb
+#
+# Start and enable service:
+#   sudo systemctl enable --now postgresql-16
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# PostgreSQL Package Structure
+# ==============================================================================
+#
+# Core Packages:
+# - postgresql16: Client programs and libraries
+# - postgresql16-server: PostgreSQL server
+# - postgresql16-libs: Shared libraries
+# - postgresql16-contrib: Additional contributed modules
+# - postgresql16-devel: Development headers (for extensions)
+#
+# Extensions and Tools:
+# - pgadmin4: Web-based administration tool
+# - pgbouncer: Lightweight connection pooler
+# - pgpool-II: Connection pool and load balancer
+# - postgis: Spatial and geographic objects
+# - pgaudit: Audit logging
+# - pg_repack: Table and index reorganization
+# - pgvector: Vector similarity search (AI/ML)
+# - timescaledb: Time-series database extension
+#
+# Language Support:
+# - postgresql16-plperl: Perl procedural language
+# - postgresql16-plpython3: Python 3 procedural language
+# - postgresql16-pltcl: Tcl procedural language
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# PostgreSQL Version Support Lifecycle
+# ==============================================================================
+#
+# PostgreSQL releases a new major version annually (usually in September/October).
+# Each major version is supported for 5 years.
+#
+# Current Support Timeline:
+# - PostgreSQL 16: Released 2023-09, supported until 2028-11
+# - PostgreSQL 15: Released 2022-10, supported until 2027-11
+# - PostgreSQL 14: Released 2021-09, supported until 2026-11
+# - PostgreSQL 13: Released 2020-09, supported until 2025-11
+# - PostgreSQL 12: Released 2019-10, supported until 2024-11 (EOL soon!)
+#
+# Minor Releases:
+# - Every ~3 months (February, May, August, November)
+# - Contains bug fixes and security patches
+# - Always safe to upgrade within same major version
+#
+# Recommendation:
+# - Use latest stable major version (currently PostgreSQL 16)
+# - Keep up with minor releases (important for security)
+# - Plan major version upgrades within 5-year support window
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# Version Strategy
+# ==============================================================================
+#
+# PostgreSQL minor releases happen quarterly and should always be applied.
+#
+# Recommended Approach:
+#
+# 1. Development:
+#    - Use latest minor release
+#    - Set only_latest_version: true
+#
+# 2. Staging:
+#    - Create snapshot after each minor release
+#    - Example: pg16-2025-Q1, pg16-2025-Q2
+#    - Test application compatibility
+#
+# 3. Production:
+#    - Deploy tested snapshot from staging
+#    - Apply minor updates within 1-2 months of release
+#    - Security patches: Apply immediately
+#
+# Example Workflow:
+#   # After PostgreSQL 16.2 is released (February 2025)
+#   chantal repo sync --repo-id postgresql16-el9
+#   chantal snapshot create --repo-id postgresql16-el9 --name pg16-2025-Q1
+#   chantal publish snapshot --repo-id postgresql16-el9 --snapshot pg16-2025-Q1
+#
+#   # Staging tests pg16-2025-Q1
+#   # After testing, production deploys pg16-2025-Q1
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# Multi-Version Support
+# ==============================================================================
+#
+# You can run multiple PostgreSQL versions side-by-side:
+#
+# 1. Install multiple versions:
+#    yum install postgresql15-server postgresql16-server
+#
+# 2. Different ports and data directories:
+#    PostgreSQL 15: Port 5432, /var/lib/pgsql/15/data/
+#    PostgreSQL 16: Port 5433, /var/lib/pgsql/16/data/
+#
+# 3. Different service names:
+#    systemctl start postgresql-15
+#    systemctl start postgresql-16
+#
+# Use case: Blue/green deployments
+# - Run PostgreSQL 15 in production (port 5432)
+# - Test PostgreSQL 16 in parallel (port 5433)
+# - Migrate when ready, minimal downtime
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# Important Extensions
+# ==============================================================================
+#
+# PostGIS (Spatial Database):
+# - Geographic and spatial data types
+# - Spatial indexing and functions
+# - Essential for GIS applications
+# - Install: yum install postgis34_16
+#
+# pgAudit (Audit Logging):
+# - Detailed session and object logging
+# - Required for compliance (PCI-DSS, HIPAA, etc.)
+# - Install: yum install pgaudit16_16
+#
+# pg_repack (Table Reorganization):
+# - Online table and index reorganization
+# - Removes bloat without locking
+# - Install: yum install pg_repack16
+#
+# pgvector (Vector Similarity Search):
+# - Store and search vector embeddings
+# - For AI/ML applications (similarity search, recommendations)
+# - Install: yum install pgvector_16
+#
+# TimescaleDB (Time-Series):
+# - Optimized for time-series data
+# - Automatic partitioning, compression
+# - Install: yum install timescaledb-2-postgresql-16
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# High Availability Options
+# ==============================================================================
+#
+# 1. Built-in Streaming Replication:
+#    - Primary-standby replication
+#    - Asynchronous or synchronous
+#    - No additional packages required
+#
+# 2. pgBouncer (Connection Pooling):
+#    - Lightweight connection pooler
+#    - Reduces connection overhead
+#    - Install: yum install pgbouncer
+#
+# 3. pgPool-II (Advanced HA):
+#    - Connection pooling
+#    - Load balancing (read replicas)
+#    - Automatic failover
+#    - Install: yum install pgpool-II-pg16
+#
+# 4. Patroni (Kubernetes-native HA):
+#    - Automatic failover and recovery
+#    - Integrates with etcd, Consul, Zookeeper
+#    - Python-based (pip install patroni)
+#
+# 5. Third-party Solutions:
+#    - Crunchy PostgreSQL Operator (Kubernetes)
+#    - Stolon (cloud-native HA)
+#    - repmgr (replication manager)
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# Upgrade Notes
+# ==============================================================================
+#
+# Minor Version Upgrades (e.g., 16.1 → 16.2):
+# - In-place upgrade: yum update postgresql16-server
+# - No dump/restore required
+# - Restart required
+# - Always safe (backward compatible)
+#
+# Major Version Upgrades (e.g., 15 → 16):
+# - NOT in-place (data format changes)
+# - Two options:
+#
+#   Option 1: pg_upgrade (faster, less downtime)
+#     pg_upgrade --old-datadir=/var/lib/pgsql/15/data \
+#                --new-datadir=/var/lib/pgsql/16/data \
+#                --old-bindir=/usr/pgsql-15/bin \
+#                --new-bindir=/usr/pgsql-16/bin
+#
+#   Option 2: pg_dump / pg_restore (slower, guaranteed clean)
+#     pg_dumpall > backup.sql
+#     # Install PostgreSQL 16
+#     psql -f backup.sql
+#
+# - Test in staging first!
+# - Review release notes for breaking changes
+# - Check extension compatibility
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# Security Considerations
+# ==============================================================================
+#
+# 1. Authentication:
+#    - Default: peer authentication (local users)
+#    - Production: md5 or scram-sha-256
+#    - Configure in /var/lib/pgsql/16/data/pg_hba.conf
+#
+# 2. Network Security:
+#    - Default: localhost only
+#    - Production: Firewall rules, SSL/TLS required
+#    - Configure in /var/lib/pgsql/16/data/postgresql.conf
+#
+# 3. Encryption:
+#    - SSL/TLS for client connections
+#    - Transparent Data Encryption (TDE) in development
+#    - Consider pgcrypto extension for column-level encryption
+#
+# 4. Auditing:
+#    - Enable pgaudit extension
+#    - Log connections, queries, DDL changes
+#    - Required for compliance
+#
+# 5. Updates:
+#    - Apply security patches promptly
+#    - Subscribe to pgsql-announce mailing list
+#    - Monitor CVE announcements
+#
+# ==============================================================================

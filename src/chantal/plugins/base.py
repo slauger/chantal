@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from chantal.core.config import RepositoryConfig
 from chantal.core.storage import StorageManager
-from chantal.db.models import Package, Repository, Snapshot
+from chantal.db.models import ContentItem, Repository, Snapshot
 
 
 class PublisherPlugin(ABC):
@@ -94,14 +94,14 @@ class PublisherPlugin(ABC):
 
     def _create_hardlinks(
         self,
-        packages: List[Package],
+        packages: List[ContentItem],
         target_dir: Path,
         subdir: str = "Packages"
     ) -> None:
-        """Helper: Create hardlinks for packages.
+        """Helper: Create hardlinks for content items.
 
         Args:
-            packages: List of packages to link
+            packages: List of content items to link
             target_dir: Target base directory
             subdir: Subdirectory for packages (default: "Packages")
         """
@@ -120,10 +120,10 @@ class PublisherPlugin(ABC):
         self,
         session: Session,
         repository: Repository
-    ) -> List[Package]:
-        """Helper: Get all packages for a repository.
+    ) -> List[ContentItem]:
+        """Helper: Get all content items for a repository.
 
-        Uses the repository_packages junction table to get packages
+        Uses the repository_content_items junction table to get content items
         that are currently in the repository's "latest" state.
 
         Args:
@@ -131,25 +131,25 @@ class PublisherPlugin(ABC):
             repository: Repository instance
 
         Returns:
-            List of packages in repository
+            List of content items in repository
         """
-        # Use SQLAlchemy relationship to get packages
-        # This automatically uses the repository_packages junction table
+        # Use SQLAlchemy relationship to get content items
+        # This automatically uses the repository_content_items junction table
         session.refresh(repository)  # Ensure we have latest data
-        return list(repository.packages)
+        return list(repository.content_items)
 
     def _get_snapshot_packages(
         self,
         session: Session,
         snapshot: Snapshot
-    ) -> List[Package]:
-        """Helper: Get all packages for a snapshot.
+    ) -> List[ContentItem]:
+        """Helper: Get all content items for a snapshot.
 
         Args:
             session: Database session
             snapshot: Snapshot instance
 
         Returns:
-            List of packages in snapshot
+            List of content items in snapshot
         """
-        return snapshot.packages
+        return snapshot.content_items

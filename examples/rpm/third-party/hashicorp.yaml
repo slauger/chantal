@@ -1,0 +1,152 @@
+# ==============================================================================
+# HashiCorp Tools - RPM Repository
+# ==============================================================================
+#
+# HashiCorp provides infrastructure automation tools including:
+# - Terraform: Infrastructure as Code
+# - Vault: Secrets Management
+# - Consul: Service Mesh and Service Discovery
+# - Nomad: Workload Orchestration
+# - Packer: Image Builder
+# - Vagrant: Development Environments
+#
+# Official Documentation:
+# - HashiCorp Releases: https://www.hashicorp.com/
+# - Installation: https://www.hashicorp.com/official-packaging-guide
+#
+# Repository Size: ~100-300 MB per tool
+# Update Frequency: Variable (Terraform: monthly, others: quarterly)
+#
+# ==============================================================================
+
+repositories:
+  # ============================================================================
+  # HashiCorp - All Products (Single Repository)
+  # ============================================================================
+  - id: hashicorp-rhel
+    name: "HashiCorp Tools (RHEL/x86_64)"
+    type: rpm
+    feed: https://rpm.releases.hashicorp.com/RHEL/$releasever/$basearch/stable
+    enabled: true
+
+    # Public repository, no authentication required
+
+    # Option 1: Mirror all HashiCorp tools
+    # (Uncomment this if you want ALL HashiCorp products)
+    # filters:
+    #   metadata:
+    #     architectures:
+    #       include: ["x86_64"]
+    #   rpm:
+    #     exclude_source_rpms: true
+    #   post_processing:
+    #     only_latest_version: true
+
+    # Option 2: Mirror only specific tools (recommended)
+    # (This reduces mirror size significantly)
+    filters:
+      patterns:
+        include:
+          - "^terraform-.*"        # Infrastructure as Code
+          - "^vault-.*"            # Secrets Management
+          - "^consul-.*"           # Service Mesh
+          # Uncomment additional tools as needed:
+          # - "^nomad-.*"          # Workload Orchestrator
+          # - "^packer-.*"         # Image Builder
+          # - "^vagrant-.*"        # Development Environments
+      metadata:
+        architectures:
+          include: ["x86_64"]
+      rpm:
+        exclude_source_rpms: true
+      post_processing:
+        only_latest_version: true
+
+
+# ==============================================================================
+# Usage Examples
+# ==============================================================================
+#
+# 1. Sync HashiCorp repository:
+#    chantal repo sync --repo-id hashicorp-rhel
+#
+# 2. Create snapshot per major version:
+#    # Terraform 1.7.x
+#    chantal snapshot create --repo-id hashicorp-rhel --name terraform-1.7
+#
+# 3. Publish repository:
+#    chantal publish repo --repo-id hashicorp-rhel
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# Client Configuration
+# ==============================================================================
+#
+# /etc/yum.repos.d/hashicorp.repo:
+#   [hashicorp]
+#   name=HashiCorp Tools
+#   baseurl=http://your-mirror.example.com/chantal/repositories/hashicorp-rhel
+#   enabled=1
+#   gpgcheck=1
+#   gpgkey=https://rpm.releases.hashicorp.com/gpg
+#
+# Install tools:
+#   sudo yum install terraform vault consul
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# Tool-Specific Notes
+# ==============================================================================
+#
+# Terraform:
+# - Major releases: ~yearly (1.x → 2.x)
+# - Minor releases: ~monthly (1.6 → 1.7)
+# - Patch releases: as needed (1.7.0 → 1.7.1)
+# - Strategy: Pin to minor version (e.g., 1.7.x) for stability
+#
+# Vault:
+# - Enterprise version available (requires license)
+# - Community version sufficient for most use cases
+# - Upgrade carefully (test in dev first)
+#
+# Consul:
+# - Service mesh features in Enterprise version
+# - Community version for service discovery
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# Version Pinning Strategy
+# ==============================================================================
+#
+# HashiCorp tools use semantic versioning. Recommended approach:
+#
+# 1. Development environment:
+#    - Use only_latest_version: true
+#    - Always get newest features
+#
+# 2. Production environment:
+#    - Create snapshots per minor version
+#    - Example: terraform-1.7, terraform-1.8
+#    - Test new versions in staging before production
+#
+# 3. Critical infrastructure:
+#    - Pin to specific patch version
+#    - Example: snapshot name "terraform-1.7.5"
+#    - Manual testing and approval before updates
+#
+# Example workflow:
+#   # After Terraform 1.8 release
+#   chantal snapshot create --repo-id hashicorp-rhel --name terraform-1.8
+#   chantal publish snapshot --repo-id hashicorp-rhel --snapshot terraform-1.8
+#
+#   # Staging uses terraform-1.8
+#   # Production uses terraform-1.7 (previous version)
+#   # After testing, update production to terraform-1.8
+#
+# ==============================================================================

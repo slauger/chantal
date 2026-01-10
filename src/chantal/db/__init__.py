@@ -5,14 +5,26 @@ This package contains database models, connection management, and migrations.
 """
 
 from chantal.db.connection import DatabaseManager, get_database_manager
-from chantal.db.models import Base, Package, Repository, Snapshot, SyncHistory
+from chantal.db.models import (
+    Base,
+    ContentItem,
+    Repository,
+    Snapshot,
+    SyncHistory,
+    View,
+    ViewRepository,
+    ViewSnapshot,
+)
 
 __all__ = [
     "Base",
-    "Package",
+    "ContentItem",
     "Repository",
     "Snapshot",
     "SyncHistory",
+    "View",
+    "ViewRepository",
+    "ViewSnapshot",
     "DatabaseManager",
     "get_database_manager",
 ]

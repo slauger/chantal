@@ -14,7 +14,7 @@ from typing import Dict, Optional, Tuple
 from sqlalchemy.orm import Session
 
 from chantal.core.config import StorageConfig
-from chantal.db.models import Package
+from chantal.db.models import ContentItem
 
 
 class StorageManager:
@@ -216,7 +216,7 @@ class StorageManager:
         orphaned = []
 
         # Get all SHA256s from database
-        db_sha256s = {pkg.sha256 for pkg in session.query(Package.sha256).all()}
+        db_sha256s = {item.sha256 for item in session.query(ContentItem.sha256).all()}
 
         # Scan pool directory
         if self.pool_path.exists():
@@ -281,9 +281,9 @@ class StorageManager:
         }
 
         # Database statistics
-        packages = session.query(Package).all()
-        stats["total_packages_db"] = len(packages)
-        stats["total_size_db"] = sum(pkg.size_bytes for pkg in packages)
+        content_items = session.query(ContentItem).all()
+        stats["total_packages_db"] = len(content_items)
+        stats["total_size_db"] = sum(item.size_bytes for item in content_items)
 
         # Pool statistics
         if self.pool_path.exists():

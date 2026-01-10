@@ -1,0 +1,300 @@
+# ==============================================================================
+# Grafana - Observability and Monitoring Platform - RPM Repository
+# ==============================================================================
+#
+# Grafana is an open-source platform for monitoring and observability.
+# It allows you to query, visualize, alert on, and understand your metrics
+# no matter where they are stored.
+#
+# Official Documentation:
+# - Grafana: https://grafana.com/docs/grafana/latest/
+# - Installation: https://grafana.com/docs/grafana/latest/setup-grafana/installation/rpm/
+#
+# Repository Size: ~100-200 MB
+# Update Frequency: Monthly feature releases, weekly patches
+#
+# ==============================================================================
+
+repositories:
+  # ============================================================================
+  # Grafana OSS (Open Source) - Enterprise features available separately
+  # ============================================================================
+  - id: grafana-oss
+    name: "Grafana OSS (x86_64)"
+    type: rpm
+    feed: https://rpm.grafana.com
+    enabled: true
+
+    # Public repository, no authentication required for OSS version
+
+    filters:
+      patterns:
+        include:
+          - "^grafana-[0-9].*"       # Grafana core (OSS)
+          # Optional: Include Grafana Enterprise if you have license
+          # - "^grafana-enterprise-.*"
+        exclude:
+          - ".*-debuginfo$"
+          - ".*-debugsource$"
+      metadata:
+        architectures:
+          include: ["x86_64"]
+      rpm:
+        exclude_source_rpms: true
+      post_processing:
+        # Keep only latest version (Grafana updates frequently)
+        only_latest_version: true
+
+
+# ==============================================================================
+# Usage Examples
+# ==============================================================================
+#
+# 1. Sync Grafana repository:
+#    chantal repo sync --repo-id grafana-oss
+#
+# 2. Create monthly snapshot:
+#    chantal snapshot create --repo-id grafana-oss --name $(date +%Y-%m)
+#
+# 3. Publish repository:
+#    chantal publish repo --repo-id grafana-oss
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# Client Configuration
+# ==============================================================================
+#
+# /etc/yum.repos.d/grafana.repo:
+#   [grafana]
+#   name=Grafana OSS
+#   baseurl=http://your-mirror.example.com/chantal/repositories/grafana-oss
+#   enabled=1
+#   gpgcheck=1
+#   gpgkey=https://rpm.grafana.com/gpg.key
+#
+# Install Grafana:
+#   sudo yum install grafana
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now grafana-server
+#
+# Access Grafana:
+#   http://localhost:3000
+#   Default credentials: admin/admin (change on first login)
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# Grafana Components and Plugins
+# ==============================================================================
+#
+# Core Installation:
+# - grafana: Main Grafana server
+# - Configuration: /etc/grafana/grafana.ini
+# - Data directory: /var/lib/grafana
+# - Logs: /var/log/grafana
+#
+# Data Sources (install separately via plugin system):
+# - Prometheus (built-in)
+# - InfluxDB (built-in)
+# - Elasticsearch (built-in)
+# - MySQL/PostgreSQL (built-in)
+# - Graphite (built-in)
+# - CloudWatch, Azure Monitor, etc. (via plugins)
+#
+# Plugin Installation:
+#   grafana-cli plugins install <plugin-name>
+#   grafana-cli plugins list-remote
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# Version Strategy
+# ==============================================================================
+#
+# Grafana uses semantic versioning:
+# - Major releases: Yearly (e.g., 9.x → 10.x → 11.x)
+# - Minor releases: ~Monthly feature releases
+# - Patch releases: Weekly bug/security fixes
+#
+# Recommended Approach:
+#
+# 1. Development/Testing:
+#    - Use only_latest_version: true
+#    - Stay current with latest features
+#
+# 2. Staging:
+#    - Create monthly snapshots
+#    - Test new versions before production deployment
+#
+# 3. Production:
+#    - Pin to tested snapshot
+#    - Example: grafana-2025-01 (tested in staging)
+#    - Controlled rollout of updates
+#
+# Example Workflow:
+#   # Sync latest Grafana
+#   chantal repo sync --repo-id grafana-oss
+#
+#   # Create snapshot for staging
+#   chantal snapshot create --repo-id grafana-oss --name staging-2025-01
+#   chantal publish snapshot --repo-id grafana-oss --snapshot staging-2025-01
+#
+#   # After testing in staging, promote to production
+#   chantal snapshot create --repo-id grafana-oss --name prod-2025-01
+#   chantal publish snapshot --repo-id grafana-oss --snapshot prod-2025-01
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# Integration with Monitoring Stack
+# ==============================================================================
+#
+# Typical Monitoring Stack:
+# 1. Metrics Collection:
+#    - Prometheus (metrics storage and alerting)
+#    - Node Exporter (system metrics)
+#    - Application exporters (app-specific metrics)
+#
+# 2. Log Aggregation:
+#    - Loki (log aggregation, Grafana Labs)
+#    - Elasticsearch/Logstash/Filebeat (ELK stack)
+#
+# 3. Visualization:
+#    - Grafana (dashboards, alerts, exploration)
+#
+# 4. Tracing (optional):
+#    - Tempo (distributed tracing, Grafana Labs)
+#    - Jaeger (CNCF tracing)
+#
+# Grafana unified observability:
+#   - Metrics (Prometheus/Mimir)
+#   - Logs (Loki)
+#   - Traces (Tempo)
+#   - Dashboards (Grafana)
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# Grafana OSS vs Enterprise
+# ==============================================================================
+#
+# Grafana OSS (Open Source):
+# - Free and open source
+# - Core dashboarding and visualization
+# - Built-in data sources (Prometheus, InfluxDB, etc.)
+# - Community plugins
+# - Alert notifications (email, Slack, PagerDuty, etc.)
+#
+# Grafana Enterprise (License required):
+# - Enhanced authentication (SAML, OAuth, LDAP advanced features)
+# - Enterprise plugins
+# - Data source permissions
+# - Reporting (PDF/PNG exports, scheduled reports)
+# - Support from Grafana Labs
+# - Audit logging
+#
+# Most users start with OSS and upgrade to Enterprise as needed.
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# Important Configuration Notes
+# ==============================================================================
+#
+# 1. Database Backend:
+#    - Default: SQLite (single-file database)
+#    - Production: MySQL or PostgreSQL recommended
+#    - Configure in /etc/grafana/grafana.ini
+#
+# 2. Authentication:
+#    - Default: Built-in user database
+#    - Options: LDAP, OAuth, SAML (Enterprise), Proxy auth
+#    - Anonymous access can be enabled for public dashboards
+#
+# 3. Security:
+#    - Change default admin password immediately
+#    - Use HTTPS (reverse proxy recommended: nginx, Apache)
+#    - Configure firewall (port 3000 by default)
+#    - Enable audit logging if needed
+#
+# 4. High Availability:
+#    - Shared database (MySQL/PostgreSQL)
+#    - Load balancer (nginx, HAProxy)
+#    - Multiple Grafana instances
+#    - Session storage in database or Redis
+#
+# 5. Backup Strategy:
+#    - Database backup (SQLite file or MySQL/PostgreSQL dumps)
+#    - Dashboard exports (JSON format)
+#    - Configuration files (/etc/grafana/)
+#    - Plugin directory (/var/lib/grafana/plugins/)
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# Monitoring Grafana Itself
+# ==============================================================================
+#
+# Grafana exposes metrics about itself:
+#
+# 1. Enable metrics:
+#    /etc/grafana/grafana.ini:
+#      [metrics]
+#      enabled = true
+#
+# 2. Metrics endpoint:
+#    http://localhost:3000/metrics (Prometheus format)
+#
+# 3. Prometheus scrape config:
+#    - job_name: 'grafana'
+#      static_configs:
+#        - targets: ['localhost:3000']
+#
+# 4. Use Grafana to monitor Grafana:
+#    - Import dashboard ID 3590 (Grafana Metrics)
+#    - Monitor response times, errors, active sessions
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# Upgrade Notes
+# ==============================================================================
+#
+# Before upgrading Grafana:
+#
+# 1. Backup:
+#    - Database backup
+#    - Export all dashboards (Settings → JSON Model)
+#    - Configuration files
+#
+# 2. Review Release Notes:
+#    - Check for breaking changes
+#    - Review deprecated features
+#    - Note new features
+#
+# 3. Test in Staging:
+#    - Deploy to staging environment first
+#    - Test all dashboards
+#    - Verify data source connections
+#    - Check plugin compatibility
+#
+# 4. Rolling Upgrade (HA setup):
+#    - Upgrade one instance at a time
+#    - Monitor for errors
+#    - Keep load balancer pointing to working instances
+#
+# 5. Rollback Plan:
+#    - Keep previous snapshot available
+#    - Document rollback procedure
+#    - Test database restore process
+#
+# ==============================================================================

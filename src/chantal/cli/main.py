@@ -5,6 +5,7 @@ This module provides the Click-based command-line interface for Chantal.
 """
 
 import shutil
+from datetime import datetime
 
 import click
 from pathlib import Path
@@ -14,7 +15,7 @@ from chantal import __version__
 from chantal.core.config import GlobalConfig, load_config
 from chantal.core.storage import StorageManager
 from chantal.db.connection import DatabaseManager
-from chantal.db.models import Repository, Snapshot, SyncHistory, Package
+from chantal.db.models import Repository, Snapshot, SyncHistory, ContentItem
 from chantal.plugins.rpm_sync import RpmSyncPlugin, CheckUpdatesResult, PackageUpdate
 from chantal.plugins.rpm import RpmPublisher
 
@@ -153,7 +154,7 @@ def repo_list(ctx: click.Context, output_format: str) -> None:
                 db_repo = db_repos.get(repo_config.id)
 
                 enabled_str = "Yes" if repo_config.enabled else "No"
-                package_count = len(db_repo.packages) if db_repo else 0
+                package_count = len(db_repo.content_items) if db_repo else 0
 
                 if db_repo and db_repo.last_sync_at:
                     last_sync_str = db_repo.last_sync_at.strftime("%Y-%m-%d %H:%M")
@@ -384,7 +385,7 @@ def repo_show(ctx: click.Context, repo_id: str, output_format: str) -> None:
 
         # Get statistics
         session.refresh(repository)
-        packages = list(repository.packages)
+        packages = list(repository.content_items)
         package_count = len(packages)
         total_size_bytes = sum(pkg.size_bytes for pkg in packages) if packages else 0
 
@@ -862,25 +863,56 @@ def snapshot_list(ctx: click.Context, repo_id: str) -> None:
 
 
 @snapshot.command("create")
-@click.option("--repo-id", required=True, help="Repository ID")
+@click.option("--repo-id", help="Repository ID (mutually exclusive with --view)")
+@click.option("--view", help="View name (mutually exclusive with --repo-id)")
 @click.option("--name", required=True, help="Snapshot name")
 @click.option("--description", help="Snapshot description")
 @click.pass_context
-def snapshot_create(ctx: click.Context, repo_id: str, name: str, description: str) -> None:
-    """Create snapshot of repository.
+def snapshot_create(ctx: click.Context, repo_id: str, view: str, name: str, description: str) -> None:
+    """Create snapshot of repository or view.
 
-    Creates an immutable point-in-time snapshot of the current repository state.
+    Creates an immutable point-in-time snapshot of the current state.
     The snapshot references packages from the content-addressed pool.
+
+    For repositories: Creates snapshot of single repository
+    For views: Creates snapshots of ALL repositories in view + ViewSnapshot
     """
     config: GlobalConfig = ctx.obj["config"]
+
+    # Validate: exactly one of --repo-id or --view must be specified
+    if not repo_id and not view:
+        click.echo("Error: Must specify either --repo-id or --view", err=True)
+        ctx.exit(1)
+    if repo_id and view:
+        click.echo("Error: Cannot specify both --repo-id and --view", err=True)
+        ctx.exit(1)
+
+    # Initialize database
+    db_manager = DatabaseManager(config.database.url)
+
+    if repo_id:
+        # Create repository snapshot (existing behavior)
+        _create_repository_snapshot(ctx, config, db_manager, repo_id, name, description)
+    else:
+        # Create view snapshot (new behavior)
+        _create_view_snapshot(ctx, config, db_manager, view, name, description)
+
+
+def _create_repository_snapshot(
+    ctx: click.Context,
+    config: GlobalConfig,
+    db_manager: DatabaseManager,
+    repo_id: str,
+    name: str,
+    description: str
+) -> None:
+    """Create snapshot of a single repository."""
+    from chantal.db.models import Repository, Snapshot
 
     click.echo(f"Creating snapshot '{name}' of repository '{repo_id}'...")
     if description:
         click.echo(f"Description: {description}")
     click.echo()
-
-    # Initialize database
-    db_manager = DatabaseManager(config.database.url)
 
     with db_manager.session() as session:
         # Get repository from database
@@ -904,7 +936,7 @@ def snapshot_create(ctx: click.Context, repo_id: str, name: str, description: st
 
         # Get current packages in repository
         session.refresh(repository)
-        packages = list(repository.packages)
+        packages = list(repository.content_items)
 
         if not packages:
             click.echo(f"Warning: Repository '{repo_id}' has no packages.", err=True)
@@ -927,7 +959,7 @@ def snapshot_create(ctx: click.Context, repo_id: str, name: str, description: st
         )
 
         # Link packages to snapshot
-        snapshot.packages = packages
+        snapshot.content_items = packages
 
         session.add(snapshot)
         session.commit()
@@ -940,7 +972,120 @@ def snapshot_create(ctx: click.Context, repo_id: str, name: str, description: st
         click.echo(f"  Created: {snapshot.created_at}")
         click.echo()
         click.echo(f"To publish this snapshot:")
-        click.echo(f"  chantal publish snapshot --snapshot {name}")
+        click.echo(f"  chantal publish snapshot --snapshot {name} --repo-id {repo_id}")
+
+
+def _create_view_snapshot(
+    ctx: click.Context,
+    config: GlobalConfig,
+    db_manager: DatabaseManager,
+    view_name: str,
+    snapshot_name: str,
+    description: str
+) -> None:
+    """Create atomic snapshot of ALL repositories in a view."""
+    from chantal.db.models import Repository, Snapshot, View, ViewSnapshot
+
+    click.echo(f"Creating view snapshot '{snapshot_name}' of view '{view_name}'...")
+    if description:
+        click.echo(f"Description: {description}")
+    click.echo()
+
+    with db_manager.session() as session:
+        # Get view from database
+        view = session.query(View).filter_by(name=view_name).first()
+        if not view:
+            click.echo(f"Error: View '{view_name}' not found in database.", err=True)
+            click.echo("Run 'chantal view list' to see available views.", err=True)
+            ctx.exit(1)
+
+        # Check if view snapshot with this name already exists
+        existing_snapshot = (
+            session.query(ViewSnapshot)
+            .filter_by(view_id=view.id, name=snapshot_name)
+            .first()
+        )
+        if existing_snapshot:
+            click.echo(f"Error: View snapshot '{snapshot_name}' already exists for view '{view_name}'.", err=True)
+            click.echo(f"Created: {existing_snapshot.created_at}", err=True)
+            click.echo("Use a different name or delete the existing snapshot first.", err=True)
+            ctx.exit(1)
+
+        # Refresh view to get latest relationships
+        session.refresh(view)
+
+        if not view.view_repositories:
+            click.echo(f"Error: View '{view_name}' has no repositories.", err=True)
+            ctx.exit(1)
+
+        click.echo(f"Creating snapshots for {len(view.view_repositories)} repositories...")
+        click.echo()
+
+        # Create snapshot for each repository in view
+        created_snapshot_ids = []
+        total_packages = 0
+        total_bytes = 0
+
+        for view_repo in sorted(view.view_repositories, key=lambda vr: vr.order):
+            repo = view_repo.repository
+            session.refresh(repo)
+
+            click.echo(f"  [{view_repo.order + 1}/{len(view.view_repositories)}] {repo.repo_id}...")
+
+            # Get packages
+            packages = list(repo.packages)
+            if not packages:
+                click.echo(f"      Warning: Repository '{repo.repo_id}' has no packages (skipped)")
+                continue
+
+            package_count = len(packages)
+            size_bytes = sum(pkg.size_bytes for pkg in packages)
+
+            # Create snapshot for this repository
+            snapshot = Snapshot(
+                repository_id=repo.id,
+                name=f"{snapshot_name}",
+                description=f"Auto-created for view snapshot '{view_name}/{snapshot_name}'",
+                package_count=package_count,
+                total_size_bytes=size_bytes,
+            )
+            snapshot.content_items = packages
+            session.add(snapshot)
+            session.flush()  # Get snapshot ID
+
+            created_snapshot_ids.append(snapshot.id)
+            total_packages += package_count
+            total_bytes += size_bytes
+
+            click.echo(f"      ✓ {package_count} packages ({size_bytes / (1024**3):.2f} GB)")
+
+        if not created_snapshot_ids:
+            click.echo()
+            click.echo("Error: No snapshots created (all repositories empty)", err=True)
+            ctx.exit(1)
+
+        # Create view snapshot
+        view_snapshot = ViewSnapshot(
+            view_id=view.id,
+            name=snapshot_name,
+            description=description,
+            snapshot_ids=created_snapshot_ids,
+            package_count=total_packages,
+            total_size_bytes=total_bytes,
+        )
+        session.add(view_snapshot)
+        session.commit()
+
+        click.echo()
+        click.echo(f"✓ View snapshot '{snapshot_name}' created successfully!")
+        click.echo(f"  View: {view_name}")
+        click.echo(f"  Repositories: {len(created_snapshot_ids)}")
+        click.echo(f"  Total packages: {total_packages}")
+        click.echo(f"  Total size: {total_bytes / (1024**3):.2f} GB")
+        click.echo(f"  Created: {view_snapshot.created_at}")
+        click.echo()
+        click.echo(f"To publish this view snapshot:")
+        click.echo(f"  chantal publish snapshot --view {view_name} --snapshot {snapshot_name}")
 
 
 @snapshot.command("diff")
@@ -983,13 +1128,13 @@ def snapshot_diff(ctx: click.Context, repo_id: str, snapshot1: str, snapshot2: s
             ctx.exit(1)
 
         # Get packages from first snapshot
-        packages1 = {pkg.sha256: pkg for pkg in snap1.packages}
+        packages1 = {pkg.sha256: pkg for pkg in snap1.content_items}
 
         # Get second comparison source (snapshot or upstream)
         if snapshot2.lower() == "upstream":
             # Compare against current repository state
             session.refresh(repository)
-            packages2 = {pkg.sha256: pkg for pkg in repository.packages}
+            packages2 = {pkg.sha256: pkg for pkg in repository.content_items}
             comparison_name = "upstream (current)"
         else:
             # Compare against another snapshot
@@ -1003,7 +1148,7 @@ def snapshot_diff(ctx: click.Context, repo_id: str, snapshot1: str, snapshot2: s
                 click.echo(f"Error: Snapshot '{snapshot2}' not found.", err=True)
                 ctx.exit(1)
 
-            packages2 = {pkg.sha256: pkg for pkg in snap2.packages}
+            packages2 = {pkg.sha256: pkg for pkg in snap2.content_items}
             comparison_name = snapshot2
 
         # Calculate differences
@@ -1176,6 +1321,361 @@ def snapshot_delete(ctx: click.Context, repo_id: str, snapshot_name: str, force:
         click.echo()
         click.echo(f"✓ Snapshot '{snapshot_name}' deleted successfully!")
         click.echo("Note: Packages remain in pool for other repositories/snapshots")
+
+
+@snapshot.command("copy")
+@click.option("--source", required=True, help="Source snapshot name")
+@click.option("--target", required=True, help="Target snapshot name")
+@click.option("--repo-id", required=True, help="Repository ID")
+@click.option("--description", help="Description for new snapshot")
+@click.pass_context
+def snapshot_copy(ctx: click.Context, source: str, target: str, repo_id: str, description: str) -> None:
+    """Copy a snapshot to a new name (enables promotion workflows).
+
+    Creates a new snapshot with a different name that references the same packages.
+    No files are copied - only database entries. Both snapshots share the same
+    content-addressed packages in the pool.
+
+    Examples:
+        # Promote tested snapshot to stable
+        chantal snapshot copy --source 2025-01-10 --target stable --repo-id rhel9-baseos
+
+        # Create production snapshot from staging
+        chantal snapshot copy --source staging --target production --repo-id rhel9-baseos
+    """
+    config: GlobalConfig = ctx.obj["config"]
+    db_manager = DatabaseManager(config.database.url)
+
+    with db_manager.session() as session:
+        # Get repository
+        repository = session.query(Repository).filter_by(repo_id=repo_id).first()
+        if not repository:
+            click.echo(f"Error: Repository '{repo_id}' not found.", err=True)
+            ctx.exit(1)
+
+        # Get source snapshot
+        source_snapshot = (
+            session.query(Snapshot)
+            .filter_by(repository_id=repository.id, name=source)
+            .first()
+        )
+
+        if not source_snapshot:
+            click.echo(f"Error: Source snapshot '{source}' not found for repository '{repo_id}'.", err=True)
+            ctx.exit(1)
+
+        # Check if target already exists
+        existing_target = (
+            session.query(Snapshot)
+            .filter_by(repository_id=repository.id, name=target)
+            .first()
+        )
+
+        if existing_target:
+            click.echo(f"Error: Target snapshot '{target}' already exists for repository '{repo_id}'.", err=True)
+            click.echo(f"Created: {existing_target.created_at}", err=True)
+            click.echo("Use a different target name or delete the existing snapshot first.", err=True)
+            ctx.exit(1)
+
+        click.echo(f"Copying snapshot: {source} → {target}")
+        click.echo(f"Repository: {repo_id}")
+        click.echo(f"Packages: {source_snapshot.package_count}")
+        click.echo()
+
+        # Create new snapshot with same content
+        new_snapshot = Snapshot(
+            repository_id=source_snapshot.repository_id,
+            name=target,
+            description=description or f"Copy of '{source}'",
+            package_count=source_snapshot.package_count,
+            total_size_bytes=source_snapshot.total_size_bytes,
+        )
+
+        # Copy content item relationships (NOT the files - they stay in pool)
+        new_snapshot.content_items = list(source_snapshot.content_items)
+
+        session.add(new_snapshot)
+        session.commit()
+
+        click.echo(f"✓ Snapshot copied successfully!")
+        click.echo(f"  Source: {source}")
+        click.echo(f"  Target: {target}")
+        click.echo(f"  Packages: {new_snapshot.package_count}")
+        click.echo(f"  Total size: {new_snapshot.total_size_bytes / (1024**3):.2f} GB")
+        click.echo()
+        click.echo("Note: Both snapshots share the same packages in the pool (zero-copy)")
+        click.echo()
+        click.echo(f"To publish the new snapshot:")
+        click.echo(f"  chantal publish snapshot --snapshot {target} --repo-id {repo_id}")
+
+
+@snapshot.command("content")
+@click.option("--repo-id", help="Repository ID (for repository snapshots)")
+@click.option("--view", help="View name (for view snapshots)")
+@click.option("--snapshot", "snapshot_name", required=True, help="Snapshot name")
+@click.option("--format", "output_format", type=click.Choice(["table", "json", "csv"]), default="table", help="Output format")
+@click.option("--limit", type=int, help="Limit number of packages shown (table format only)")
+@click.pass_context
+def snapshot_content(ctx: click.Context, repo_id: str, view: str, snapshot_name: str, output_format: str, limit: int) -> None:
+    """Show content (package list) of a snapshot.
+
+    For repository snapshots: --repo-id <repo> --snapshot <name>
+    For view snapshots: --view <view> --snapshot <name>
+
+    Useful for compliance/audit purposes - shows exactly what was in a snapshot.
+    """
+    config: GlobalConfig = ctx.obj["config"]
+
+    # Validate: exactly one of --repo-id or --view must be specified
+    if not repo_id and not view:
+        click.echo("Error: Must specify either --repo-id or --view", err=True)
+        ctx.exit(1)
+    if repo_id and view:
+        click.echo("Error: Cannot specify both --repo-id and --view", err=True)
+        ctx.exit(1)
+
+    db_manager = DatabaseManager(config.database.url)
+
+    if view:
+        # Show view snapshot content
+        _show_view_snapshot_content(ctx, db_manager, view, snapshot_name, output_format, limit)
+    else:
+        # Show repository snapshot content
+        _show_repository_snapshot_content(ctx, db_manager, repo_id, snapshot_name, output_format, limit)
+
+
+def _show_repository_snapshot_content(
+    ctx: click.Context,
+    db_manager: DatabaseManager,
+    repo_id: str,
+    snapshot_name: str,
+    output_format: str,
+    limit: int
+) -> None:
+    """Show repository snapshot content."""
+    from chantal.db.models import Repository, Snapshot
+
+    with db_manager.session() as session:
+        # Get repository
+        repository = session.query(Repository).filter_by(repo_id=repo_id).first()
+        if not repository:
+            click.echo(f"Error: Repository '{repo_id}' not found.", err=True)
+            ctx.exit(1)
+
+        # Get snapshot
+        snapshot = (
+            session.query(Snapshot)
+            .filter_by(repository_id=repository.id, name=snapshot_name)
+            .first()
+        )
+
+        if not snapshot:
+            click.echo(f"Error: Snapshot '{snapshot_name}' not found for repository '{repo_id}'.", err=True)
+            ctx.exit(1)
+
+        # Get packages
+        packages = list(snapshot.content_items)
+
+        if output_format == "json":
+            import json
+            output = {
+                "type": "repository_snapshot",
+                "repository": repo_id,
+                "snapshot": snapshot_name,
+                "created_at": snapshot.created_at.isoformat(),
+                "description": snapshot.description,
+                "package_count": snapshot.package_count,
+                "total_size_bytes": snapshot.total_size_bytes,
+                "packages": [
+                    {
+                        "name": pkg.name,
+                        "epoch": pkg.epoch,
+                        "version": pkg.version,
+                        "release": pkg.release,
+                        "arch": pkg.arch,
+                        "nevra": pkg.nevra,
+                        "sha256": pkg.sha256,
+                        "size_bytes": pkg.size_bytes,
+                        "filename": pkg.filename,
+                    }
+                    for pkg in sorted(packages, key=lambda p: p.name)
+                ]
+            }
+            click.echo(json.dumps(output, indent=2))
+
+        elif output_format == "csv":
+            click.echo("name,epoch,version,release,arch,nevra,sha256,size_bytes,filename")
+            for pkg in sorted(packages, key=lambda p: p.name):
+                click.echo(f"{pkg.name},{pkg.epoch or ''},{pkg.version},{pkg.release},"
+                          f"{pkg.arch},{pkg.nevra},{pkg.sha256},{pkg.size_bytes},{pkg.filename}")
+
+        else:  # table
+            click.echo(f"Repository Snapshot: {repo_id} / {snapshot_name}")
+            click.echo(f"Created: {snapshot.created_at}")
+            if snapshot.description:
+                click.echo(f"Description: {snapshot.description}")
+            click.echo(f"Packages: {snapshot.package_count}")
+            click.echo(f"Total Size: {snapshot.total_size_bytes / (1024**3):.2f} GB")
+            click.echo()
+
+            # Show packages
+            packages_to_show = packages[:limit] if limit else packages
+
+            click.echo(f"{'Name':<40} {'Version-Release':<35} {'Arch':<10} {'Size':<12}")
+            click.echo("-" * 100)
+
+            for pkg in sorted(packages_to_show, key=lambda p: p.name):
+                vr = f"{pkg.version}-{pkg.release}"
+                if pkg.epoch:
+                    vr = f"{pkg.epoch}:{vr}"
+
+                size_mb = pkg.size_bytes / (1024**2)
+                if size_mb >= 1.0:
+                    size_str = f"{size_mb:.1f} MB"
+                else:
+                    size_kb = pkg.size_bytes / 1024
+                    size_str = f"{size_kb:.0f} KB"
+
+                click.echo(f"{pkg.name:<40} {vr:<35} {pkg.arch:<10} {size_str:<12}")
+
+            if limit and len(packages) > limit:
+                click.echo()
+                click.echo(f"Showing {limit} of {len(packages)} packages. Use --limit to show more or --format json for full export.")
+
+
+def _show_view_snapshot_content(
+    ctx: click.Context,
+    db_manager: DatabaseManager,
+    view_name: str,
+    snapshot_name: str,
+    output_format: str,
+    limit: int
+) -> None:
+    """Show view snapshot content."""
+    from chantal.db.models import View, ViewSnapshot, Snapshot
+
+    with db_manager.session() as session:
+        # Get view
+        view = session.query(View).filter_by(name=view_name).first()
+        if not view:
+            click.echo(f"Error: View '{view_name}' not found.", err=True)
+            ctx.exit(1)
+
+        # Get view snapshot
+        view_snapshot = (
+            session.query(ViewSnapshot)
+            .filter_by(view_id=view.id, name=snapshot_name)
+            .first()
+        )
+
+        if not view_snapshot:
+            click.echo(f"Error: View snapshot '{snapshot_name}' not found for view '{view_name}'.", err=True)
+            ctx.exit(1)
+
+        # Collect all packages from all snapshots
+        repositories_data = []
+        all_packages = []
+
+        for snapshot_id in view_snapshot.snapshot_ids:
+            snapshot = session.query(Snapshot).filter_by(id=snapshot_id).first()
+            if not snapshot:
+                continue
+
+            repo = snapshot.repository
+            packages = list(snapshot.content_items)
+
+            repositories_data.append({
+                "repo_id": repo.repo_id,
+                "snapshot_name": snapshot.name,
+                "package_count": len(packages),
+                "packages": packages,
+            })
+            all_packages.extend(packages)
+
+        if output_format == "json":
+            import json
+            output = {
+                "type": "view_snapshot",
+                "view": view_name,
+                "snapshot": snapshot_name,
+                "created_at": view_snapshot.created_at.isoformat(),
+                "description": view_snapshot.description,
+                "total_packages": view_snapshot.package_count,
+                "total_size_bytes": view_snapshot.total_size_bytes,
+                "repositories": [
+                    {
+                        "repo_id": repo_data["repo_id"],
+                        "snapshot_name": repo_data["snapshot_name"],
+                        "package_count": repo_data["package_count"],
+                        "packages": [
+                            {
+                                "name": pkg.name,
+                                "epoch": pkg.epoch,
+                                "version": pkg.version,
+                                "release": pkg.release,
+                                "arch": pkg.arch,
+                                "nevra": pkg.nevra,
+                                "sha256": pkg.sha256,
+                                "size_bytes": pkg.size_bytes,
+                                "filename": pkg.filename,
+                            }
+                            for pkg in sorted(repo_data["packages"], key=lambda p: p.name)
+                        ]
+                    }
+                    for repo_data in repositories_data
+                ]
+            }
+            click.echo(json.dumps(output, indent=2))
+
+        elif output_format == "csv":
+            click.echo("view,snapshot,repo_id,name,epoch,version,release,arch,nevra,sha256,size_bytes,filename")
+            for repo_data in repositories_data:
+                for pkg in sorted(repo_data["packages"], key=lambda p: p.name):
+                    click.echo(f"{view_name},{snapshot_name},{repo_data['repo_id']},"
+                              f"{pkg.name},{pkg.epoch or ''},{pkg.version},{pkg.release},"
+                              f"{pkg.arch},{pkg.nevra},{pkg.sha256},{pkg.size_bytes},{pkg.filename}")
+
+        else:  # table
+            click.echo(f"View Snapshot: {view_name} / {snapshot_name}")
+            click.echo(f"Created: {view_snapshot.created_at}")
+            if view_snapshot.description:
+                click.echo(f"Description: {view_snapshot.description}")
+            click.echo(f"Repositories: {len(repositories_data)}")
+            click.echo(f"Total Packages: {view_snapshot.package_count}")
+            click.echo(f"Total Size: {view_snapshot.total_size_bytes / (1024**3):.2f} GB")
+            click.echo()
+
+            # Show packages grouped by repository
+            for repo_data in repositories_data:
+                click.echo(f"Repository: {repo_data['repo_id']} ({repo_data['package_count']} packages)")
+                click.echo("-" * 100)
+                click.echo(f"{'Name':<40} {'Version-Release':<35} {'Arch':<10} {'Size':<12}")
+                click.echo("-" * 100)
+
+                packages_to_show = repo_data["packages"][:limit] if limit else repo_data["packages"]
+
+                for pkg in sorted(packages_to_show, key=lambda p: p.name):
+                    vr = f"{pkg.version}-{pkg.release}"
+                    if pkg.epoch:
+                        vr = f"{pkg.epoch}:{vr}"
+
+                    size_mb = pkg.size_bytes / (1024**2)
+                    if size_mb >= 1.0:
+                        size_str = f"{size_mb:.1f} MB"
+                    else:
+                        size_kb = pkg.size_bytes / 1024
+                        size_str = f"{size_kb:.0f} KB"
+
+                    click.echo(f"{pkg.name:<40} {vr:<35} {pkg.arch:<10} {size_str:<12}")
+
+                if limit and len(repo_data["packages"]) > limit:
+                    remaining = len(repo_data["packages"]) - limit
+                    click.echo(f"... and {remaining} more packages")
+
+                click.echo()
+
+            if limit:
+                click.echo(f"Use --format json or --format csv for full export of all {view_snapshot.package_count} packages.")
 
 
 @cli.group(context_settings=CONTEXT_SETTINGS)
@@ -1361,7 +1861,7 @@ def package_list(
 
         # Build query for packages in this repository
         session.refresh(repository)
-        packages = list(repository.packages)
+        packages = list(repository.content_items)
 
         # Apply architecture filter if specified
         if arch:
@@ -1424,7 +1924,7 @@ def package_list(
             click.echo()
             click.echo(f"Total: {len(packages)} package(s)")
 
-            total_packages = len(list(repository.packages))
+            total_packages = len(list(repository.content_items))
             if arch:
                 click.echo(f"(Repository has {total_packages} total packages across all architectures)")
 
@@ -1449,7 +1949,7 @@ def package_search(
 
     with db_manager.session() as session:
         # Build base query
-        packages_query = session.query(Package)
+        packages_query = session.query(ContentItem)
 
         # Filter by repository if specified
         if repo_id:
@@ -1460,11 +1960,11 @@ def package_search(
                 ctx.exit(1)
 
             # Filter packages belonging to this repository
-            packages_query = packages_query.filter(Package.repositories.contains(repository))
+            packages_query = packages_query.filter(ContentItem.repositories.contains(repository))
 
         # Apply name search (case-insensitive, wildcard support)
         search_pattern = query.replace("*", "%")
-        packages_query = packages_query.filter(Package.name.ilike(f"%{search_pattern}%"))
+        packages_query = packages_query.filter(ContentItem.name.ilike(f"%{search_pattern}%"))
 
         # Filter by architecture if specified
         if arch:
@@ -1545,17 +2045,17 @@ def package_show(ctx: click.Context, package: str, output_format: str) -> None:
 
         # Check if it's a SHA256 (64 hex characters)
         if len(package) == 64 and all(c in '0123456789abcdef' for c in package.lower()):
-            pkg = session.query(Package).filter_by(sha256=package).first()
+            pkg = session.query(ContentItem).filter_by(sha256=package).first()
             if pkg:
                 packages = [pkg]
 
         # Try name match (may return multiple packages)
         if not packages:
-            packages = session.query(Package).filter_by(name=package).all()
+            packages = session.query(ContentItem).filter_by(name=package).all()
 
         # Try filename match if name didn't work
         if not packages:
-            pkg = session.query(Package).filter_by(filename=package).first()
+            pkg = session.query(ContentItem).filter_by(filename=package).first()
             if pkg:
                 packages = [pkg]
 
@@ -1820,7 +2320,7 @@ def pool_verify(ctx: click.Context) -> None:
     """
     from chantal.core.storage import StorageManager
     from chantal.db.connection import DatabaseManager
-    from chantal.db.models import Package
+    from chantal.db.models import ContentItem
 
     config: GlobalConfig = ctx.obj["config"]
 
@@ -1840,7 +2340,7 @@ def pool_verify(ctx: click.Context) -> None:
         warnings = 0
 
         # Get all packages from database
-        packages = session.query(Package).all()
+        packages = session.query(ContentItem).all()
         click.echo(f"Checking {len(packages):,} packages...")
 
         for i, package in enumerate(packages, 1):
@@ -1992,18 +2492,50 @@ def _publish_single_repository(session, storage, global_config, repo_config, cus
 
 @publish.command("snapshot")
 @click.option("--snapshot", required=True, help="Snapshot name to publish")
-@click.option("--repo-id", help="Repository ID (optional if snapshot name is unique)")
-@click.option("--target", help="Custom target directory (default: published_path/snapshots/<repo>/<snapshot>)")
+@click.option("--repo-id", help="Repository ID (for repository snapshots)")
+@click.option("--view", help="View name (for view snapshots)")
+@click.option("--target", help="Custom target directory")
 @click.pass_context
-def publish_snapshot(ctx: click.Context, snapshot: str, repo_id: str, target: str) -> None:
-    """Publish a specific snapshot.
+def publish_snapshot(ctx: click.Context, snapshot: str, repo_id: str, view: str, target: str) -> None:
+    """Publish a specific snapshot (repository or view snapshot).
 
     Creates hardlinks from package pool to snapshot directory with RPM metadata.
     Perfect for creating immutable snapshots or parallel environments.
+
+    For repository snapshots: --snapshot <name> --repo-id <repo>
+    For view snapshots: --snapshot <name> --view <view>
     """
     config: GlobalConfig = ctx.obj["config"]
+
+    # Validate: at most one of --repo-id or --view can be specified
+    if repo_id and view:
+        click.echo("Error: Cannot specify both --repo-id and --view", err=True)
+        ctx.exit(1)
+
+    # Initialize database and storage
     db_manager = DatabaseManager(config.database.url)
     storage = StorageManager(config.storage)
+
+    if view:
+        # Publish view snapshot
+        _publish_view_snapshot(ctx, config, db_manager, storage, view, snapshot, target)
+    else:
+        # Publish repository snapshot (existing behavior)
+        _publish_repository_snapshot(ctx, config, db_manager, storage, repo_id, snapshot, target)
+
+
+def _publish_repository_snapshot(
+    ctx: click.Context,
+    config: GlobalConfig,
+    db_manager: DatabaseManager,
+    storage: StorageManager,
+    repo_id: str,
+    snapshot: str,
+    target: str
+) -> None:
+    """Publish a repository snapshot."""
+    from chantal.db.models import Repository, Snapshot
+    from chantal.plugins.rpm import RpmPublisher
 
     with db_manager.session() as session:
         # Get snapshot from database
@@ -2092,6 +2624,166 @@ def publish_snapshot(ctx: click.Context, snapshot: str, repo_id: str, target: st
         except Exception as e:
             click.echo(f"\n✗ Publishing failed: {e}", err=True)
             raise
+
+
+def _publish_view_snapshot(
+    ctx: click.Context,
+    config: GlobalConfig,
+    db_manager: DatabaseManager,
+    storage: StorageManager,
+    view_name: str,
+    snapshot_name: str,
+    target: str
+) -> None:
+    """Publish a view snapshot."""
+    from chantal.db.models import View, ViewSnapshot
+    from chantal.plugins.view_publisher import ViewPublisher
+
+    with db_manager.session() as session:
+        # Get view from database
+        view = session.query(View).filter_by(name=view_name).first()
+        if not view:
+            click.echo(f"Error: View '{view_name}' not found in database.", err=True)
+            click.echo("Run 'chantal view list' to see available views.", err=True)
+            ctx.exit(1)
+
+        # Get view snapshot from database
+        view_snapshot = (
+            session.query(ViewSnapshot)
+            .filter_by(view_id=view.id, name=snapshot_name)
+            .first()
+        )
+
+        if not view_snapshot:
+            click.echo(f"Error: View snapshot '{snapshot_name}' not found for view '{view_name}'.", err=True)
+            click.echo(f"Run 'chantal snapshot list' to see available snapshots.", err=True)
+            ctx.exit(1)
+
+        # Determine target path
+        if target:
+            target_path = Path(target)
+        else:
+            # Default: published_path/views/<view-name>/snapshots/<snapshot-name>
+            target_path = Path(config.storage.published_path) / "views" / view_name / "snapshots" / snapshot_name
+
+        click.echo(f"Publishing view snapshot: {snapshot_name}")
+        click.echo(f"View: {view_name}")
+        click.echo(f"Target: {target_path}")
+        click.echo(f"Packages: {view_snapshot.package_count}")
+        click.echo()
+
+        # Initialize view publisher
+        publisher = ViewPublisher(storage)
+
+        # Publish view snapshot
+        try:
+            publisher.publish_view_snapshot(
+                session=session,
+                view_snapshot=view_snapshot,
+                target_path=target_path
+            )
+
+            # Update view snapshot metadata
+            view_snapshot.is_published = True
+            view_snapshot.published_at = datetime.utcnow()
+            view_snapshot.published_path = str(target_path)
+            session.commit()
+
+            click.echo()
+            click.echo(f"✓ View snapshot published successfully!")
+            click.echo(f"  Location: {target_path}")
+            click.echo(f"  Packages directory: {target_path}/Packages")
+            click.echo(f"  Metadata directory: {target_path}/repodata")
+            click.echo()
+            click.echo(f"Configure your package manager:")
+            click.echo(f"  [view-{view_name}-snapshot-{snapshot_name}]")
+            click.echo(f"  name=View {view_name} Snapshot {snapshot_name}")
+            click.echo(f"  baseurl=file://{target_path}")
+            click.echo(f"  enabled=1")
+            click.echo(f"  gpgcheck=0")
+
+        except Exception as e:
+            click.echo(f"\n✗ Publishing failed: {e}", err=True)
+            raise
+
+
+@publish.command("view")
+@click.option("--name", required=True, help="View name to publish")
+@click.pass_context
+def publish_view(ctx: click.Context, name: str) -> None:
+    """Publish a view (combines all repos into one virtual repository).
+
+    Creates a combined repository from all repositories in the view.
+    All packages from all repos are included (client decides on conflicts).
+
+    Views are published directly from the configuration file - no database sync needed.
+
+    Examples:
+        chantal publish view --name rhel9-complete
+        chantal publish view --name rhel9-webserver
+    """
+    from chantal.db.connection import DatabaseManager
+    from chantal.plugins.view_publisher import ViewPublisher
+
+    config = ctx.obj["config"]
+
+    # Get view config
+    view_config = config.get_view(name)
+    if not view_config:
+        click.echo(f"Error: View '{name}' not found in configuration", err=True)
+        return
+
+    click.echo(f"Publishing view: {name}")
+    if view_config.description:
+        click.echo(f"Description: {view_config.description}")
+    click.echo()
+
+    # Determine target path
+    storage = config.storage
+    if view_config.publish_path:
+        target_path = Path(view_config.publish_path) / "latest"
+    else:
+        target_path = Path(storage.published_path) / "views" / name / "latest"
+
+    click.echo(f"Target: {target_path}")
+    click.echo()
+
+    # Connect to database
+    db = DatabaseManager(config.database.url)
+
+    try:
+        with db.session() as session:
+            # Initialize publisher
+            from chantal.core.storage import StorageManager
+            storage_manager = StorageManager(config.storage)
+            publisher = ViewPublisher(storage_manager)
+
+            # Publish view from config (no DB view object needed)
+            click.echo(f"Collecting packages from {len(view_config.repos)} repositories...")
+            package_count = publisher.publish_view_from_config(
+                session,
+                view_config.repos,
+                target_path
+            )
+
+            click.echo()
+            click.echo(f"✓ View published successfully!")
+            click.echo(f"  Packages: {package_count}")
+            click.echo()
+            click.echo("Client configuration:")
+            click.echo(f"  [view-{name}]")
+            click.echo(f"  name=View: {name}")
+            click.echo(f"  baseurl=file://{target_path.absolute()}")
+            click.echo(f"  enabled=1")
+            click.echo(f"  gpgcheck=0")
+
+    except ValueError as e:
+        click.echo(f"\n✗ Publishing view failed: {e}", err=True)
+        click.echo(f"Hint: Make sure all repositories in the view are synced to database first")
+        raise
+    except Exception as e:
+        click.echo(f"\n✗ Publishing view failed: {e}", err=True)
+        raise
 
 
 @publish.command("list")

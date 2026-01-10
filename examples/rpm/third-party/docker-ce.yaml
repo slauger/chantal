@@ -1,0 +1,131 @@
+# ==============================================================================
+# Docker CE (Community Edition) - RPM Repository
+# ==============================================================================
+#
+# Docker Engine is an open-source containerization platform.
+#
+# Official Documentation:
+# - Docker Engine: https://docs.docker.com/engine/
+# - Installation: https://docs.docker.com/engine/install/rhel/
+#
+# Repository Size: ~200-500 MB
+# Update Frequency: Monthly releases, quarterly major versions
+#
+# ==============================================================================
+
+repositories:
+  # ============================================================================
+  # Docker CE for RHEL 9
+  # ============================================================================
+  - id: docker-ce-rhel9
+    name: "Docker CE (RHEL 9/x86_64)"
+    type: rpm
+    feed: https://download.docker.com/linux/rhel/9/x86_64/stable
+    enabled: true
+
+    # Public repository, no authentication required
+
+    filters:
+      patterns:
+        include:
+          - "^docker-ce-.*"          # Docker Engine
+          - "^docker-ce-cli-.*"      # Docker CLI
+          - "^containerd.io-.*"      # Container runtime
+          - "^docker-compose-plugin-.*"  # Docker Compose V2
+          - "^docker-buildx-plugin-.*"   # Docker Buildx
+        exclude:
+          - ".*-debuginfo$"
+      metadata:
+        architectures:
+          include: ["x86_64"]
+      rpm:
+        exclude_source_rpms: true
+      post_processing:
+        # Keep latest version only (Docker updates frequently)
+        only_latest_version: true
+
+  # ============================================================================
+  # Docker CE for RHEL 8
+  # ============================================================================
+  - id: docker-ce-rhel8
+    name: "Docker CE (RHEL 8/x86_64)"
+    type: rpm
+    feed: https://download.docker.com/linux/rhel/8/x86_64/stable
+    enabled: true
+
+    filters:
+      patterns:
+        include:
+          - "^docker-ce-.*"
+          - "^docker-ce-cli-.*"
+          - "^containerd.io-.*"
+          - "^docker-compose-plugin-.*"
+          - "^docker-buildx-plugin-.*"
+        exclude:
+          - ".*-debuginfo$"
+      metadata:
+        architectures:
+          include: ["x86_64"]
+      rpm:
+        exclude_source_rpms: true
+      post_processing:
+        only_latest_version: true
+
+
+# ==============================================================================
+# Usage Examples
+# ==============================================================================
+#
+# 1. Sync Docker CE repository:
+#    chantal repo sync --repo-id docker-ce-rhel9
+#
+# 2. Create monthly snapshot:
+#    chantal snapshot create --repo-id docker-ce-rhel9 --name $(date +%Y-%m)
+#
+# 3. Publish repository:
+#    chantal publish repo --repo-id docker-ce-rhel9
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# Client Configuration
+# ==============================================================================
+#
+# /etc/yum.repos.d/docker-ce.repo:
+#   [docker-ce]
+#   name=Docker CE
+#   baseurl=http://your-mirror.example.com/chantal/repositories/docker-ce-rhel9
+#   enabled=1
+#   gpgcheck=1
+#   gpgkey=https://download.docker.com/linux/rhel/gpg
+#
+# Install Docker:
+#   sudo yum install docker-ce docker-ce-cli containerd.io \
+#                    docker-compose-plugin docker-buildx-plugin
+#   sudo systemctl enable --now docker
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# Important Notes
+# ==============================================================================
+#
+# 1. Docker CE vs Podman:
+#    - RHEL includes Podman (daemonless, rootless containers)
+#    - Docker CE is optional for Docker-specific features
+#    - Consider Podman as Red Hat's recommended container engine
+#
+# 2. Version Compatibility:
+#    - Docker CE supports RHEL 8 and 9
+#    - RHEL 7 uses older Docker packages (deprecated)
+#
+# 3. Dependencies:
+#    - containerd.io: Container runtime (required)
+#    - docker-ce-cli: Docker command-line client
+#    - docker-ce: Docker Engine daemon
+#    - docker-compose-plugin: Docker Compose V2 (optional)
+#    - docker-buildx-plugin: BuildKit builder (optional)
+#
+# ==============================================================================

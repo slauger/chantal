@@ -1,0 +1,139 @@
+# ==============================================================================
+# Red Hat Enterprise Linux 8 Repository Configuration
+# ==============================================================================
+#
+# This configuration mirrors the official RHEL 8 repositories.
+# Requires an active RHEL subscription and entitlement certificates.
+#
+# NOTE: RHEL 8 reaches End of Full Support in May 2024, Extended Life Phase
+# until May 2029. Consider migrating to RHEL 9 for long-term support.
+#
+# ==============================================================================
+
+repositories:
+  # BaseOS - Core operating system
+  - id: rhel8-baseos
+    name: "RHEL 8 BaseOS (x86_64)"
+    type: rpm
+    feed: https://cdn.redhat.com/content/dist/rhel8/8/x86_64/baseos/os
+    enabled: true
+
+    ssl:
+      ca_bundle: /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
+      client_cert: /etc/pki/entitlement/YOUR_CERT_ID.pem
+      client_key: /etc/pki/entitlement/YOUR_CERT_ID-key.pem
+      verify: true
+
+  # AppStream - Application streams
+  - id: rhel8-appstream
+    name: "RHEL 8 AppStream (x86_64)"
+    type: rpm
+    feed: https://cdn.redhat.com/content/dist/rhel8/8/x86_64/appstream/os
+    enabled: true
+
+    ssl:
+      ca_bundle: /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
+      client_cert: /etc/pki/entitlement/YOUR_CERT_ID.pem
+      client_key: /etc/pki/entitlement/YOUR_CERT_ID-key.pem
+      verify: true
+
+  # CodeReady Builder (formerly PowerTools)
+  - id: rhel8-crb
+    name: "RHEL 8 CodeReady Builder (x86_64)"
+    type: rpm
+    feed: https://cdn.redhat.com/content/dist/rhel8/8/x86_64/codeready-builder/os
+    enabled: false
+
+    ssl:
+      ca_bundle: /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
+      client_cert: /etc/pki/entitlement/YOUR_CERT_ID.pem
+      client_key: /etc/pki/entitlement/YOUR_CERT_ID-key.pem
+      verify: true
+
+  # ============================================================================
+  # Additional RHEL 8 Channels (commented out - enable as needed)
+  # ============================================================================
+
+  # Supplementary - Additional packages (limited support)
+  # - id: rhel8-supplementary
+  #   name: "RHEL 8 Supplementary (x86_64)"
+  #   type: rpm
+  #   feed: https://cdn.redhat.com/content/dist/rhel8/8/x86_64/supplementary/os
+  #   enabled: false
+  #   ssl:
+  #     ca_bundle: /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
+  #     client_cert: /etc/pki/entitlement/YOUR_CERT_ID.pem
+  #     client_key: /etc/pki/entitlement/YOUR_CERT_ID-key.pem
+  #     verify: true
+
+  # High Availability - Clustering add-on (requires separate subscription)
+  # - id: rhel8-highavailability
+  #   name: "RHEL 8 High Availability (x86_64)"
+  #   type: rpm
+  #   feed: https://cdn.redhat.com/content/dist/rhel8/8/x86_64/highavailability/os
+  #   enabled: false
+  #   ssl:
+  #     ca_bundle: /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
+  #     client_cert: /etc/pki/entitlement/YOUR_CERT_ID.pem
+  #     client_key: /etc/pki/entitlement/YOUR_CERT_ID-key.pem
+  #     verify: true
+
+  # Resilient Storage - Storage clustering (requires separate subscription)
+  # - id: rhel8-resilientstorage
+  #   name: "RHEL 8 Resilient Storage (x86_64)"
+  #   type: rpm
+  #   feed: https://cdn.redhat.com/content/dist/rhel8/8/x86_64/resilientstorage/os
+  #   enabled: false
+  #   ssl:
+  #     ca_bundle: /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
+  #     client_cert: /etc/pki/entitlement/YOUR_CERT_ID.pem
+  #     client_key: /etc/pki/entitlement/YOUR_CERT_ID-key.pem
+  #     verify: true
+
+  # Real Time - Real-time kernel (requires separate subscription)
+  # - id: rhel8-rt
+  #   name: "RHEL 8 Real Time (x86_64)"
+  #   type: rpm
+  #   feed: https://cdn.redhat.com/content/dist/rhel8/8/x86_64/rt/os
+  #   enabled: false
+  #   ssl:
+  #     ca_bundle: /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
+  #     client_cert: /etc/pki/entitlement/YOUR_CERT_ID.pem
+  #     client_key: /etc/pki/entitlement/YOUR_CERT_ID-key.pem
+  #     verify: true
+
+  # NFV - Network Functions Virtualization (requires separate subscription)
+  # - id: rhel8-nfv
+  #   name: "RHEL 8 NFV (x86_64)"
+  #   type: rpm
+  #   feed: https://cdn.redhat.com/content/dist/rhel8/8/x86_64/nfv/os
+  #   enabled: false
+  #   ssl:
+  #     ca_bundle: /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
+  #     client_cert: /etc/pki/entitlement/YOUR_CERT_ID.pem
+  #     client_key: /etc/pki/entitlement/YOUR_CERT_ID-key.pem
+  #     verify: true
+
+  # SAP Solutions (requires SAP subscription)
+  # - id: rhel8-sap-solutions
+  #   name: "RHEL 8 for SAP Solutions (x86_64)"
+  #   type: rpm
+  #   feed: https://cdn.redhat.com/content/dist/rhel8/8/x86_64/sap-solutions/os
+  #   enabled: false
+  #   ssl:
+  #     ca_bundle: /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
+  #     client_cert: /etc/pki/entitlement/YOUR_CERT_ID.pem
+  #     client_key: /etc/pki/entitlement/YOUR_CERT_ID-key.pem
+  #     verify: true
+
+  # SAP NetWeaver (requires SAP subscription)
+  # - id: rhel8-sap-netweaver
+  #   name: "RHEL 8 for SAP NetWeaver (x86_64)"
+  #   type: rpm
+  #   feed: https://cdn.redhat.com/content/dist/rhel8/8/x86_64/sap/os
+  #   enabled: false
+  #   ssl:
+  #     ca_bundle: /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
+  #     client_cert: /etc/pki/entitlement/YOUR_CERT_ID.pem
+  #     client_key: /etc/pki/entitlement/YOUR_CERT_ID-key.pem
+  #     verify: true

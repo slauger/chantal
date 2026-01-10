@@ -1,0 +1,238 @@
+# ==============================================================================
+# GitLab Runner - CI/CD Runner for GitLab - RPM Repository
+# ==============================================================================
+#
+# GitLab Runner is the open source project that is used to run your CI/CD jobs
+# and send the results back to GitLab. It is used in conjunction with GitLab CI/CD,
+# the open-source continuous integration service included with GitLab.
+#
+# Official Documentation:
+# - GitLab Runner: https://docs.gitlab.com/runner/
+# - Installation: https://docs.gitlab.com/runner/install/linux-repository.html
+#
+# Repository Size: ~50-100 MB
+# Update Frequency: Monthly releases (aligned with GitLab releases)
+#
+# ==============================================================================
+
+repositories:
+  # ============================================================================
+  # GitLab Runner - Official Repository
+  # ============================================================================
+  - id: gitlab-runner-el9
+    name: "GitLab Runner (EL9/x86_64)"
+    type: rpm
+    feed: https://packages.gitlab.com/runner/gitlab-runner/el/9/x86_64
+    enabled: true
+
+    # Public repository, no authentication required
+
+    filters:
+      patterns:
+        include:
+          - "^gitlab-runner-.*"
+        exclude:
+          - ".*-debuginfo$"
+          - ".*-debugsource$"
+      metadata:
+        architectures:
+          include: ["x86_64"]
+      rpm:
+        exclude_source_rpms: true
+      post_processing:
+        # Keep only latest version (runners should stay up-to-date)
+        only_latest_version: true
+
+  # ============================================================================
+  # GitLab Runner for RHEL 8 / CentOS 8
+  # ============================================================================
+  - id: gitlab-runner-el8
+    name: "GitLab Runner (EL8/x86_64)"
+    type: rpm
+    feed: https://packages.gitlab.com/runner/gitlab-runner/el/8/x86_64
+    enabled: true
+
+    filters:
+      patterns:
+        include:
+          - "^gitlab-runner-.*"
+        exclude:
+          - ".*-debuginfo$"
+      metadata:
+        architectures:
+          include: ["x86_64"]
+      rpm:
+        exclude_source_rpms: true
+      post_processing:
+        only_latest_version: true
+
+
+# ==============================================================================
+# Usage Examples
+# ==============================================================================
+#
+# 1. Sync GitLab Runner repository:
+#    chantal repo sync --repo-id gitlab-runner-el9
+#
+# 2. Create monthly snapshot (aligned with GitLab releases):
+#    chantal snapshot create --repo-id gitlab-runner-el9 --name $(date +%Y-%m)
+#
+# 3. Publish repository:
+#    chantal publish repo --repo-id gitlab-runner-el9
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# Client Configuration
+# ==============================================================================
+#
+# /etc/yum.repos.d/gitlab-runner.repo:
+#   [gitlab-runner]
+#   name=GitLab Runner
+#   baseurl=http://your-mirror.example.com/chantal/repositories/gitlab-runner-el9
+#   enabled=1
+#   gpgcheck=1
+#   gpgkey=https://packages.gitlab.com/runner/gitlab-runner/gpgkey
+#
+# Install GitLab Runner:
+#   sudo yum install gitlab-runner
+#
+# Register runner:
+#   sudo gitlab-runner register \
+#     --url https://gitlab.example.com/ \
+#     --registration-token YOUR_TOKEN \
+#     --executor docker \
+#     --description "My Docker Runner"
+#
+# Start service:
+#   sudo systemctl enable --now gitlab-runner
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# GitLab Runner Executors
+# ==============================================================================
+#
+# GitLab Runner supports multiple executors for running CI/CD jobs:
+#
+# 1. Docker (recommended):
+#    - Isolated build environments
+#    - Clean state for each job
+#    - Requires Docker/Podman installation
+#
+# 2. Shell:
+#    - Direct execution on host
+#    - Faster but less isolated
+#    - Uses gitlab-runner user
+#
+# 3. Kubernetes:
+#    - For large-scale CI/CD
+#    - Dynamic pod creation
+#    - Requires Kubernetes cluster
+#
+# 4. VirtualBox / Parallels:
+#    - Full VM isolation
+#    - Higher resource overhead
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# Version Compatibility
+# ==============================================================================
+#
+# GitLab Runner version should match GitLab version:
+# - GitLab 16.x → GitLab Runner 16.x
+# - Minor version mismatches usually work (16.8 runner with 16.9 GitLab)
+# - Major version mismatches may cause issues
+#
+# Best Practice:
+# - Keep runners updated to match GitLab server version
+# - Test new versions in staging before production
+# - Use snapshots to control rollout timing
+#
+# Example for version pinning:
+#   # Production GitLab is on 16.8
+#   chantal snapshot create --repo-id gitlab-runner-el9 --name runner-16.8
+#   chantal publish snapshot --repo-id gitlab-runner-el9 --snapshot runner-16.8
+#
+#   # After GitLab upgrades to 16.9
+#   chantal repo sync --repo-id gitlab-runner-el9
+#   chantal snapshot create --repo-id gitlab-runner-el9 --name runner-16.9
+#   chantal publish snapshot --repo-id gitlab-runner-el9 --snapshot runner-16.9
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# Multi-Runner Architecture
+# ==============================================================================
+#
+# For high-availability CI/CD infrastructure:
+#
+# 1. Development runners:
+#    - Use latest runner version
+#    - Frequent updates acceptable
+#    - baseurl=.../repositories/gitlab-runner-el9
+#
+# 2. Staging runners:
+#    - Test new runner versions here first
+#    - baseurl=.../snapshots/runner-staging
+#
+# 3. Production runners:
+#    - Stable, tested runner versions only
+#    - baseurl=.../snapshots/runner-16.8
+#    - Manual promotion from staging
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# Important Notes
+# ==============================================================================
+#
+# 1. Security Considerations:
+#    - Runners execute untrusted code from repositories
+#    - Use Docker executor for isolation
+#    - Consider separate network segments for runners
+#    - Regularly update runner software (security patches)
+#
+# 2. Resource Requirements:
+#    - CPU/Memory depends on concurrent jobs
+#    - Recommended: 2 CPU cores, 4 GB RAM minimum per runner
+#    - Docker executor needs disk space for images
+#
+# 3. Registration Tokens:
+#    - Stored in GitLab (Settings → CI/CD → Runners)
+#    - Instance runners vs. group runners vs. project runners
+#    - Keep registration tokens secure
+#
+# 4. Autoscaling:
+#    - Docker Machine executor for dynamic scaling
+#    - Kubernetes executor for cloud-native autoscaling
+#    - See GitLab Runner advanced configuration docs
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# Monitoring and Maintenance
+# ==============================================================================
+#
+# Check runner status:
+#   sudo gitlab-runner status
+#   sudo gitlab-runner list
+#
+# View runner logs:
+#   sudo journalctl -u gitlab-runner -f
+#
+# Update runner configuration:
+#   sudo gitlab-runner verify
+#   sudo gitlab-runner restart
+#
+# Unregister runner:
+#   sudo gitlab-runner unregister --name "runner-name"
+#
+# ==============================================================================

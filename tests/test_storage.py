@@ -9,7 +9,8 @@ from sqlalchemy.orm import Session
 
 from chantal.core.config import StorageConfig
 from chantal.core.storage import StorageManager
-from chantal.db.models import Base, Package
+from chantal.db.models import Base, ContentItem
+from chantal.plugins.rpm.models import RpmMetadata
 
 
 @pytest.fixture
@@ -254,17 +255,18 @@ def test_get_orphaned_files(temp_storage, test_file, db_session):
     )
 
     # Add to database
-    package = Package(
+    rpm_metadata = RpmMetadata(release="1", arch="noarch")
+    content_item = ContentItem(
+        content_type="rpm",
         name="test",
         version="1.0",
-        arch="noarch",
         sha256=sha256,
         size_bytes=size,
         pool_path=pool_path,
-        package_type="rpm",
         filename="test.txt",
+        content_metadata=rpm_metadata.model_dump(exclude_none=False)
     )
-    db_session.add(package)
+    db_session.add(content_item)
     db_session.commit()
 
     # Should find no orphaned files
@@ -272,7 +274,7 @@ def test_get_orphaned_files(temp_storage, test_file, db_session):
     assert len(orphaned) == 0
 
     # Remove from database
-    db_session.delete(package)
+    db_session.delete(content_item)
     db_session.commit()
 
     # Should find orphaned file now
@@ -339,17 +341,18 @@ def test_get_pool_statistics(temp_storage, test_file, db_session):
     )
 
     # Add to database
-    package = Package(
+    rpm_metadata = RpmMetadata(release="1", arch="noarch")
+    content_item = ContentItem(
+        content_type="rpm",
         name="test",
         version="1.0",
-        arch="noarch",
         sha256=sha256,
         size_bytes=size,
         pool_path=pool_path,
-        package_type="rpm",
         filename="test.txt",
+        content_metadata=rpm_metadata.model_dump(exclude_none=False)
     )
-    db_session.add(package)
+    db_session.add(content_item)
     db_session.commit()
 
     # Get statistics

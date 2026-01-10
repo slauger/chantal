@@ -32,7 +32,8 @@ from chantal.core.config import (
     TimeFilterConfig,
 )
 from chantal.core.storage import StorageManager
-from chantal.db.models import Package, Repository
+from chantal.db.models import ContentItem, Repository
+from chantal.plugins.rpm.models import RpmMetadata
 
 
 @dataclass
@@ -373,7 +374,7 @@ class RpmSyncPlugin:
 
             # Step 5: Get existing packages from database for this repository
             existing_packages = {}
-            for pkg in repository.packages:
+            for pkg in repository.content_items:
                 # Build a key based on name and arch
                 key = f"{pkg.name}#{pkg.arch}"
                 existing_packages[key] = pkg
@@ -407,7 +408,7 @@ class RpmSyncPlugin:
                 else:
                     # Package exists - check if remote version is newer
                     remote_epoch = int(pkg_meta.epoch or "0")
-                    local_epoch = int(existing_pkg.epoch or "0")
+                    local_epoch = int(existing_pkg.content_metadata.get("epoch") or "0")
 
                     # EPO CH-style version comparison: compare epoch, then version, then release
                     is_newer = False
@@ -425,7 +426,7 @@ class RpmSyncPlugin:
                             elif remote_ver == local_ver:
                                 # Compare release
                                 remote_rel = version.parse(pkg_meta.release)
-                                local_rel = version.parse(existing_pkg.release)
+                                local_rel = version.parse(existing_pkg.content_metadata.get("release", ""))
 
                                 if remote_rel > local_rel:
                                     is_newer = True
@@ -434,7 +435,7 @@ class RpmSyncPlugin:
                             if pkg_meta.version > existing_pkg.version:
                                 is_newer = True
                             elif pkg_meta.version == existing_pkg.version:
-                                if pkg_meta.release > existing_pkg.release:
+                                if pkg_meta.release > existing_pkg.content_metadata.get("release", ""):
                                     is_newer = True
 
                     if is_newer:
@@ -926,17 +927,17 @@ class RpmSyncPlugin:
 
         return result
 
-    def _get_existing_packages(self, session: Session) -> Dict[str, Package]:
-        """Get existing packages from database.
+    def _get_existing_packages(self, session: Session) -> Dict[str, ContentItem]:
+        """Get existing content items from database.
 
         Args:
             session: Database session
 
         Returns:
-            Dict mapping SHA256 -> Package
+            Dict mapping SHA256 -> ContentItem
         """
-        packages = session.query(Package).all()
-        return {pkg.sha256: pkg for pkg in packages}
+        content_items = session.query(ContentItem).filter(ContentItem.content_type == "rpm").all()
+        return {item.sha256: item for item in content_items}
 
     def _download_package(
         self,
@@ -991,26 +992,31 @@ class RpmSyncPlugin:
                         f"SHA256 mismatch: expected {pkg_meta.sha256}, got {sha256}"
                     )
 
-                # Add to database
-                package = Package(
-                    name=pkg_meta.name,
-                    version=pkg_meta.version,
-                    release=pkg_meta.release,
+                # Build RPM metadata
+                rpm_metadata = RpmMetadata(
                     epoch=pkg_meta.epoch,
+                    release=pkg_meta.release,
                     arch=pkg_meta.arch,
-                    sha256=sha256,
-                    size_bytes=size_bytes,
-                    pool_path=pool_path,
-                    package_type="rpm",
-                    filename=filename,
                     summary=pkg_meta.summary,
                     description=pkg_meta.description,
                 )
-                session.add(package)
+
+                # Add to database as ContentItem
+                content_item = ContentItem(
+                    content_type="rpm",
+                    name=pkg_meta.name,
+                    version=pkg_meta.version,
+                    sha256=sha256,
+                    size_bytes=size_bytes,
+                    pool_path=pool_path,
+                    filename=filename,
+                    content_metadata=rpm_metadata.model_dump(exclude_none=False),
+                )
+                session.add(content_item)
                 session.commit()
 
-                # Link package to repository
-                package.repositories.append(repository)
+                # Link content item to repository
+                content_item.repositories.append(repository)
                 session.commit()
 
                 return bytes_downloaded

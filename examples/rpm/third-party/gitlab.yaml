@@ -1,0 +1,152 @@
+# ==============================================================================
+# GitLab Community Edition (CE) and Enterprise Edition (EE) - RPM Repository
+# ==============================================================================
+#
+# GitLab is a complete DevOps platform delivered as a single application.
+#
+# Official Documentation:
+# - GitLab Packages: https://packages.gitlab.com/
+# - Installation Guide: https://about.gitlab.com/install/
+#
+# Version Strategy:
+# - GitLab uses semantic versioning (e.g., 16.8.1)
+# - Major releases every May (yearly)
+# - Monthly minor releases with features and bug fixes
+# - Patch releases as needed for security/critical bugs
+#
+# Repository Size: ~500 MB - 1 GB per major version
+# Update Frequency: Monthly minor releases, weekly patches
+#
+# ==============================================================================
+
+repositories:
+  # ============================================================================
+  # GitLab CE - Community Edition (Free and open source)
+  # ============================================================================
+  - id: gitlab-ce-el9
+    name: "GitLab CE (EL9/x86_64)"
+    type: rpm
+    feed: https://packages.gitlab.com/gitlab/gitlab-ce/el/9/x86_64
+    enabled: true
+
+    # No authentication required for Community Edition
+    # Public repository, freely accessible
+
+    # Recommended filters to reduce mirror size
+    filters:
+      patterns:
+        # Include only gitlab-ce package (not dependencies)
+        include:
+          - "^gitlab-ce-.*"
+      metadata:
+        architectures:
+          include: ["x86_64"]
+      rpm:
+        exclude_source_rpms: true
+      post_processing:
+        # Keep only latest version (GitLab is large, ~1GB per version)
+        only_latest_version: true
+
+    # Publishing suggestion: Use snapshots for version control
+    # Example: Create monthly snapshots after GitLab releases
+    #   chantal snapshot create --repo-id gitlab-ce-el9 --name 2025-01
+
+  # ============================================================================
+  # GitLab EE - Enterprise Edition (Requires license for premium features)
+  # ============================================================================
+  - id: gitlab-ee-el9
+    name: "GitLab EE (EL9/x86_64)"
+    type: rpm
+    feed: https://packages.gitlab.com/gitlab/gitlab-ee/el/9/x86_64
+    enabled: false  # Enable only if you have an EE license
+
+    # No authentication required for repository access
+    # License validation happens at installation/runtime
+
+    filters:
+      patterns:
+        include:
+          - "^gitlab-ee-.*"
+      metadata:
+        architectures:
+          include: ["x86_64"]
+      rpm:
+        exclude_source_rpms: true
+      post_processing:
+        only_latest_version: true
+
+
+# ==============================================================================
+# Usage Examples
+# ==============================================================================
+#
+# 1. Sync GitLab CE repository:
+#    chantal repo sync --repo-id gitlab-ce-el9
+#
+# 2. Create monthly snapshot (after GitLab release):
+#    chantal snapshot create --repo-id gitlab-ce-el9 --name $(date +%Y-%m)
+#
+# 3. Publish latest version:
+#    chantal publish repo --repo-id gitlab-ce-el9
+#
+# 4. Publish specific snapshot for production:
+#    chantal publish snapshot --repo-id gitlab-ce-el9 --snapshot 2025-01
+#
+# 5. Check for updates:
+#    chantal repo check-updates --repo-id gitlab-ce-el9
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# Client Configuration
+# ==============================================================================
+#
+# After publishing, configure your RHEL systems:
+#
+# /etc/yum.repos.d/gitlab-ce.repo:
+#   [gitlab-ce]
+#   name=GitLab CE
+#   baseurl=http://your-mirror.example.com/chantal/repositories/gitlab-ce-el9
+#   enabled=1
+#   gpgcheck=1
+#   gpgkey=https://packages.gitlab.com/gitlab/gitlab-ce/gpgkey
+#
+# Install GitLab:
+#   sudo yum install gitlab-ce
+#   sudo gitlab-ctl reconfigure
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# Version Pinning Strategy
+# ==============================================================================
+#
+# Option 1: Always use latest (rolling updates)
+#   - Set only_latest_version: true
+#   - Publish to /repositories/gitlab-ce-el9/latest
+#   - Risk: Automatic upgrades may break deployments
+#
+# Option 2: Pin to specific major version (recommended for production)
+#   - Create snapshots per major version (e.g., "16.x", "17.x")
+#   - Test new major versions in staging before production
+#   - Allows controlled upgrades
+#
+# Option 3: Pin to specific minor version (maximum control)
+#   - Mirror specific versions only
+#   - Use snapshot names like "16.8.1"
+#   - Manual upgrade process
+#
+# Example for Option 2:
+#   # After GitLab 16.x release
+#   chantal snapshot create --repo-id gitlab-ce-el9 --name 16.x
+#   chantal publish snapshot --repo-id gitlab-ce-el9 --snapshot 16.x
+#
+#   # Staging uses 17.x (new major version)
+#   chantal snapshot create --repo-id gitlab-ce-el9 --name 17.x
+#   chantal publish snapshot --repo-id gitlab-ce-el9 --snapshot 17.x
+#
+#   # After testing, update production to 17.x
+#
+# ==============================================================================

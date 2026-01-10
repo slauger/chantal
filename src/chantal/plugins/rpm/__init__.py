@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 
 from chantal.core.config import RepositoryConfig
 from chantal.core.storage import StorageManager
-from chantal.db.models import Package, Repository, Snapshot
+from chantal.db.models import ContentItem, Repository, Snapshot
 from chantal.plugins.base import PublisherPlugin
 
 
@@ -95,13 +95,13 @@ class RpmPublisher(PublisherPlugin):
 
     def _publish_packages(
         self,
-        packages: List[Package],
+        packages: List[ContentItem],
         target_path: Path
     ) -> None:
-        """Publish packages and generate metadata.
+        """Publish content items and generate metadata.
 
         Args:
-            packages: List of packages to publish
+            packages: List of content items to publish
             target_path: Target directory
         """
         # Create directory structure
@@ -121,13 +121,13 @@ class RpmPublisher(PublisherPlugin):
 
     def _generate_primary_xml(
         self,
-        packages: List[Package],
+        packages: List[ContentItem],
         repodata_path: Path
     ) -> Path:
         """Generate primary.xml.gz metadata file.
 
         Args:
-            packages: List of packages
+            packages: List of content items
             repodata_path: Path to repodata directory
 
         Returns:
@@ -148,15 +148,17 @@ class RpmPublisher(PublisherPlugin):
             name.text = package.name
 
             arch = ET.SubElement(pkg_elem, "arch")
-            arch.text = package.arch
+            arch.text = package.content_metadata.get("arch", "")
 
             # Version
             version = ET.SubElement(pkg_elem, "version")
-            if package.epoch:
-                version.set("epoch", package.epoch)
+            epoch = package.content_metadata.get("epoch")
+            if epoch:
+                version.set("epoch", epoch)
             version.set("ver", package.version)
-            if package.release:
-                version.set("rel", package.release)
+            release = package.content_metadata.get("release")
+            if release:
+                version.set("rel", release)
 
             # Checksum
             checksum = ET.SubElement(pkg_elem, "checksum")
@@ -165,14 +167,16 @@ class RpmPublisher(PublisherPlugin):
             checksum.text = package.sha256
 
             # Summary
-            if package.summary:
+            summary_text = package.content_metadata.get("summary")
+            if summary_text:
                 summary = ET.SubElement(pkg_elem, "summary")
-                summary.text = package.summary
+                summary.text = summary_text
 
             # Description
-            if package.description:
+            description_text = package.content_metadata.get("description")
+            if description_text:
                 description = ET.SubElement(pkg_elem, "description")
-                description.text = package.description
+                description.text = description_text
 
             # Location
             location = ET.SubElement(pkg_elem, "location")

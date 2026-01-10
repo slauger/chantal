@@ -1,0 +1,434 @@
+# ==============================================================================
+# Zabbix - Enterprise Monitoring Platform - RPM Repository
+# ==============================================================================
+#
+# Zabbix is an enterprise-class open source distributed monitoring solution
+# designed to monitor and track the status of various network services, servers,
+# and other network hardware.
+#
+# Official Documentation:
+# - Zabbix: https://www.zabbix.com/documentation/current/
+# - Installation: https://www.zabbix.com/download
+#
+# Repository Size: ~100-200 MB per major version
+# Update Frequency: Minor releases every ~2 months, LTS every ~18 months
+#
+# ==============================================================================
+
+repositories:
+  # ============================================================================
+  # Zabbix 7.0 LTS - Latest Long-Term Support (2024-2029)
+  # ============================================================================
+  - id: zabbix70-el9
+    name: "Zabbix 7.0 LTS (EL9/x86_64)"
+    type: rpm
+    feed: https://repo.zabbix.com/zabbix/7.0/rhel/9/x86_64/
+    enabled: true
+
+    # Public repository, no authentication required
+
+    filters:
+      patterns:
+        include:
+          - "^zabbix-.*"               # All Zabbix components
+        exclude:
+          - ".*-debuginfo$"
+          - ".*-debugsource$"
+      metadata:
+        architectures:
+          include: ["x86_64", "noarch"]
+      rpm:
+        exclude_source_rpms: true
+      post_processing:
+        only_latest_version: true
+
+  # ============================================================================
+  # Zabbix 6.0 LTS - Previous LTS (2022-2027)
+  # ============================================================================
+  - id: zabbix60-el9
+    name: "Zabbix 6.0 LTS (EL9/x86_64)"
+    type: rpm
+    feed: https://repo.zabbix.com/zabbix/6.0/rhel/9/x86_64/
+    enabled: false  # Enable if you're still on Zabbix 6.0 LTS
+
+    filters:
+      patterns:
+        include:
+          - "^zabbix-.*"
+        exclude:
+          - ".*-debuginfo$"
+      metadata:
+        architectures:
+          include: ["x86_64", "noarch"]
+      rpm:
+        exclude_source_rpms: true
+      post_processing:
+        only_latest_version: true
+
+  # ============================================================================
+  # Zabbix Non-Supported - Additional utilities
+  # ============================================================================
+  #
+  # Contains additional tools and utilities not officially supported by Zabbix.
+  #
+  # - id: zabbix-non-supported-el9
+  #   name: "Zabbix Non-Supported Tools (EL9/x86_64)"
+  #   type: rpm
+  #   feed: https://repo.zabbix.com/non-supported/rhel/9/x86_64/
+  #   enabled: false
+  #
+  #   filters:
+  #     patterns:
+  #       include:
+  #         - "^zabbix-.*"
+  #     metadata:
+  #       architectures:
+  #         include: ["x86_64", "noarch"]
+  #     rpm:
+  #       exclude_source_rpms: true
+  #     post_processing:
+  #       only_latest_version: true
+
+
+# ==============================================================================
+# Usage Examples
+# ==============================================================================
+#
+# 1. Sync Zabbix repository:
+#    chantal repo sync --repo-id zabbix70-el9
+#
+# 2. Create snapshot per minor version:
+#    chantal snapshot create --repo-id zabbix70-el9 --name zabbix-7.0.5
+#
+# 3. Publish repository:
+#    chantal publish repo --repo-id zabbix70-el9
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# Client Configuration
+# ==============================================================================
+#
+# /etc/yum.repos.d/zabbix.repo:
+#   [zabbix]
+#   name=Zabbix 7.0 LTS
+#   baseurl=http://your-mirror.example.com/chantal/repositories/zabbix70-el9
+#   enabled=1
+#   gpgcheck=1
+#   gpgkey=https://repo.zabbix.com/RPM-GPG-KEY-ZABBIX-08EFA7DD
+#
+# Install Zabbix Server with PostgreSQL:
+#   sudo yum install zabbix-server-pgsql zabbix-web-pgsql zabbix-nginx-conf \
+#                    zabbix-sql-scripts zabbix-selinux-policy
+#
+# Install Zabbix Agent 2:
+#   sudo yum install zabbix-agent2 zabbix-agent2-plugin-*
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# Zabbix Components
+# ==============================================================================
+#
+# Server Components:
+# - zabbix-server-mysql: Zabbix server with MySQL support
+# - zabbix-server-pgsql: Zabbix server with PostgreSQL support
+# - zabbix-web-mysql: Zabbix web frontend for MySQL
+# - zabbix-web-pgsql: Zabbix web frontend for PostgreSQL
+# - zabbix-nginx-conf: Nginx configuration for Zabbix
+# - zabbix-apache-conf: Apache configuration for Zabbix
+# - zabbix-sql-scripts: Database initialization scripts
+#
+# Agent Components:
+# - zabbix-agent: Zabbix Agent (classic, v1)
+# - zabbix-agent2: Zabbix Agent 2 (modern, Go-based, recommended)
+# - zabbix-agent2-plugin-*: Plugins for Agent 2 (MongoDB, PostgreSQL, etc.)
+#
+# Proxy Components:
+# - zabbix-proxy-mysql: Zabbix proxy with MySQL
+# - zabbix-proxy-pgsql: Zabbix proxy with PostgreSQL
+# - zabbix-proxy-sqlite3: Zabbix proxy with SQLite (small deployments)
+#
+# Additional Tools:
+# - zabbix-get: Command-line tool to get data from Zabbix agent
+# - zabbix-sender: Command-line tool to send data to Zabbix server
+# - zabbix-java-gateway: Java application monitoring
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# Zabbix Version Strategy
+# ==============================================================================
+#
+# Zabbix Release Cycle:
+# - LTS (Long-Term Support): Released every ~18 months, supported for 5 years
+# - Standard releases: Released every ~6 months, supported for 6 months
+#
+# Current Versions:
+# - Zabbix 7.0 LTS: Released 2024-05, supported until 2029-05
+# - Zabbix 6.0 LTS: Released 2022-02, supported until 2027-02
+# - Zabbix 6.4: Standard release, EOL soon
+#
+# Recommendation:
+# - Use LTS versions in production (7.0 or 6.0)
+# - Standard releases for testing new features
+# - Plan upgrades during LTS support window
+#
+# Minor Version Strategy:
+# - Zabbix releases minor versions every ~2 months
+# - Contains bug fixes, security patches, minor features
+# - Always safe to upgrade within same major version
+#
+# Example:
+#   # Development: Always latest
+#   only_latest_version: true
+#
+#   # Production: Snapshot per minor version
+#   chantal snapshot create --repo-id zabbix70-el9 --name zabbix-7.0.5
+#   # Test in staging, then promote to production
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# Zabbix Architecture
+# ==============================================================================
+#
+# Typical Zabbix Deployment:
+#
+# 1. Small Environment (<100 hosts):
+#    - Zabbix Server (all-in-one)
+#    - Database (MySQL/PostgreSQL)
+#    - Web frontend (Nginx/Apache)
+#    - Agents on monitored hosts
+#
+# 2. Medium Environment (100-1000 hosts):
+#    - Zabbix Server
+#    - Separate database server
+#    - Web frontend on separate server
+#    - Zabbix Proxy (optional, for remote sites)
+#    - Agents on monitored hosts
+#
+# 3. Large Environment (>1000 hosts):
+#    - Multiple Zabbix Servers (partitioned)
+#    - Database cluster (replication, HA)
+#    - Multiple web frontends (load balanced)
+#    - Zabbix Proxies for remote sites
+#    - Zabbix Proxy for cloud environments
+#    - Agent or Agent 2 on all hosts
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# Database Backend Selection
+# ==============================================================================
+#
+# MySQL/MariaDB:
+# - Pros: Easier setup, good performance for small-medium deployments
+# - Cons: Less efficient for very large deployments
+# - Recommended: < 1000 monitored hosts
+#
+# PostgreSQL:
+# - Pros: Better performance at scale, advanced features
+# - Cons: Slightly more complex setup
+# - Recommended: > 1000 monitored hosts, or when using TimescaleDB
+#
+# TimescaleDB (PostgreSQL extension):
+# - Pros: Optimized for time-series data, automatic partitioning, compression
+# - Cons: Additional setup required
+# - Recommended: Very large deployments, long retention periods
+#
+# SQLite:
+# - Only for Zabbix Proxy in small remote sites
+# - NOT suitable for Zabbix Server
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# Zabbix Agent vs Agent 2
+# ==============================================================================
+#
+# Zabbix Agent (v1):
+# - Written in C
+# - Lower resource usage
+# - Stable, well-tested
+# - Limited plugin support
+# - Recommended: Legacy systems, very resource-constrained devices
+#
+# Zabbix Agent 2 (recommended):
+# - Written in Go
+# - Native plugin support
+# - More features (scheduled checks, persistent connections)
+# - Better performance with many metrics
+# - Active development
+# - Recommended: All new deployments
+#
+# Agent 2 Plugins:
+# - MongoDB monitoring
+# - PostgreSQL monitoring
+# - Redis monitoring
+# - Memcached monitoring
+# - MQTT monitoring
+# - Docker/container monitoring
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# Monitoring Strategy
+# ==============================================================================
+#
+# What to Monitor:
+#
+# 1. Infrastructure:
+#    - CPU, memory, disk, network
+#    - System services
+#    - Hardware sensors (IPMI)
+#
+# 2. Applications:
+#    - Web servers (Apache, Nginx)
+#    - Databases (MySQL, PostgreSQL, MongoDB)
+#    - Message queues (RabbitMQ, Kafka)
+#    - Caching (Redis, Memcached)
+#
+# 3. Network Devices:
+#    - Switches, routers (SNMP)
+#    - Bandwidth usage
+#    - Interface errors
+#
+# 4. Cloud Resources:
+#    - AWS (CloudWatch integration)
+#    - Azure (Azure Monitor integration)
+#    - GCP (Cloud Monitoring integration)
+#
+# 5. Containers and Orchestration:
+#    - Docker containers
+#    - Kubernetes clusters
+#    - OpenShift
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# Integration with Other Tools
+# ==============================================================================
+#
+# Alerting:
+# - Email, SMS, phone calls
+# - Slack, Microsoft Teams, Mattermost
+# - PagerDuty, Opsgenie, VictorOps
+# - Telegram, Discord
+# - Custom scripts and webhooks
+#
+# Visualization:
+# - Built-in Zabbix dashboards
+# - Grafana (via Zabbix data source plugin)
+# - Custom integrations via API
+#
+# Automation:
+# - Remote commands execution
+# - Integration with Ansible, Puppet, Chef
+# - API for automation scripts
+#
+# Ticketing Systems:
+# - Jira, ServiceNow, Redmine
+# - Custom ticket creation via API
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# High Availability
+# ==============================================================================
+#
+# Zabbix Server HA (native, since 6.0):
+# - Active-standby cluster
+# - Automatic failover
+# - Shared database required
+# - Configuration in zabbix_server.conf
+#
+# Database HA:
+# - MySQL: Galera Cluster, InnoDB Cluster
+# - PostgreSQL: Streaming replication, Patroni
+# - TimescaleDB: Built on PostgreSQL HA
+#
+# Web Frontend HA:
+# - Multiple web servers
+# - Load balancer (HAProxy, Nginx)
+# - Shared session storage (database, Redis)
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# Security Best Practices
+# ==============================================================================
+#
+# 1. Network Security:
+#    - Firewall rules (server: 10051, web: 80/443, agent: 10050)
+#    - Use TLS encryption for agent connections
+#    - Segment monitoring network
+#
+# 2. Authentication:
+#    - Strong passwords
+#    - LDAP/Active Directory integration
+#    - SAML authentication (Enterprise)
+#    - Two-factor authentication (available)
+#
+# 3. Authorization:
+#    - Role-based access control
+#    - Minimal privileges principle
+#    - Separate admin accounts
+#
+# 4. Database Security:
+#    - Dedicated database user
+#    - Strong database password
+#    - Database firewall rules
+#
+# 5. Updates:
+#    - Apply security patches promptly
+#    - Subscribe to Zabbix security announcements
+#    - Regular backups before updates
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# Backup and Recovery
+# ==============================================================================
+#
+# What to Backup:
+#
+# 1. Database:
+#    - Configuration data (hosts, templates, triggers)
+#    - Historical data (metrics, events)
+#    - User accounts and permissions
+#    - Backup frequency: Daily full, hourly incremental
+#
+# 2. Configuration Files:
+#    - /etc/zabbix/zabbix_server.conf
+#    - /etc/zabbix/web/zabbix.conf.php
+#    - /etc/nginx/conf.d/zabbix.conf (or Apache equivalent)
+#
+# 3. Custom Scripts and External Checks:
+#    - /usr/lib/zabbix/externalscripts/
+#    - /usr/lib/zabbix/alertscripts/
+#
+# Backup Methods:
+#   # MySQL backup
+#   mysqldump -u zabbix -p zabbix > zabbix_backup.sql
+#
+#   # PostgreSQL backup
+#   pg_dump -U zabbix zabbix > zabbix_backup.sql
+#
+# Recovery Testing:
+#   - Test restore procedures regularly
+#   - Document recovery steps
+#   - Keep backup of previous stable version
+#
+# ==============================================================================

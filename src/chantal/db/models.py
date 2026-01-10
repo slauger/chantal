@@ -13,6 +13,7 @@ from sqlalchemy import (
     Column,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     JSON,
     String,
@@ -29,23 +30,23 @@ class Base(DeclarativeBase):
     pass
 
 
-# Association table for many-to-many relationship between repositories and packages
-# This tracks which packages are currently in a repository (the "latest" state)
-repository_packages = Table(
-    "repository_packages",
+# Association table for many-to-many relationship between repositories and content items
+# This tracks which content items are currently in a repository (the "latest" state)
+repository_content_items = Table(
+    "repository_content_items",
     Base.metadata,
     Column("repository_id", Integer, ForeignKey("repositories.id"), primary_key=True),
-    Column("package_id", Integer, ForeignKey("packages.id"), primary_key=True),
+    Column("content_item_id", Integer, ForeignKey("content_items.id"), primary_key=True),
     Column("added_at", DateTime, default=datetime.utcnow, nullable=False),
 )
 
-# Association table for many-to-many relationship between snapshots and packages
+# Association table for many-to-many relationship between snapshots and content items
 # This tracks immutable point-in-time copies of repository state
-snapshot_packages = Table(
-    "snapshot_packages",
+snapshot_content_items = Table(
+    "snapshot_content_items",
     Base.metadata,
     Column("snapshot_id", Integer, ForeignKey("snapshots.id"), primary_key=True),
-    Column("package_id", Integer, ForeignKey("packages.id"), primary_key=True),
+    Column("content_item_id", Integer, ForeignKey("content_items.id"), primary_key=True),
 )
 
 
@@ -86,50 +87,51 @@ class Repository(Base):
     sync_history: Mapped[list["SyncHistory"]] = relationship(
         "SyncHistory", back_populates="repository", cascade="all, delete-orphan"
     )
-    packages: Mapped[list["Package"]] = relationship(
-        "Package", secondary=repository_packages, back_populates="repositories"
+    content_items: Mapped[list["ContentItem"]] = relationship(
+        "ContentItem", secondary=repository_content_items, back_populates="repositories"
     )
 
     def __repr__(self) -> str:
         return f"<Repository(repo_id='{self.repo_id}', type='{self.type}')>"
 
 
-class Package(Base):
-    """Package model - represents a unique package file (RPM/DEB).
+class ContentItem(Base):
+    """Generic content model for all package types (RPM, Helm, APT, PyPI, etc.).
 
-    Uses content-addressed storage - one package file can be referenced
+    Uses content-addressed storage - one content item file can be referenced
     by multiple repositories and snapshots.
+
+    Type-specific metadata is stored as JSON in the metadata field.
     """
 
-    __tablename__ = "packages"
+    __tablename__ = "content_items"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
 
-    # Package identification
-    name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
-    version: Mapped[str] = mapped_column(String(255), nullable=False)
-    release: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    epoch: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
-    arch: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    # Content type (determines which plugin handles it)
+    content_type: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    # Values: 'rpm', 'helm', 'pypi', 'npm', 'rubygems', 'nuget', 'go', 'apt', 'apk', 'terraform', etc.
 
-    # Content addressing
+    # Universal fields (all content types have these)
+    name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    version: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+
+    # Content addressing (pool storage)
     sha256: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
     size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
-
-    # Storage
     pool_path: Mapped[str] = mapped_column(
         Text, nullable=False
     )  # Relative path in pool (e.g., "ab/cd/abc123...rpm")
-
-    # Package metadata
-    summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-
-    # Package type specific
-    package_type: Mapped[str] = mapped_column(String(50), nullable=False)  # rpm, deb
-
-    # Original filename
     filename: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    # Type-specific metadata as JSON
+    # Structure depends on content_type:
+    # - rpm: {epoch, release, arch, summary, description, provides, requires, ...}
+    # - helm: {app_version, keywords, maintainers, icon, dependencies, ...}
+    # - pypi: {python_requires, author, license, requires_dist, file_type, ...}
+    # - etc.
+    # Note: Named 'content_metadata' because 'metadata' is reserved by SQLAlchemy
+    content_metadata: Mapped[dict] = mapped_column(JSON, nullable=False)
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
@@ -139,30 +141,39 @@ class Package(Base):
     # Reference counting (for garbage collection)
     reference_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
-    # Relationships
+    # Relationships (generic)
     repositories: Mapped[list["Repository"]] = relationship(
-        "Repository", secondary=repository_packages, back_populates="packages"
+        "Repository", secondary=repository_content_items, back_populates="content_items"
     )
     snapshots: Mapped[list["Snapshot"]] = relationship(
-        "Snapshot", secondary=snapshot_packages, back_populates="packages"
+        "Snapshot", secondary=snapshot_content_items, back_populates="content_items"
     )
 
-    # Unique constraint on package identity
+    # Composite indexes for common queries
     __table_args__ = (
-        UniqueConstraint(
-            "name", "version", "release", "epoch", "arch", name="uq_package_identity"
-        ),
+        Index("idx_content_type_name", "content_type", "name"),
+        Index("idx_content_type_name_version", "content_type", "name", "version"),
     )
 
     def __repr__(self) -> str:
-        return f"<Package(name='{self.name}', version='{self.version}', arch='{self.arch}', sha256='{self.sha256[:8]}...')>"
+        return f"<ContentItem(type='{self.content_type}', name='{self.name}', version='{self.version}', sha256='{self.sha256[:8]}...')>"
 
     @property
-    def nevra(self) -> str:
-        """Get NEVRA string (Name-Epoch:Version-Release.Arch)."""
-        epoch_str = f"{self.epoch}:" if self.epoch else ""
-        release_str = f"-{self.release}" if self.release else ""
-        return f"{self.name}-{epoch_str}{self.version}{release_str}.{self.arch}"
+    def nevra(self) -> Optional[str]:
+        """Get NEVRA string for RPM packages (Name-Epoch:Version-Release.Arch).
+
+        Returns None for non-RPM content types.
+        """
+        if self.content_type != "rpm":
+            return None
+
+        epoch = self.content_metadata.get("epoch", "")
+        release = self.content_metadata.get("release", "")
+        arch = self.content_metadata.get("arch", "")
+
+        epoch_str = f"{epoch}:" if epoch else ""
+        release_str = f"-{release}" if release else ""
+        return f"{self.name}-{epoch_str}{self.version}{release_str}.{arch}"
 
 
 class Snapshot(Base):
@@ -196,8 +207,8 @@ class Snapshot(Base):
 
     # Relationships
     repository: Mapped["Repository"] = relationship("Repository", back_populates="snapshots")
-    packages: Mapped[list["Package"]] = relationship(
-        "Package", secondary=snapshot_packages, back_populates="snapshots"
+    content_items: Mapped[list["ContentItem"]] = relationship(
+        "ContentItem", secondary=snapshot_content_items, back_populates="snapshots"
     )
 
     # Unique constraint: snapshot name must be unique per repository

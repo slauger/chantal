@@ -1,0 +1,184 @@
+# ==============================================================================
+# Icinga - Open Source Monitoring Platform - RPM Repository
+# ==============================================================================
+#
+# Icinga is a scalable and extensible monitoring platform that checks the
+# availability of network resources, notifies users of outages, and generates
+# performance data for reporting.
+#
+# Official Documentation:
+# - Icinga 2: https://icinga.com/docs/icinga-2/latest/
+# - Installation: https://packages.icinga.com/
+#
+# Repository Size: ~50-100 MB per distribution
+# Update Frequency: Monthly feature releases, weekly bug/security fixes
+#
+# ==============================================================================
+
+repositories:
+  # ============================================================================
+  # Icinga Releases - Current Stable Versions
+  # ============================================================================
+  - id: icinga-stable-el9
+    name: "Icinga Stable (EL9/x86_64)"
+    type: rpm
+    feed: https://packages.icinga.com/epel/9/release/x86_64
+    enabled: true
+
+    # Public repository, no authentication required
+
+    filters:
+      patterns:
+        include:
+          - "^icinga2-.*"              # Icinga 2 core
+          - "^icingadb-.*"             # IcingaDB (modern backend)
+          - "^icingaweb2-.*"           # Icinga Web 2 interface
+          - "^icinga-php-.*"           # PHP libraries
+          - "^icingacli-.*"            # CLI tools
+          # Plugins (optional - uncomment if needed)
+          # - "^monitoring-plugins-.*"  # Standard monitoring plugins
+          # - "^nagios-plugins-.*"      # Nagios-compatible plugins
+        exclude:
+          - ".*-debuginfo$"
+          - ".*-debugsource$"
+      metadata:
+        architectures:
+          include: ["x86_64", "noarch"]
+      rpm:
+        exclude_source_rpms: true
+      post_processing:
+        only_latest_version: true
+
+  # ============================================================================
+  # Icinga for RHEL 8 / CentOS 8
+  # ============================================================================
+  - id: icinga-stable-el8
+    name: "Icinga Stable (EL8/x86_64)"
+    type: rpm
+    feed: https://packages.icinga.com/epel/8/release/x86_64
+    enabled: true
+
+    filters:
+      patterns:
+        include:
+          - "^icinga2-.*"
+          - "^icingadb-.*"
+          - "^icingaweb2-.*"
+          - "^icinga-php-.*"
+          - "^icingacli-.*"
+        exclude:
+          - ".*-debuginfo$"
+      metadata:
+        architectures:
+          include: ["x86_64", "noarch"]
+      rpm:
+        exclude_source_rpms: true
+      post_processing:
+        only_latest_version: true
+
+
+# ==============================================================================
+# Usage Examples
+# ==============================================================================
+#
+# 1. Sync Icinga repository:
+#    chantal repo sync --repo-id icinga-stable-el9
+#
+# 2. Create monthly snapshot:
+#    chantal snapshot create --repo-id icinga-stable-el9 --name $(date +%Y-%m)
+#
+# 3. Publish repository:
+#    chantal publish repo --repo-id icinga-stable-el9
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# Client Configuration
+# ==============================================================================
+#
+# /etc/yum.repos.d/icinga.repo:
+#   [icinga-stable]
+#   name=Icinga Stable
+#   baseurl=http://your-mirror.example.com/chantal/repositories/icinga-stable-el9
+#   enabled=1
+#   gpgcheck=1
+#   gpgkey=https://packages.icinga.com/icinga.key
+#
+# Install Icinga 2:
+#   sudo yum install icinga2 icingaweb2 icingadb
+#   sudo systemctl enable --now icinga2
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# Icinga Components
+# ==============================================================================
+#
+# Core Components:
+# - icinga2: Core monitoring engine
+# - icingaweb2: Modern web interface
+# - icingadb: New database backend (recommended over IDO)
+# - icinga-php-*: PHP libraries and modules
+#
+# Optional Components:
+# - icinga2-ido-mysql: Legacy IDO MySQL backend
+# - icinga2-ido-pgsql: Legacy IDO PostgreSQL backend
+# - monitoring-plugins: Standard monitoring plugins
+# - icingaweb2-module-*: Additional web interface modules
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# Version Strategy
+# ==============================================================================
+#
+# Icinga uses semantic versioning:
+# - Major releases: Yearly (e.g., 2.13 → 2.14)
+# - Minor releases: Monthly feature releases
+# - Patch releases: Weekly bug/security fixes
+#
+# Recommended Approach:
+#
+# 1. Development/Staging:
+#    - Use only_latest_version: true
+#    - Always get newest features and fixes
+#
+# 2. Production:
+#    - Create monthly snapshots after testing in staging
+#    - Example: icinga-2025-01, icinga-2025-02
+#    - Allows controlled rollout of updates
+#
+# 3. Critical Monitoring Infrastructure:
+#    - Pin to specific minor version
+#    - Test thoroughly before upgrading
+#    - Create pre/post-upgrade snapshots
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# Additional Notes
+# ==============================================================================
+#
+# 1. EPEL Dependency:
+#    - Icinga packages may depend on EPEL repository
+#    - Ensure EPEL is mirrored or accessible
+#
+# 2. Database Requirements:
+#    - IcingaDB requires Redis and MySQL/PostgreSQL
+#    - Legacy IDO requires MySQL/PostgreSQL
+#    - IcingaDB is recommended for new installations
+#
+# 3. Plugin Sources:
+#    - monitoring-plugins: https://www.monitoring-plugins.org/
+#    - nagios-plugins: Compatible with Icinga 2
+#    - Many third-party plugins available
+#
+# 4. Module Repository:
+#    - Icinga Web 2 modules available separately
+#    - Consider mirroring if you use specific modules
+#
+# ==============================================================================

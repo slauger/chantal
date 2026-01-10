@@ -15,7 +15,8 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from chantal.core.config import RepositoryConfig, StorageConfig
 from chantal.core.storage import StorageManager
-from chantal.db.models import Base, Package, Repository, Snapshot
+from chantal.db.models import Base, ContentItem, Repository, Snapshot
+from chantal.plugins.rpm.models import RpmMetadata
 from chantal.plugins.base import PublisherPlugin
 from chantal.plugins.rpm import RpmPublisher
 
@@ -85,24 +86,28 @@ def test_package(db_session, test_repository, temp_storage, test_package_file):
         test_package_file, "test-package-1.0-1.el9.x86_64.rpm"
     )
 
-    # Create package record
-    package = Package(
-        name="test-package",
-        version="1.0",
+    # Create content item record
+    rpm_metadata = RpmMetadata(
         release="1.el9",
         arch="x86_64",
         epoch="0",
+        summary="Test package for unit tests",
+        description="This is a test package for unit testing",
+    )
+
+    content_item = ContentItem(
+        content_type="rpm",
+        name="test-package",
+        version="1.0",
         sha256=sha256,
         filename="test-package-1.0-1.el9.x86_64.rpm",
         size_bytes=size_bytes,
         pool_path=pool_path,
-        package_type="rpm",
-        summary="Test package for unit tests",
-        description="This is a test package for unit testing",
+        content_metadata=rpm_metadata.model_dump(exclude_none=False)
     )
-    db_session.add(package)
+    db_session.add(content_item)
     db_session.commit()
-    return package
+    return content_item
 
 
 @pytest.fixture
@@ -113,7 +118,7 @@ def test_snapshot(db_session, test_repository, test_package):
         name="test-snapshot-20250109",
         description="Test snapshot",
     )
-    snapshot.packages.append(test_package)
+    snapshot.content_items.append(test_package)
     db_session.add(snapshot)
     db_session.commit()
     return snapshot
@@ -225,7 +230,7 @@ def test_rpm_publisher_publish_snapshot(
     assert (target_path / "repodata").exists()
 
     # Verify package hardlink was created
-    package_path = target_path / "Packages" / test_snapshot.packages[0].filename
+    package_path = target_path / "Packages" / test_snapshot.content_items[0].filename
     assert package_path.exists()
 
     # Verify metadata files were created
@@ -331,7 +336,7 @@ def test_rpm_publisher_generate_primary_xml(
     version_elem = package_elem.find("common:version", ns)
     assert version_elem is not None
     assert version_elem.get("ver") == test_package.version
-    assert version_elem.get("rel") == test_package.release
+    assert version_elem.get("rel") == test_package.content_metadata["release"]
 
     # Verify checksum
     checksum_elem = package_elem.find("common:checksum", ns)
@@ -361,22 +366,26 @@ def test_rpm_publisher_generate_primary_xml_multiple_packages(
             pkg_file, f"test-pkg-{i}-1.0-1.el9.x86_64.rpm"
         )
 
-        # Create package record
-        package = Package(
-            name=f"test-pkg-{i}",
-            version="1.0",
+        # Create content item record
+        rpm_metadata = RpmMetadata(
             release="1.el9",
             arch="x86_64",
+            summary=f"Test package {i}",
+            description=f"Description for test package {i}",
+        )
+
+        content_item = ContentItem(
+            content_type="rpm",
+            name=f"test-pkg-{i}",
+            version="1.0",
             sha256=sha256,
             filename=f"test-pkg-{i}-1.0-1.el9.x86_64.rpm",
             size_bytes=size_bytes,
             pool_path=pool_path,
-            package_type="rpm",
-            summary=f"Test package {i}",
-            description=f"Description for test package {i}",
+            content_metadata=rpm_metadata.model_dump(exclude_none=False)
         )
-        db_session.add(package)
-        packages.append(package)
+        db_session.add(content_item)
+        packages.append(content_item)
 
     db_session.commit()
 
@@ -525,7 +534,7 @@ def test_rpm_publisher_hardlink_preservation(
     )
 
     # Get pool file path
-    test_package = test_snapshot.packages[0]
+    test_package = test_snapshot.content_items[0]
     pool_file_path = temp_storage.pool_path / temp_storage.get_pool_path(
         test_package.sha256, test_package.filename
     )

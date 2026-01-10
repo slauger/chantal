@@ -5,7 +5,8 @@ from datetime import datetime
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from chantal.db.models import Base, Repository, Package, Snapshot, SyncHistory
+from chantal.db.models import Base, Repository, ContentItem, Snapshot, SyncHistory
+from chantal.plugins.rpm.models import RpmMetadata
 
 
 @pytest.fixture
@@ -42,49 +43,57 @@ def test_create_repository(db_session):
 
 
 def test_create_package(db_session):
-    """Test creating a package."""
-    package = Package(
+    """Test creating a content item (RPM package)."""
+    rpm_metadata = RpmMetadata(
+        release="10.el9",
+        arch="x86_64",
+        epoch=None,
+        summary="High performance web server",
+        description="Nginx is a web server with a focus on high concurrency.",
+    )
+
+    content_item = ContentItem(
+        content_type="rpm",
         name="nginx",
         version="1.20.1",
-        release="10.el9",
-        epoch=None,
-        arch="x86_64",
         sha256="abc123def456" * 4,  # 64 chars
         size_bytes=1258496,
         pool_path="ab/c1/abc123def456_nginx-1.20.1-10.el9.x86_64.rpm",
-        summary="High performance web server",
-        description="Nginx is a web server with a focus on high concurrency.",
-        package_type="rpm",
-        filename="nginx-1.20.1-10.el9.x86_64.rpm"
+        filename="nginx-1.20.1-10.el9.x86_64.rpm",
+        content_metadata=rpm_metadata.model_dump(exclude_none=False)
     )
 
-    db_session.add(package)
+    db_session.add(content_item)
     db_session.commit()
 
     # Query back
-    found = db_session.query(Package).filter_by(name="nginx").first()
+    found = db_session.query(ContentItem).filter_by(name="nginx").first()
     assert found is not None
     assert found.version == "1.20.1"
-    assert found.arch == "x86_64"
+    assert found.content_metadata["arch"] == "x86_64"
     assert found.nevra == "nginx-1.20.1-10.el9.x86_64"
 
 
 def test_package_nevra_with_epoch(db_session):
     """Test NEVRA string generation with epoch."""
-    package = Package(
+    rpm_metadata = RpmMetadata(
+        release="1.el9",
+        arch="x86_64",
+        epoch="2"
+    )
+
+    content_item = ContentItem(
+        content_type="rpm",
         name="test-package",
         version="1.0",
-        release="1.el9",
-        epoch="2",
-        arch="x86_64",
         sha256="def456abc123" * 4,
         size_bytes=1000,
         pool_path="de/f4/def456_test.rpm",
-        package_type="rpm",
-        filename="test-package-1.0-1.el9.x86_64.rpm"
+        filename="test-package-1.0-1.el9.x86_64.rpm",
+        content_metadata=rpm_metadata.model_dump(exclude_none=False)
     )
 
-    assert package.nevra == "test-package-2:1.0-1.el9.x86_64"
+    assert content_item.nevra == "test-package-2:1.0-1.el9.x86_64"
 
 
 def test_create_snapshot(db_session):
@@ -132,50 +141,52 @@ def test_snapshot_package_relationship(db_session):
     db_session.add(repo)
     db_session.commit()
 
-    # Create packages
-    pkg1 = Package(
+    # Create content items
+    rpm_metadata1 = RpmMetadata(release="1", arch="x86_64")
+    pkg1 = ContentItem(
+        content_type="rpm",
         name="package1",
         version="1.0",
-        arch="x86_64",
         sha256="a" * 64,
         size_bytes=1000,
         pool_path="aa/aa/aaa_pkg1.rpm",
-        package_type="rpm",
-        filename="package1-1.0.x86_64.rpm"
+        filename="package1-1.0.x86_64.rpm",
+        content_metadata=rpm_metadata1.model_dump(exclude_none=False)
     )
 
-    pkg2 = Package(
+    rpm_metadata2 = RpmMetadata(release="1", arch="x86_64")
+    pkg2 = ContentItem(
+        content_type="rpm",
         name="package2",
         version="2.0",
-        arch="x86_64",
         sha256="b" * 64,
         size_bytes=2000,
         pool_path="bb/bb/bbb_pkg2.rpm",
-        package_type="rpm",
-        filename="package2-2.0.x86_64.rpm"
+        filename="package2-2.0.x86_64.rpm",
+        content_metadata=rpm_metadata2.model_dump(exclude_none=False)
     )
 
     db_session.add_all([pkg1, pkg2])
     db_session.commit()
 
-    # Create snapshot and associate packages
+    # Create snapshot and associate content items
     snapshot = Snapshot(
         repository_id=repo.id,
         name="snapshot-1",
         package_count=2,
         total_size_bytes=3000
     )
-    snapshot.packages.append(pkg1)
-    snapshot.packages.append(pkg2)
+    snapshot.content_items.append(pkg1)
+    snapshot.content_items.append(pkg2)
 
     db_session.add(snapshot)
     db_session.commit()
 
     # Verify relationships
     found_snapshot = db_session.query(Snapshot).filter_by(name="snapshot-1").first()
-    assert len(found_snapshot.packages) == 2
-    assert pkg1 in found_snapshot.packages
-    assert pkg2 in found_snapshot.packages
+    assert len(found_snapshot.content_items) == 2
+    assert pkg1 in found_snapshot.content_items
+    assert pkg2 in found_snapshot.content_items
 
     # Verify reverse relationship
     assert found_snapshot in pkg1.snapshots
@@ -246,32 +257,34 @@ def test_unique_constraints(db_session):
 
     db_session.rollback()
 
-    # Package SHA256 must be unique
-    pkg1 = Package(
+    # ContentItem SHA256 must be unique
+    rpm_metadata1 = RpmMetadata(release="1", arch="x86_64")
+    item1 = ContentItem(
+        content_type="rpm",
         name="package1",
         version="1.0",
-        arch="x86_64",
         sha256="c" * 64,
         size_bytes=1000,
         pool_path="cc/cc/ccc_pkg1.rpm",
-        package_type="rpm",
-        filename="package1-1.0.x86_64.rpm"
+        filename="package1-1.0.x86_64.rpm",
+        content_metadata=rpm_metadata1.model_dump(exclude_none=False)
     )
-    db_session.add(pkg1)
+    db_session.add(item1)
     db_session.commit()
 
     # Try to create duplicate SHA256
-    pkg2 = Package(
+    rpm_metadata2 = RpmMetadata(release="1", arch="x86_64")
+    item2 = ContentItem(
+        content_type="rpm",
         name="package2",
         version="2.0",
-        arch="x86_64",
         sha256="c" * 64,  # Same SHA256
         size_bytes=2000,
         pool_path="cc/cc/ccc_pkg2.rpm",
-        package_type="rpm",
-        filename="package2-2.0.x86_64.rpm"
+        filename="package2-2.0.x86_64.rpm",
+        content_metadata=rpm_metadata2.model_dump(exclude_none=False)
     )
-    db_session.add(pkg2)
+    db_session.add(item2)
 
     with pytest.raises(Exception):  # SQLAlchemy will raise IntegrityError
         db_session.commit()

@@ -1,0 +1,416 @@
+# ==============================================================================
+# Red Hat Enterprise Linux 9 Repository Configuration
+# ==============================================================================
+#
+# This configuration mirrors the official RHEL 9 repositories.
+# Requires an active RHEL subscription and entitlement certificates.
+#
+# Documentation:
+# - RHEL 9 Release Notes: https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/9
+# - RHEL CDN Authentication: https://access.redhat.com/solutions/253273
+#
+# Prerequisites:
+# 1. Valid RHEL subscription
+# 2. Entitlement certificates from /etc/pki/entitlement/
+# 3. CA bundle from /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
+#
+# ==============================================================================
+
+repositories:
+  # ============================================================================
+  # RHEL 9 BaseOS - Core operating system packages
+  # ============================================================================
+  #
+  # BaseOS provides the core operating system functionality.
+  # Contains: kernel, systemd, glibc, bash, core utilities
+  #
+  # Content Type: RPM
+  # Update Frequency: As needed (security updates, bug fixes)
+  # Typical Size: ~10-15 GB (full mirror), 500 MB - 2 GB (filtered)
+  #
+  - id: rhel9-baseos
+    name: "RHEL 9 BaseOS (x86_64)"
+    type: rpm
+    feed: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/os
+    enabled: true
+
+    # RHEL CDN requires client certificate authentication
+    ssl:
+      ca_bundle: /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
+      client_cert: /etc/pki/entitlement/YOUR_CERT_ID.pem
+      client_key: /etc/pki/entitlement/YOUR_CERT_ID-key.pem
+      verify: true
+
+    # Example filter: Mirror only specific packages (reduces storage)
+    # Uncomment and customize based on your needs
+    # filters:
+    #   patterns:
+    #     include:
+    #       - "^kernel-.*"           # All kernel packages
+    #       - "^systemd-.*"          # SystemD packages
+    #       - "^glibc-.*"            # GNU C Library
+    #       - "^bash-.*"             # Bash shell
+    #       - "^vim-.*"              # Vim editor
+    #     exclude:
+    #       - ".*-debug.*"           # Debug packages
+    #       - ".*-devel$"            # Development headers
+    #   metadata:
+    #     architectures:
+    #       include: ["x86_64", "noarch"]
+    #   rpm:
+    #     exclude_source_rpms: true  # Skip .src.rpm files
+    #   post_processing:
+    #     only_latest_version: true  # Keep only latest version
+
+  # ============================================================================
+  # RHEL 9 AppStream - Application streams and runtime environments
+  # ============================================================================
+  #
+  # AppStream provides user-space applications, runtime languages, and databases.
+  # Contains: nginx, httpd, postgresql, python, nodejs, php, etc.
+  #
+  # Content Type: RPM
+  # Update Frequency: As needed (security updates, bug fixes, new versions)
+  # Typical Size: ~30-40 GB (full mirror), 1-5 GB (filtered)
+  #
+  - id: rhel9-appstream
+    name: "RHEL 9 AppStream (x86_64)"
+    type: rpm
+    feed: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os
+    enabled: true
+
+    ssl:
+      ca_bundle: /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
+      client_cert: /etc/pki/entitlement/YOUR_CERT_ID.pem
+      client_key: /etc/pki/entitlement/YOUR_CERT_ID-key.pem
+      verify: true
+
+    # Example: Mirror only web server packages
+    # filters:
+    #   patterns:
+    #     include:
+    #       - "^nginx-.*"            # Nginx web server
+    #       - "^httpd-.*"            # Apache HTTP server
+    #       - "^mod_.*"              # Apache modules
+    #       - "^php-.*"              # PHP runtime
+    #     exclude:
+    #       - ".*-debug.*"
+    #   metadata:
+    #     architectures:
+    #       include: ["x86_64", "noarch"]
+    #   rpm:
+    #     exclude_source_rpms: true
+    #   post_processing:
+    #     only_latest_version: true
+
+  # ============================================================================
+  # RHEL 9 CodeReady Builder (CRB) - Developer tools and libraries
+  # ============================================================================
+  #
+  # CRB provides additional development tools, libraries, and build dependencies.
+  # Previously known as "PowerTools" in CentOS/Rocky Linux.
+  # Contains: Development headers, build tools, additional libraries
+  #
+  # Content Type: RPM
+  # Update Frequency: As needed
+  # Typical Size: ~5-10 GB (full mirror)
+  #
+  # NOTE: Enable only if you need development packages for building from source
+  #
+  - id: rhel9-crb
+    name: "RHEL 9 CodeReady Builder (x86_64)"
+    type: rpm
+    feed: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/codeready-builder/os
+    enabled: false  # Disabled by default - enable only if needed
+
+    ssl:
+      ca_bundle: /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
+      client_cert: /etc/pki/entitlement/YOUR_CERT_ID.pem
+      client_key: /etc/pki/entitlement/YOUR_CERT_ID-key.pem
+      verify: true
+
+    # Example: Mirror only Python development packages
+    # filters:
+    #   patterns:
+    #     include:
+    #       - "^python3-devel$"
+    #       - "^python3-.*-devel$"
+    #   metadata:
+    #     architectures:
+    #       include: ["x86_64", "noarch"]
+    #   rpm:
+    #     exclude_source_rpms: true
+
+  # ============================================================================
+  # RHEL 9 Supplementary - Additional packages (limited support)
+  # ============================================================================
+  #
+  # Supplementary provides additional packages that may not be fully supported
+  # or have different support lifecycles than the main RHEL channels.
+  #
+  # Content Type: RPM
+  # Update Frequency: As needed
+  # Typical Size: ~1-3 GB (full mirror)
+  #
+  # NOTE: Check Red Hat support policies before using in production
+  #
+  # - id: rhel9-supplementary
+  #   name: "RHEL 9 Supplementary (x86_64)"
+  #   type: rpm
+  #   feed: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/supplementary/os
+  #   enabled: false
+  #
+  #   ssl:
+  #     ca_bundle: /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
+  #     client_cert: /etc/pki/entitlement/YOUR_CERT_ID.pem
+  #     client_key: /etc/pki/entitlement/YOUR_CERT_ID-key.pem
+  #     verify: true
+
+  # ============================================================================
+  # RHEL 9 High Availability - Clustering and HA add-on
+  # ============================================================================
+  #
+  # High Availability add-on provides clustering and high availability features.
+  # Contains: Pacemaker, Corosync, cluster resource agents, fencing agents
+  #
+  # Content Type: RPM
+  # Update Frequency: As needed
+  # Typical Size: ~500 MB - 1 GB
+  #
+  # NOTE: Requires separate High Availability subscription
+  #
+  # - id: rhel9-highavailability
+  #   name: "RHEL 9 High Availability (x86_64)"
+  #   type: rpm
+  #   feed: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/highavailability/os
+  #   enabled: false
+  #
+  #   ssl:
+  #     ca_bundle: /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
+  #     client_cert: /etc/pki/entitlement/YOUR_CERT_ID.pem
+  #     client_key: /etc/pki/entitlement/YOUR_CERT_ID-key.pem
+  #     verify: true
+
+  # ============================================================================
+  # RHEL 9 Resilient Storage - Storage clustering add-on
+  # ============================================================================
+  #
+  # Resilient Storage provides GFS2 (Global File System 2) and LVM clustering.
+  # For shared storage in cluster environments.
+  #
+  # Content Type: RPM
+  # Update Frequency: As needed
+  # Typical Size: ~200-500 MB
+  #
+  # NOTE: Requires separate Resilient Storage subscription
+  #
+  # - id: rhel9-resilientstorage
+  #   name: "RHEL 9 Resilient Storage (x86_64)"
+  #   type: rpm
+  #   feed: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/resilientstorage/os
+  #   enabled: false
+  #
+  #   ssl:
+  #     ca_bundle: /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
+  #     client_cert: /etc/pki/entitlement/YOUR_CERT_ID.pem
+  #     client_key: /etc/pki/entitlement/YOUR_CERT_ID-key.pem
+  #     verify: true
+
+  # ============================================================================
+  # RHEL 9 Real Time - Real-time kernel and tools
+  # ============================================================================
+  #
+  # Real Time provides PREEMPT_RT kernel for deterministic latency workloads.
+  # For industrial control, financial trading, telecommunications, etc.
+  #
+  # Content Type: RPM
+  # Update Frequency: As needed
+  # Typical Size: ~500 MB - 1 GB
+  #
+  # NOTE: Requires separate Real Time subscription
+  #
+  # - id: rhel9-rt
+  #   name: "RHEL 9 Real Time (x86_64)"
+  #   type: rpm
+  #   feed: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/rt/os
+  #   enabled: false
+  #
+  #   ssl:
+  #     ca_bundle: /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
+  #     client_cert: /etc/pki/entitlement/YOUR_CERT_ID.pem
+  #     client_key: /etc/pki/entitlement/YOUR_CERT_ID-key.pem
+  #     verify: true
+
+  # ============================================================================
+  # RHEL 9 NFV - Network Functions Virtualization
+  # ============================================================================
+  #
+  # NFV provides packages optimized for Network Functions Virtualization workloads.
+  # Includes optimized kernel, DPDK, and related packages.
+  #
+  # Content Type: RPM
+  # Update Frequency: As needed
+  # Typical Size: ~500 MB - 1 GB
+  #
+  # NOTE: Requires separate NFV subscription
+  #
+  # - id: rhel9-nfv
+  #   name: "RHEL 9 NFV (x86_64)"
+  #   type: rpm
+  #   feed: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/nfv/os
+  #   enabled: false
+  #
+  #   ssl:
+  #     ca_bundle: /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
+  #     client_cert: /etc/pki/entitlement/YOUR_CERT_ID.pem
+  #     client_key: /etc/pki/entitlement/YOUR_CERT_ID-key.pem
+  #     verify: true
+
+  # ============================================================================
+  # RHEL 9 for SAP Solutions
+  # ============================================================================
+  #
+  # SAP Solutions provides packages and configurations optimized for SAP HANA
+  # and SAP NetWeaver workloads.
+  #
+  # Content Type: RPM
+  # Update Frequency: As needed
+  # Typical Size: ~1-2 GB
+  #
+  # NOTE: Requires SAP Solutions subscription
+  #
+  # - id: rhel9-sap-solutions
+  #   name: "RHEL 9 for SAP Solutions (x86_64)"
+  #   type: rpm
+  #   feed: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/sap-solutions/os
+  #   enabled: false
+  #
+  #   ssl:
+  #     ca_bundle: /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
+  #     client_cert: /etc/pki/entitlement/YOUR_CERT_ID.pem
+  #     client_key: /etc/pki/entitlement/YOUR_CERT_ID-key.pem
+  #     verify: true
+
+  # ============================================================================
+  # RHEL 9 for SAP NetWeaver
+  # ============================================================================
+  #
+  # SAP NetWeaver provides packages optimized for SAP NetWeaver workloads.
+  #
+  # Content Type: RPM
+  # Update Frequency: As needed
+  # Typical Size: ~1-2 GB
+  #
+  # NOTE: Requires SAP Solutions subscription
+  #
+  # - id: rhel9-sap-netweaver
+  #   name: "RHEL 9 for SAP NetWeaver (x86_64)"
+  #   type: rpm
+  #   feed: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/sap/os
+  #   enabled: false
+  #
+  #   ssl:
+  #     ca_bundle: /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
+  #     client_cert: /etc/pki/entitlement/YOUR_CERT_ID.pem
+  #     client_key: /etc/pki/entitlement/YOUR_CERT_ID-key.pem
+  #     verify: true
+
+
+# ==============================================================================
+# Common Filter Patterns for RHEL Repositories
+# ==============================================================================
+#
+# These are examples of commonly used filter patterns. Copy and customize
+# based on your specific requirements.
+#
+# Pattern Examples:
+#
+# 1. Security-focused (minimal surface):
+#    patterns:
+#      include:
+#        - "^kernel-.*"
+#        - "^systemd-.*"
+#        - "^openssl-.*"
+#        - "^openssh-.*"
+#
+# 2. Web server stack:
+#    patterns:
+#      include:
+#        - "^nginx-.*"
+#        - "^httpd-.*"
+#        - "^mod_.*"
+#        - "^php-.*"
+#        - "^postgresql.*"
+#
+# 3. Container platform:
+#    patterns:
+#      include:
+#        - "^podman-.*"
+#        - "^buildah-.*"
+#        - "^skopeo-.*"
+#        - "^cri-o-.*"
+#
+# 4. Exclude patterns (recommended):
+#    patterns:
+#      exclude:
+#        - ".*-debug.*"          # Debug symbols
+#        - ".*-debuginfo$"       # Debug info packages
+#        - ".*-debugsource$"     # Debug sources
+#        - ".*-devel$"           # Development headers (unless needed)
+#        - ".*-static$"          # Static libraries (unless needed)
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# Usage Examples
+# ==============================================================================
+#
+# 1. Initialize Chantal:
+#    chantal init
+#
+# 2. Sync all RHEL repositories:
+#    chantal repo sync --pattern "rhel9-*"
+#
+# 3. Sync only BaseOS and AppStream:
+#    chantal repo sync --repo-id rhel9-baseos
+#    chantal repo sync --repo-id rhel9-appstream
+#
+# 4. Check for updates without downloading:
+#    chantal repo check-updates --pattern "rhel9-*"
+#
+# 5. Create monthly snapshot (for patch management):
+#    chantal snapshot create --repo-id rhel9-baseos --name $(date +%Y-%m)
+#    chantal snapshot create --repo-id rhel9-appstream --name $(date +%Y-%m)
+#
+# 6. Publish repositories:
+#    chantal publish repo --pattern "rhel9-*"
+#
+# 7. Create a view combining all RHEL channels:
+#    See examples/rpm/views/rhel9-complete.yaml
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# Troubleshooting
+# ==============================================================================
+#
+# Issue: "403 Forbidden" or "401 Unauthorized"
+# Solution: Verify entitlement certificates are valid:
+#   subscription-manager list
+#   ls -la /etc/pki/entitlement/
+#
+# Issue: "SSL certificate verify failed"
+# Solution: Update CA bundle:
+#   update-ca-trust
+#
+# Issue: Sync is very slow
+# Solution: Use filters to reduce package count:
+#   Add patterns.include to mirror only needed packages
+#
+# Issue: Running out of disk space
+# Solution: Enable post_processing.only_latest_version
+#   This keeps only the latest version of each package
+#
+# ==============================================================================

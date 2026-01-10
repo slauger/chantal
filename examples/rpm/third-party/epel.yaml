@@ -1,0 +1,390 @@
+# ==============================================================================
+# EPEL - Extra Packages for Enterprise Linux - RPM Repository
+# ==============================================================================
+#
+# EPEL (Extra Packages for Enterprise Linux) is a repository of high-quality
+# add-on packages for Enterprise Linux, including RHEL, CentOS, Rocky Linux,
+# and AlmaLinux.
+#
+# Official Documentation:
+# - EPEL: https://docs.fedoraproject.org/en-US/epel/
+# - FAQ: https://docs.fedoraproject.org/en-US/epel/epel-faq/
+#
+# Repository Size: ~30-50 GB per major version (full mirror)
+# Update Frequency: Daily updates and new package additions
+#
+# NOTE: EPEL is one of the most essential third-party repositories for RHEL.
+# Many popular packages are only available in EPEL.
+#
+# ==============================================================================
+
+repositories:
+  # ============================================================================
+  # EPEL 9 - For RHEL 9, Rocky Linux 9, AlmaLinux 9
+  # ============================================================================
+  - id: epel9
+    name: "EPEL 9 (x86_64)"
+    type: rpm
+    feed: https://dl.fedoraproject.org/pub/epel/9/Everything/x86_64/
+    enabled: true
+
+    # Public repository, no authentication required
+
+    filters:
+      metadata:
+        architectures:
+          include: ["x86_64", "noarch"]
+      rpm:
+        exclude_source_rpms: true
+      post_processing:
+        # Keep only latest version to reduce mirror size
+        only_latest_version: true
+
+    # Optional: Mirror only specific packages to reduce size
+    # Uncomment and customize if you don't need the full EPEL repository
+    # filters:
+    #   patterns:
+    #     include:
+    #       - "^htop-.*"              # Interactive process viewer
+    #       - "^tmux-.*"              # Terminal multiplexer
+    #       - "^ansible-.*"           # Automation platform
+    #       - "^python3-.*"           # Python packages
+    #       - "^nginx-.*"             # Alternative nginx builds
+    #       - "^fail2ban-.*"          # Intrusion prevention
+    #       - "^certbot-.*"           # Let's Encrypt client
+    #       - "^nagios-.*"            # Monitoring plugins
+    #     exclude:
+    #       - ".*-debuginfo$"
+    #       - ".*-debugsource$"
+    #   metadata:
+    #     architectures:
+    #       include: ["x86_64", "noarch"]
+    #   rpm:
+    #     exclude_source_rpms: true
+    #   post_processing:
+    #     only_latest_version: true
+
+  # ============================================================================
+  # EPEL 8 - For RHEL 8, Rocky Linux 8, AlmaLinux 8
+  # ============================================================================
+  - id: epel8
+    name: "EPEL 8 (x86_64)"
+    type: rpm
+    feed: https://dl.fedoraproject.org/pub/epel/8/Everything/x86_64/
+    enabled: true
+
+    filters:
+      metadata:
+        architectures:
+          include: ["x86_64", "noarch"]
+      rpm:
+        exclude_source_rpms: true
+      post_processing:
+        only_latest_version: true
+
+  # ============================================================================
+  # EPEL 9 Modular - Module streams for EPEL 9
+  # ============================================================================
+  #
+  # EPEL Modular provides alternative versions of packages using module streams.
+  # Similar to AppStream modules in RHEL.
+  #
+  # - id: epel9-modular
+  #   name: "EPEL 9 Modular (x86_64)"
+  #   type: rpm
+  #   feed: https://dl.fedoraproject.org/pub/epel/9/Modular/x86_64/
+  #   enabled: false
+  #
+  #   filters:
+  #     metadata:
+  #       architectures:
+  #         include: ["x86_64", "noarch"]
+  #     rpm:
+  #       exclude_source_rpms: true
+  #     post_processing:
+  #       only_latest_version: true
+
+  # ============================================================================
+  # EPEL 8 Modular - Module streams for EPEL 8
+  # ============================================================================
+  #
+  # - id: epel8-modular
+  #   name: "EPEL 8 Modular (x86_64)"
+  #   type: rpm
+  #   feed: https://dl.fedoraproject.org/pub/epel/8/Modular/x86_64/
+  #   enabled: false
+  #
+  #   filters:
+  #     metadata:
+  #       architectures:
+  #         include: ["x86_64", "noarch"]
+  #     rpm:
+  #       exclude_source_rpms: true
+  #     post_processing:
+  #       only_latest_version: true
+
+  # ============================================================================
+  # EPEL Next (for CentOS Stream users)
+  # ============================================================================
+  #
+  # EPEL Next tracks CentOS Stream more closely and may include newer packages.
+  # Only needed if you're using CentOS Stream.
+  #
+  # - id: epel9-next
+  #   name: "EPEL 9 Next (x86_64)"
+  #   type: rpm
+  #   feed: https://dl.fedoraproject.org/pub/epel/next/9/Everything/x86_64/
+  #   enabled: false
+  #
+  #   filters:
+  #     metadata:
+  #       architectures:
+  #         include: ["x86_64", "noarch"]
+  #     rpm:
+  #       exclude_source_rpms: true
+  #     post_processing:
+  #       only_latest_version: true
+
+
+# ==============================================================================
+# Usage Examples
+# ==============================================================================
+#
+# 1. Sync EPEL repository:
+#    chantal repo sync --repo-id epel9
+#
+# 2. Create weekly/monthly snapshots:
+#    chantal snapshot create --repo-id epel9 --name $(date +%Y-W%V)  # Weekly
+#    chantal snapshot create --repo-id epel9 --name $(date +%Y-%m)   # Monthly
+#
+# 3. Publish repository:
+#    chantal publish repo --repo-id epel9
+#
+# 4. Sync all EPEL repositories:
+#    chantal repo sync --pattern "epel*"
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# Client Configuration
+# ==============================================================================
+#
+# /etc/yum.repos.d/epel.repo:
+#   [epel]
+#   name=Extra Packages for Enterprise Linux 9 - x86_64
+#   baseurl=http://your-mirror.example.com/chantal/repositories/epel9
+#   enabled=1
+#   gpgcheck=1
+#   gpgkey=https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-9
+#
+# Install EPEL packages:
+#   sudo yum install htop tmux ansible fail2ban
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# Popular EPEL Packages
+# ==============================================================================
+#
+# System Administration:
+# - htop: Interactive process viewer
+# - tmux: Terminal multiplexer
+# - screen: Terminal multiplexer (alternative to tmux)
+# - mc: Midnight Commander file manager
+# - ncdu: NCurses Disk Usage analyzer
+# - iotop: I/O monitoring
+# - glances: System monitoring tool
+#
+# Automation & Configuration Management:
+# - ansible: Automation platform
+# - puppet: Configuration management
+# - saltstack: Infrastructure automation
+#
+# Security:
+# - fail2ban: Intrusion prevention
+# - aide: Advanced Intrusion Detection Environment
+# - lynis: Security auditing tool
+# - certbot: Let's Encrypt client
+#
+# Monitoring:
+# - nagios-plugins: Monitoring plugins
+# - check-mk: Monitoring solution
+# - cacti: Network graphing
+#
+# Development:
+# - python3-*: Python packages and libraries
+# - nodejs: JavaScript runtime (some versions)
+# - golang: Go programming language (alternative versions)
+# - git-*: Git extensions
+#
+# Networking:
+# - iftop: Network bandwidth monitoring
+# - nethogs: Network bandwidth per process
+# - nload: Network traffic monitoring
+# - mtr: Network diagnostic tool
+#
+# Web Servers & Proxies:
+# - nginx: High-performance web server (alternative builds)
+# - haproxy: Load balancer
+# - varnish: HTTP accelerator
+#
+# Databases:
+# - redis: In-memory data structure store
+# - mongodb: NoSQL database (some versions)
+# - postgresql: Alternative PostgreSQL versions
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# EPEL vs RHEL Repositories
+# ==============================================================================
+#
+# Key Differences:
+#
+# 1. Support:
+#    - RHEL: Fully supported by Red Hat
+#    - EPEL: Community-supported (Fedora Project)
+#    - No official Red Hat support for EPEL packages
+#
+# 2. Package Conflicts:
+#    - EPEL does NOT replace RHEL packages
+#    - EPEL provides additional packages not in RHEL
+#    - Safe to use alongside RHEL repositories
+#
+# 3. Update Policy:
+#    - RHEL: Conservative, stability-focused
+#    - EPEL: More frequent updates, newer versions
+#
+# 4. Quality:
+#    - EPEL packages follow Fedora quality standards
+#    - Well-maintained, widely used in production
+#    - Tested with RHEL base packages
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# Version Strategy
+# ==============================================================================
+#
+# EPEL updates frequently (daily). Consider these strategies:
+#
+# 1. Rolling Updates (Development):
+#    - Use only_latest_version: true
+#    - Publish directly: chantal publish repo --repo-id epel9
+#    - Pros: Always latest packages
+#    - Cons: Potential for breakage
+#
+# 2. Weekly Snapshots (Staging):
+#    - Create weekly snapshots
+#    - Example: epel9-2025-W02 (week 2 of 2025)
+#    - Test in staging before promoting to production
+#
+# 3. Monthly Snapshots (Production):
+#    - Create monthly snapshots after testing
+#    - Example: epel9-2025-01
+#    - Controlled, predictable updates
+#
+# 4. Frozen Baseline (Critical Systems):
+#    - Create snapshot at deployment time
+#    - Only update for security patches
+#    - Manual review and approval required
+#
+# Recommended for most environments:
+#   # Create monthly snapshot
+#   chantal repo sync --repo-id epel9
+#   chantal snapshot create --repo-id epel9 --name epel9-$(date +%Y-%m)
+#
+#   # Test in staging
+#   chantal publish snapshot --repo-id epel9 --snapshot epel9-2025-01
+#
+#   # After testing, use in production
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# Storage Considerations
+# ==============================================================================
+#
+# EPEL repositories are LARGE:
+#
+# Full Mirror (without filters):
+# - EPEL 9: ~40-50 GB
+# - EPEL 8: ~35-45 GB
+# - Growth: ~500 MB - 1 GB per month
+#
+# With only_latest_version:
+# - Reduced by ~30-40% (only latest package versions)
+#
+# With pattern filters (selective mirroring):
+# - Can reduce to <5 GB if only mirroring specific packages
+#
+# Recommendations:
+# 1. Start with full mirror + only_latest_version
+# 2. Monitor disk usage
+# 3. Add pattern filters if space is constrained
+# 4. Use content-addressed storage (Chantal deduplicates automatically)
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# Troubleshooting
+# ==============================================================================
+#
+# Issue: Sync is very slow
+# Solution:
+#   - EPEL has 50,000+ packages
+#   - First sync takes hours (normal)
+#   - Subsequent syncs are faster (only new/updated packages)
+#   - Consider pattern filters to reduce package count
+#
+# Issue: Package conflicts with RHEL
+# Solution:
+#   - EPEL should NOT conflict with RHEL packages
+#   - If conflicts occur, report to EPEL maintainers
+#   - Use 'yum --skip-broken' to skip problematic packages
+#
+# Issue: Missing package dependencies
+# Solution:
+#   - Ensure RHEL CodeReady Builder (CRB) is enabled
+#   - Many EPEL packages depend on CRB packages
+#   - Add rhel9-crb repository (see rhel9.yaml example)
+#
+# ==============================================================================
+
+
+# ==============================================================================
+# EPEL and CodeReady Builder (CRB)
+# ==============================================================================
+#
+# Important: Many EPEL packages require CodeReady Builder (CRB)!
+#
+# CRB provides development libraries that EPEL packages depend on.
+# If you mirror EPEL, you should also mirror CRB.
+#
+# Example configuration combining EPEL + CRB:
+#
+# repositories:
+#   - id: rhel9-crb
+#     name: "RHEL 9 CodeReady Builder"
+#     type: rpm
+#     feed: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/codeready-builder/os
+#     enabled: true
+#     # ... SSL configuration ...
+#
+#   - id: epel9
+#     name: "EPEL 9"
+#     type: rpm
+#     feed: https://dl.fedoraproject.org/pub/epel/9/Everything/x86_64/
+#     enabled: true
+#
+# For clients, enable both repositories:
+#   sudo yum config-manager --enable crb
+#   sudo yum install epel-release
+#
+# ==============================================================================
