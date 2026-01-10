@@ -298,7 +298,7 @@ removed = set(snapshot1.packages) - set(snapshot2.packages)
 **Connection string:**
 ```yaml
 database:
-  url: sqlite:///.dev/chantal-dev.db
+  url: sqlite:///chantal.db
 ```
 
 **Pros:**
@@ -343,7 +343,7 @@ database:
 ### Vacuum (SQLite)
 
 ```bash
-sqlite3 .dev/chantal-dev.db "VACUUM;"
+sqlite3 /var/lib/chantal/chantal.db "VACUUM;"
 ```
 
 ### Analyze (PostgreSQL)

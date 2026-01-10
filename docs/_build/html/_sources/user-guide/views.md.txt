@@ -98,7 +98,7 @@ views:
 ### Example Configuration
 
 ```yaml
-# .dev/conf.d/views.yaml
+# /etc/chantal/conf.d/views.yaml
 views:
   # RHEL 9 Complete - All RHEL 9 repositories combined
   - name: rhel9-complete
@@ -196,7 +196,7 @@ $ chantal publish view --name rhel9-webserver
 Publishing view: rhel9-webserver
 Description: RHEL 9 Web Server Stack (BaseOS + nginx + httpd)
 
-Target: .dev/dev-storage/published/views/rhel9-webserver/latest
+Target: /var/www/repos/views/rhel9-webserver/latest
 
 Collecting packages from 3 repositories...
 
@@ -286,11 +286,11 @@ $ chantal publish snapshot \
 
 Publishing view snapshot: 2025-01-10
 View: rhel9-webserver
-Target: .dev/dev-storage/published/views/rhel9-webserver/snapshots/2025-01-10
+Target: /var/www/repos/views/rhel9-webserver/snapshots/2025-01-10
 Packages: 40
 
 ✓ View snapshot published successfully!
-  Location: .dev/dev-storage/published/views/rhel9-webserver/snapshots/2025-01-10
+  Location: /var/www/repos/views/rhel9-webserver/snapshots/2025-01-10
 
 Configure your package manager:
   [view-rhel9-webserver-snapshot-2025-01-10]
@@ -699,25 +699,26 @@ See [Database Schema](../architecture/database-schema.md) for details.
 ### Storage Structure
 
 ```
-.dev/dev-storage/
+/var/lib/chantal/                   # Storage base path
 ├── pool/                           # Content-addressed package pool
 │   └── ab/cd/sha256_package.rpm   # Shared by all repos/views
-├── published/
-│   ├── repositories/               # Individual repositories
-│   │   ├── rhel9-baseos/latest/
-│   │   └── rhel9-appstream/latest/
-│   └── views/                      # Views (combining repos)
-│       ├── rhel9-complete/
-│       │   ├── latest/             # Rolling release
-│       │   │   ├── Packages/       # Hardlinks to pool
-│       │   │   └── repodata/
-│       │   └── snapshots/          # Frozen baselines
-│       │       ├── 2025-01-10/
-│       │       └── 2025-02-15/
-│       └── rhel9-webserver/
-│           ├── latest/
-│           └── snapshots/
-│               └── 2025-01-10/
+
+/var/www/repos/                     # Published path
+├── repositories/                   # Individual repositories
+│   ├── rhel9-baseos/latest/
+│   └── rhel9-appstream/latest/
+└── views/                          # Views (combining repos)
+    ├── rhel9-complete/
+    │   ├── latest/                 # Rolling release
+    │   │   ├── Packages/           # Hardlinks to pool
+    │   │   └── repodata/
+    │   └── snapshots/              # Frozen baselines
+    │       ├── 2025-01-10/
+    │       └── 2025-02-15/
+    └── rhel9-webserver/
+        ├── latest/
+        └── snapshots/
+            └── 2025-01-10/
 ```
 
 ## Future Enhancements

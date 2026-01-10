@@ -4,13 +4,13 @@ Chantal uses YAML-based configuration files for managing repositories and settin
 
 ## Configuration File Structure
 
-The main configuration file contains global settings and can include additional repository definitions:
+The main configuration file contains global settings and can include additional repository and view definitions:
 
 ```yaml
 # Global database configuration
 database:
-  url: sqlite:///.dev/chantal-dev.db
-  # or: postgresql://chantal:password@localhost/chantal
+  url: postgresql://chantal:password@localhost/chantal
+  # or for development/testing: sqlite:///chantal.db
 
 # Storage paths
 storage:
@@ -28,11 +28,11 @@ proxy:
 
 # Global SSL/TLS settings (optional)
 ssl:
-  ca_bundle: /path/to/custom-ca-bundle.pem
+  ca_bundle: /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
   verify: true
 
-# Include repository configs
-include: conf.d/*.yaml
+# Include repository and view configs
+include: /etc/chantal/conf.d/*.yaml
 ```
 
 ## Configuration File Priority
@@ -57,30 +57,9 @@ Chantal searches for configuration files in this order (first found wins):
 
 ## Development vs. Production
 
-### Development Setup
-
-Use `.dev/` directory for development:
-
-```bash
-export CHANTAL_CONFIG=.dev/config.yaml
-```
-
-`.dev/config.yaml`:
-```yaml
-database:
-  url: sqlite:///.dev/chantal-dev.db
-
-storage:
-  base_path: ./.dev/dev-storage
-  pool_path: ./.dev/dev-storage/pool
-  published_path: ./.dev/dev-storage/published
-
-include: ".dev/conf.d/*.yaml"
-```
-
 ### Production Setup
 
-Use system paths for production:
+Standard production configuration:
 
 `/etc/chantal/config.yaml`:
 ```yaml
@@ -92,18 +71,50 @@ storage:
   pool_path: /var/lib/chantal/pool
   published_path: /var/www/repos
 
-include: "/etc/chantal/conf.d/*.yaml"
+include: /etc/chantal/conf.d/*.yaml
+```
+
+**Directory structure:**
+```
+/etc/chantal/
+├── config.yaml
+└── conf.d/
+    ├── rhel9.yaml
+    ├── epel9.yaml
+    ├── centos9.yaml
+    └── views.yaml
+```
+
+### Development Setup
+
+For local development and testing:
+
+```bash
+export CHANTAL_CONFIG=config-dev.yaml
+```
+
+`config-dev.yaml`:
+```yaml
+database:
+  url: sqlite:///chantal-dev.db
+
+storage:
+  base_path: ./storage
+  pool_path: ./storage/pool
+  published_path: ./storage/published
+
+include: conf.d/*.yaml
 ```
 
 ## Database Configuration
 
-### SQLite (Development)
+### SQLite (Development/Testing)
 
-Best for development and small deployments:
+Best for development, testing, and small deployments:
 
 ```yaml
 database:
-  url: sqlite:///.dev/chantal-dev.db
+  url: sqlite:///chantal.db
   # or absolute path:
   # url: sqlite:////var/lib/chantal/chantal.db
 ```
@@ -238,7 +249,7 @@ repositories:
 Use `include` to split configuration across multiple files:
 
 ```yaml
-# Main config.yaml
+# Main /etc/chantal/config.yaml
 database:
   url: postgresql://chantal:password@localhost/chantal
 
@@ -246,7 +257,7 @@ storage:
   base_path: /var/lib/chantal
 
 # Include all YAML files in conf.d/
-include: "conf.d/*.yaml"
+include: /etc/chantal/conf.d/*.yaml
 ```
 
 **Directory structure:**
@@ -254,9 +265,31 @@ include: "conf.d/*.yaml"
 /etc/chantal/
 ├── config.yaml
 └── conf.d/
-    ├── rhel9.yaml
-    ├── epel9.yaml
-    └── centos9.yaml
+    ├── rhel9.yaml          # RHEL repositories
+    ├── epel9.yaml          # EPEL repositories
+    ├── centos9.yaml        # CentOS repositories
+    └── views.yaml          # Views (virtual repositories)
+```
+
+**Example repository file** (`/etc/chantal/conf.d/rhel9.yaml`):
+```yaml
+repositories:
+  - id: rhel9-baseos
+    name: RHEL 9 BaseOS
+    type: rpm
+    feed: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/os
+    enabled: true
+```
+
+**Example views file** (`/etc/chantal/conf.d/views.yaml`):
+```yaml
+views:
+  - name: rhel9-complete
+    description: "RHEL 9 - All channels combined"
+    repos:
+      - rhel9-baseos
+      - rhel9-appstream
+      - rhel9-crb
 ```
 
 ## Configuration Validation
@@ -277,7 +310,7 @@ Chantal supports environment variable interpolation:
 
 ```yaml
 database:
-  url: ${DATABASE_URL:-sqlite:///.dev/chantal-dev.db}
+  url: ${DATABASE_URL:-sqlite:///chantal.db}
 
 storage:
   base_path: ${CHANTAL_STORAGE_PATH:-/var/lib/chantal}

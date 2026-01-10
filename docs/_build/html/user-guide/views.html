@@ -242,12 +242,12 @@
 <li class="toctree-l2"><a class="reference internal" href="../configuration/overview.html#configuration-file-structure">Configuration File Structure</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../configuration/overview.html#configuration-file-priority">Configuration File Priority</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../configuration/overview.html#development-vs-production">Development vs. Production</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="../configuration/overview.html#development-setup">Development Setup</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../configuration/overview.html#production-setup">Production Setup</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../configuration/overview.html#development-setup">Development Setup</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="../configuration/overview.html#database-configuration">Database Configuration</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="../configuration/overview.html#sqlite-development">SQLite (Development)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../configuration/overview.html#sqlite-development-testing">SQLite (Development/Testing)</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../configuration/overview.html#postgresql-production">PostgreSQL (Production)</a></li>
 </ul>
 </li>
@@ -943,7 +943,7 @@
 </section>
 <section id="example-configuration">
 <h3>Example Configuration<a class="headerlink" href="#example-configuration" title="Link to this heading"></a></h3>
-<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="c1"># .dev/conf.d/views.yaml</span>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="c1"># /etc/chantal/conf.d/views.yaml</span>
 <span class="nt">views</span><span class="p">:</span>
 <span class="w">  </span><span class="c1"># RHEL 9 Complete - All RHEL 9 repositories combined</span>
 <span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rhel9-complete</span>
@@ -1039,7 +1039,7 @@
 Publishing<span class="w"> </span>view:<span class="w"> </span>rhel9-webserver
 Description:<span class="w"> </span>RHEL<span class="w"> </span><span class="m">9</span><span class="w"> </span>Web<span class="w"> </span>Server<span class="w"> </span>Stack<span class="w"> </span><span class="o">(</span>BaseOS<span class="w"> </span>+<span class="w"> </span>nginx<span class="w"> </span>+<span class="w"> </span>httpd<span class="o">)</span>
 
-Target:<span class="w"> </span>.dev/dev-storage/published/views/rhel9-webserver/latest
+Target:<span class="w"> </span>/var/www/repos/views/rhel9-webserver/latest
 
 Collecting<span class="w"> </span>packages<span class="w"> </span>from<span class="w"> </span><span class="m">3</span><span class="w"> </span>repositories...
 
@@ -1127,11 +1127,11 @@ To<span class="w"> </span>publish<span class="w"> </span>this<span class="w"> </
 
 Publishing<span class="w"> </span>view<span class="w"> </span>snapshot:<span class="w"> </span><span class="m">2025</span>-01-10
 View:<span class="w"> </span>rhel9-webserver
-Target:<span class="w"> </span>.dev/dev-storage/published/views/rhel9-webserver/snapshots/2025-01-10
+Target:<span class="w"> </span>/var/www/repos/views/rhel9-webserver/snapshots/2025-01-10
 Packages:<span class="w"> </span><span class="m">40</span>
 
 ✓<span class="w"> </span>View<span class="w"> </span>snapshot<span class="w"> </span>published<span class="w"> </span>successfully!
-<span class="w">  </span>Location:<span class="w"> </span>.dev/dev-storage/published/views/rhel9-webserver/snapshots/2025-01-10
+<span class="w">  </span>Location:<span class="w"> </span>/var/www/repos/views/rhel9-webserver/snapshots/2025-01-10
 
 Configure<span class="w"> </span>your<span class="w"> </span>package<span class="w"> </span>manager:
 <span class="w">  </span><span class="o">[</span>view-rhel9-webserver-snapshot-2025-01-10<span class="o">]</span>
@@ -1535,25 +1535,26 @@ chantal<span class="w"> </span>publish<span class="w"> </span>view<span class="w
 </section>
 <section id="storage-structure">
 <h3>Storage Structure<a class="headerlink" href="#storage-structure" title="Link to this heading"></a></h3>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>.dev/dev-storage/
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>/var/lib/chantal/                   # Storage base path
 ├── pool/                           # Content-addressed package pool
 │   └── ab/cd/sha256_package.rpm   # Shared by all repos/views
-├── published/
-│   ├── repositories/               # Individual repositories
-│   │   ├── rhel9-baseos/latest/
-│   │   └── rhel9-appstream/latest/
-│   └── views/                      # Views (combining repos)
-│       ├── rhel9-complete/
-│       │   ├── latest/             # Rolling release
-│       │   │   ├── Packages/       # Hardlinks to pool
-│       │   │   └── repodata/
-│       │   └── snapshots/          # Frozen baselines
-│       │       ├── 2025-01-10/
-│       │       └── 2025-02-15/
-│       └── rhel9-webserver/
-│           ├── latest/
-│           └── snapshots/
-│               └── 2025-01-10/
+
+/var/www/repos/                     # Published path
+├── repositories/                   # Individual repositories
+│   ├── rhel9-baseos/latest/
+│   └── rhel9-appstream/latest/
+└── views/                          # Views (combining repos)
+    ├── rhel9-complete/
+    │   ├── latest/                 # Rolling release
+    │   │   ├── Packages/           # Hardlinks to pool
+    │   │   └── repodata/
+    │   └── snapshots/              # Frozen baselines
+    │       ├── 2025-01-10/
+    │       └── 2025-02-15/
+    └── rhel9-webserver/
+        ├── latest/
+        └── snapshots/
+            └── 2025-01-10/
 </pre></div>
 </div>
 </section>

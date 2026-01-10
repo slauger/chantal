@@ -400,7 +400,6 @@ class HttpArchivePublisher(PublisherPlugin):
 pytest tests/test_my_plugin.py -v
 
 # Test with real repository
-export CHANTAL_CONFIG=.dev/config.yaml
 chantal init
 chantal repo sync --repo-id test-repo
 

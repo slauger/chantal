@@ -75,9 +75,6 @@ For developers who need specific package versions.
 ### Setup
 
 ```bash
-# Use development config
-export CHANTAL_CONFIG=.dev/config.yaml
-
 # Initialize
 chantal init
 
@@ -114,10 +111,10 @@ chantal snapshot create --repo-id rhel9-appstream --name airgap-2025-01
 
 # Export pool and database
 tar czf chantal-export-2025-01.tar.gz \
-  .dev/dev-storage/pool \
-  .dev/chantal-dev.db \
-  config.yaml \
-  conf.d/
+  /var/lib/chantal/pool \
+  /var/lib/chantal/chantal.db \
+  /etc/chantal/config.yaml \
+  /etc/chantal/conf.d/
 ```
 
 ### Phase 2: Offline System (Air-Gapped)
@@ -131,7 +128,7 @@ chantal publish snapshot --snapshot rhel9-baseos-airgap-2025-01
 chantal publish snapshot --snapshot rhel9-appstream-airgap-2025-01
 
 # Serve via web server
-# Published repositories are now in .dev/dev-storage/published
+# Published repositories are now in /var/www/repos
 ```
 
 ## RHEL Subscription Workflow

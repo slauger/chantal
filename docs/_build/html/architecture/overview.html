@@ -90,6 +90,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../user-guide/cli-commands.html#snapshot-management">Snapshot Management</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="../user-guide/cli-commands.html#chantal-snapshot-list"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">snapshot</span> <span class="pre">list</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../user-guide/cli-commands.html#chantal-snapshot-create"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">snapshot</span> <span class="pre">create</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/cli-commands.html#chantal-snapshot-content"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">snapshot</span> <span class="pre">content</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../user-guide/cli-commands.html#chantal-snapshot-diff"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">snapshot</span> <span class="pre">diff</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../user-guide/cli-commands.html#chantal-snapshot-delete"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">snapshot</span> <span class="pre">delete</span></code></a></li>
 </ul>
@@ -121,6 +122,74 @@
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="../user-guide/cli-commands.html#output-formats">Output Formats</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../user-guide/views.html">Views (Virtual Repositories)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/views.html#what-are-views">What are Views?</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/views.html#use-cases">Use Cases</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#combining-rhel-channels">1. Combining RHEL Channels</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#mixing-rhel-epel">2. Mixing RHEL + EPEL</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#custom-application-stacks">3. Custom Application Stacks</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/views.html#configuration">Configuration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#location">Location</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#format">Format</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#requirements">Requirements</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#example-configuration">Example Configuration</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/views.html#cli-commands">CLI Commands</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#list-views">List Views</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#show-view-details">Show View Details</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#publish-view-latest-rolling">Publish View (Latest/Rolling)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/views.html#view-snapshots">View Snapshots</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#create-view-snapshot-atomic-freeze">Create View Snapshot (Atomic Freeze)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#publish-view-snapshot">Publish View Snapshot</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#show-snapshot-content-compliance-audit">Show Snapshot Content (Compliance/Audit)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/views.html#workflows">Workflows</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#workflow-1-rolling-release-development">Workflow 1: Rolling Release (Development)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#workflow-2-frozen-baselines-production">Workflow 2: Frozen Baselines (Production)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#workflow-3-compliance-audit">Workflow 3: Compliance/Audit</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#workflow-4-automated-monthly-compliance-reports">Workflow 4: Automated Monthly Compliance Reports</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/views.html#important-design-decisions">Important Design Decisions</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#no-deduplication">1. NO Deduplication</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#repository-order-matters">2. Repository Order Matters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#view-snapshots-are-atomic">3. View Snapshots are Atomic</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#hardlink-based-publishing">4. Hardlink-based Publishing</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/views.html#client-configuration-examples">Client Configuration Examples</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#example-1-development-rolling-release">Example 1: Development (Rolling Release)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#example-2-production-frozen-baseline">Example 2: Production (Frozen Baseline)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#example-3-testing-new-baseline">Example 3: Testing New Baseline</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/views.html#troubleshooting">Troubleshooting</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#view-shows-0-packages">View shows 0 packages</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#view-snapshot-creation-fails">View snapshot creation fails</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#published-view-doesnt-update">Published view doesn’t update</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#repository-not-found-in-view">Repository not found in view</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#view-type-mismatch">View type mismatch</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/views.html#best-practices">Best Practices</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/views.html#migration-from-pulp-katello">Migration from Pulp/Katello</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#pulp-composite-content-views-chantal-views">Pulp “Composite Content Views” → Chantal “Views”</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/views.html#technical-details">Technical Details</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#database-models">Database Models</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#storage-structure">Storage Structure</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/views.html#future-enhancements">Future Enhancements</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../user-guide/workflows.html">Workflows</a><ul>
@@ -173,12 +242,12 @@
 <li class="toctree-l2"><a class="reference internal" href="../configuration/overview.html#configuration-file-structure">Configuration File Structure</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../configuration/overview.html#configuration-file-priority">Configuration File Priority</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../configuration/overview.html#development-vs-production">Development vs. Production</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="../configuration/overview.html#development-setup">Development Setup</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../configuration/overview.html#production-setup">Production Setup</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../configuration/overview.html#development-setup">Development Setup</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="../configuration/overview.html#database-configuration">Database Configuration</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="../configuration/overview.html#sqlite-development">SQLite (Development)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../configuration/overview.html#sqlite-development-testing">SQLite (Development/Testing)</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../configuration/overview.html#postgresql-production">PostgreSQL (Production)</a></li>
 </ul>
 </li>
@@ -401,6 +470,360 @@
 <li class="toctree-l2"><a class="reference internal" href="content-addressed-storage.html#advantages">Advantages</a></li>
 <li class="toctree-l2"><a class="reference internal" href="content-addressed-storage.html#limitations">Limitations</a></li>
 <li class="toctree-l2"><a class="reference internal" href="content-addressed-storage.html#best-practices">Best Practices</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="database-schema.html">Database Schema</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="database-schema.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="database-schema.html#core-models">Core Models</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="database-schema.html#package">Package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="database-schema.html#repository">Repository</a></li>
+<li class="toctree-l3"><a class="reference internal" href="database-schema.html#snapshot">Snapshot</a></li>
+<li class="toctree-l3"><a class="reference internal" href="database-schema.html#view">View</a></li>
+<li class="toctree-l3"><a class="reference internal" href="database-schema.html#viewsnapshot">ViewSnapshot</a></li>
+<li class="toctree-l3"><a class="reference internal" href="database-schema.html#synchistory">SyncHistory</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="database-schema.html#junction-tables">Junction Tables</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="database-schema.html#repository-packages">repository_packages</a></li>
+<li class="toctree-l3"><a class="reference internal" href="database-schema.html#snapshot-packages">snapshot_packages</a></li>
+<li class="toctree-l3"><a class="reference internal" href="database-schema.html#view-repositories">view_repositories</a></li>
+<li class="toctree-l3"><a class="reference internal" href="database-schema.html#view-snapshot-snapshots">view_snapshot_snapshots</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="database-schema.html#indexes">Indexes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="database-schema.html#database-migrations">Database Migrations</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="database-schema.html#migration-files">Migration Files</a></li>
+<li class="toctree-l3"><a class="reference internal" href="database-schema.html#run-migrations">Run Migrations</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="database-schema.html#example-queries">Example Queries</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="database-schema.html#find-all-packages-in-repository">Find all packages in repository</a></li>
+<li class="toctree-l3"><a class="reference internal" href="database-schema.html#find-all-repositories-containing-a-package">Find all repositories containing a package</a></li>
+<li class="toctree-l3"><a class="reference internal" href="database-schema.html#create-snapshot">Create snapshot</a></li>
+<li class="toctree-l3"><a class="reference internal" href="database-schema.html#find-packages-added-between-snapshots">Find packages added between snapshots</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="database-schema.html#database-backends">Database Backends</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="database-schema.html#sqlite-development">SQLite (Development)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="database-schema.html#postgresql-production">PostgreSQL (Production)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="database-schema.html#database-size-estimates">Database Size Estimates</a></li>
+<li class="toctree-l2"><a class="reference internal" href="database-schema.html#maintenance">Maintenance</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="database-schema.html#vacuum-sqlite">Vacuum (SQLite)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="database-schema.html#analyze-postgresql">Analyze (PostgreSQL)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="database-schema.html#cleanup-orphaned-packages">Cleanup Orphaned Packages</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="database-schema.html#schema-diagram">Schema Diagram</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="plugin-system.html">Plugin System</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="plugin-system.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plugin-system.html#plugin-types">Plugin Types</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="plugin-system.html#sync-plugin">Sync Plugin</a></li>
+<li class="toctree-l3"><a class="reference internal" href="plugin-system.html#publisher-plugin">Publisher Plugin</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="plugin-system.html#available-plugins">Available Plugins</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="plugin-system.html#rpm-plugin">RPM Plugin</a></li>
+<li class="toctree-l3"><a class="reference internal" href="plugin-system.html#deb-apt-plugin">DEB/APT Plugin</a></li>
+<li class="toctree-l3"><a class="reference internal" href="plugin-system.html#pypi-plugin">PyPI Plugin</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="plugin-system.html#plugin-registration">Plugin Registration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plugin-system.html#creating-a-custom-plugin">Creating a Custom Plugin</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="plugin-system.html#implement-sync-plugin">1. Implement Sync Plugin</a></li>
+<li class="toctree-l3"><a class="reference internal" href="plugin-system.html#implement-publisher-plugin">2. Implement Publisher Plugin</a></li>
+<li class="toctree-l3"><a class="reference internal" href="plugin-system.html#register-plugin">3. Register Plugin</a></li>
+<li class="toctree-l3"><a class="reference internal" href="plugin-system.html#add-configuration-support">4. Add Configuration Support</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="plugin-system.html#plugin-lifecycle">Plugin Lifecycle</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="plugin-system.html#sync-lifecycle">Sync Lifecycle</a></li>
+<li class="toctree-l3"><a class="reference internal" href="plugin-system.html#publish-lifecycle">Publish Lifecycle</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="plugin-system.html#plugin-helpers">Plugin Helpers</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="plugin-system.html#storagemanager">StorageManager</a></li>
+<li class="toctree-l3"><a class="reference internal" href="plugin-system.html#http-client">HTTP Client</a></li>
+<li class="toctree-l3"><a class="reference internal" href="plugin-system.html#filter-engine">Filter Engine</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="plugin-system.html#testing-plugins">Testing Plugins</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="plugin-system.html#unit-tests">Unit Tests</a></li>
+<li class="toctree-l3"><a class="reference internal" href="plugin-system.html#integration-tests">Integration Tests</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="plugin-system.html#best-practices">Best Practices</a></li>
+<li class="toctree-l2"><a class="reference internal" href="plugin-system.html#future-enhancements">Future Enhancements</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Plugins</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../plugins/overview.html">Plugins Overview</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../plugins/overview.html#what-are-plugins">What are Plugins?</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../plugins/overview.html#available-plugins">Available Plugins</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../plugins/overview.html#plugin-architecture">Plugin Architecture</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../plugins/overview.html#how-plugins-work">How Plugins Work</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../plugins/overview.html#sync-plugin-workflow">Sync Plugin Workflow</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../plugins/overview.html#publisher-plugin-workflow">Publisher Plugin Workflow</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../plugins/overview.html#plugin-types">Plugin Types</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../plugins/overview.html#rpm-plugin">RPM Plugin</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../plugins/overview.html#deb-apt-plugin-planned">DEB/APT Plugin (Planned)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../plugins/overview.html#pypi-plugin-planned">PyPI Plugin (Planned)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../plugins/overview.html#creating-custom-plugins">Creating Custom Plugins</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../plugins/overview.html#plugin-configuration">Plugin Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../plugins/overview.html#plugin-registry">Plugin Registry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../plugins/overview.html#plugin-best-practices">Plugin Best Practices</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../plugins/overview.html#further-reading">Further Reading</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../plugins/rpm-plugin.html">RPM Plugin</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../plugins/rpm-plugin.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../plugins/rpm-plugin.html#features">Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../plugins/rpm-plugin.html#configuration">Configuration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../plugins/rpm-plugin.html#basic-rpm-repository">Basic RPM Repository</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../plugins/rpm-plugin.html#with-filters">With Filters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../plugins/rpm-plugin.html#rhel-with-client-certificates">RHEL with Client Certificates</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../plugins/rpm-plugin.html#how-it-works">How It Works</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../plugins/rpm-plugin.html#sync-process">Sync Process</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../plugins/rpm-plugin.html#publish-process">Publish Process</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../plugins/rpm-plugin.html#metadata-files">Metadata Files</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../plugins/rpm-plugin.html#repomd-xml">repomd.xml</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../plugins/rpm-plugin.html#primary-xml-gz">primary.xml.gz</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../plugins/rpm-plugin.html#rpm-specific-filters">RPM-Specific Filters</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../plugins/rpm-plugin.html#exclude-source-rpms">Exclude Source RPMs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../plugins/rpm-plugin.html#group-filtering">Group Filtering</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../plugins/rpm-plugin.html#license-filtering">License Filtering</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../plugins/rpm-plugin.html#supported-distributions">Supported Distributions</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../plugins/rpm-plugin.html#red-hat-enterprise-linux-rhel">Red Hat Enterprise Linux (RHEL)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../plugins/rpm-plugin.html#centos-stream">CentOS Stream</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../plugins/rpm-plugin.html#fedora">Fedora</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../plugins/rpm-plugin.html#epel-extra-packages-for-enterprise-linux">EPEL (Extra Packages for Enterprise Linux)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../plugins/rpm-plugin.html#rocky-linux">Rocky Linux</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../plugins/rpm-plugin.html#almalinux">AlmaLinux</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../plugins/rpm-plugin.html#troubleshooting">Troubleshooting</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../plugins/rpm-plugin.html#metadata-not-found">Metadata Not Found</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../plugins/rpm-plugin.html#checksum-mismatch">Checksum Mismatch</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../plugins/rpm-plugin.html#no-packages-after-filtering">No Packages After Filtering</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../plugins/rpm-plugin.html#future-enhancements">Future Enhancements</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../plugins/custom-plugins.html">Creating Custom Plugins</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../plugins/custom-plugins.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../plugins/custom-plugins.html#prerequisites">Prerequisites</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../plugins/custom-plugins.html#step-1-create-plugin-files">Step 1: Create Plugin Files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../plugins/custom-plugins.html#step-2-implement-sync-plugin">Step 2: Implement Sync Plugin</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../plugins/custom-plugins.html#basic-structure">Basic Structure</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../plugins/custom-plugins.html#helper-methods">Helper Methods</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../plugins/custom-plugins.html#http-client">HTTP Client</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../plugins/custom-plugins.html#download-file">Download File</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../plugins/custom-plugins.html#step-3-implement-publisher-plugin">Step 3: Implement Publisher Plugin</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../plugins/custom-plugins.html#id1">Basic Structure</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../plugins/custom-plugins.html#metadata-generation-example">Metadata Generation Example</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../plugins/custom-plugins.html#step-4-register-plugin">Step 4: Register Plugin</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../plugins/custom-plugins.html#step-5-add-configuration-support">Step 5: Add Configuration Support</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../plugins/custom-plugins.html#step-6-write-tests">Step 6: Write Tests</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../plugins/custom-plugins.html#example-simple-http-archive-plugin">Example: Simple HTTP Archive Plugin</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../plugins/custom-plugins.html#best-practices">Best Practices</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../plugins/custom-plugins.html#testing-your-plugin">Testing Your Plugin</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../plugins/custom-plugins.html#contributing-your-plugin">Contributing Your Plugin</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../api/modules.html">API Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../api/modules.html#core-modules">Core Modules</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/modules.html#module-chantal.core.config">Configuration</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.core.config.AuthConfig"><code class="docutils literal notranslate"><span class="pre">AuthConfig</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.core.config.ConfigLoader"><code class="docutils literal notranslate"><span class="pre">ConfigLoader</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.core.config.DatabaseConfig"><code class="docutils literal notranslate"><span class="pre">DatabaseConfig</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.core.config.DebFilterConfig"><code class="docutils literal notranslate"><span class="pre">DebFilterConfig</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.core.config.FilterConfig"><code class="docutils literal notranslate"><span class="pre">FilterConfig</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.core.config.GenericMetadataFilterConfig"><code class="docutils literal notranslate"><span class="pre">GenericMetadataFilterConfig</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.core.config.GlobalConfig"><code class="docutils literal notranslate"><span class="pre">GlobalConfig</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.core.config.ListFilterConfig"><code class="docutils literal notranslate"><span class="pre">ListFilterConfig</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.core.config.PatternFilterConfig"><code class="docutils literal notranslate"><span class="pre">PatternFilterConfig</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.core.config.PostProcessingConfig"><code class="docutils literal notranslate"><span class="pre">PostProcessingConfig</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.core.config.ProxyConfig"><code class="docutils literal notranslate"><span class="pre">ProxyConfig</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.core.config.RepositoryConfig"><code class="docutils literal notranslate"><span class="pre">RepositoryConfig</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.core.config.RetentionConfig"><code class="docutils literal notranslate"><span class="pre">RetentionConfig</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.core.config.RpmFilterConfig"><code class="docutils literal notranslate"><span class="pre">RpmFilterConfig</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.core.config.SSLConfig"><code class="docutils literal notranslate"><span class="pre">SSLConfig</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.core.config.ScheduleConfig"><code class="docutils literal notranslate"><span class="pre">ScheduleConfig</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.core.config.SizeFilterConfig"><code class="docutils literal notranslate"><span class="pre">SizeFilterConfig</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.core.config.StorageConfig"><code class="docutils literal notranslate"><span class="pre">StorageConfig</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.core.config.TimeFilterConfig"><code class="docutils literal notranslate"><span class="pre">TimeFilterConfig</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.core.config.ViewConfig"><code class="docutils literal notranslate"><span class="pre">ViewConfig</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.core.config.create_example_config"><code class="docutils literal notranslate"><span class="pre">create_example_config()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.core.config.load_config"><code class="docutils literal notranslate"><span class="pre">load_config()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/modules.html#module-chantal.core.storage">Storage</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.core.storage.StorageManager"><code class="docutils literal notranslate"><span class="pre">StorageManager</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/modules.html#module-chantal.db.models">Database Models</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/modules.html#chantal.db.models.Base"><code class="docutils literal notranslate"><span class="pre">Base</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Base.metadata"><code class="docutils literal notranslate"><span class="pre">Base.metadata</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Base.registry"><code class="docutils literal notranslate"><span class="pre">Base.registry</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/modules.html#chantal.db.models.Package"><code class="docutils literal notranslate"><span class="pre">Package</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Package.arch"><code class="docutils literal notranslate"><span class="pre">Package.arch</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Package.created_at"><code class="docutils literal notranslate"><span class="pre">Package.created_at</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Package.description"><code class="docutils literal notranslate"><span class="pre">Package.description</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Package.epoch"><code class="docutils literal notranslate"><span class="pre">Package.epoch</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Package.filename"><code class="docutils literal notranslate"><span class="pre">Package.filename</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Package.id"><code class="docutils literal notranslate"><span class="pre">Package.id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Package.name"><code class="docutils literal notranslate"><span class="pre">Package.name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Package.nevra"><code class="docutils literal notranslate"><span class="pre">Package.nevra</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Package.package_type"><code class="docutils literal notranslate"><span class="pre">Package.package_type</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Package.pool_path"><code class="docutils literal notranslate"><span class="pre">Package.pool_path</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Package.reference_count"><code class="docutils literal notranslate"><span class="pre">Package.reference_count</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Package.release"><code class="docutils literal notranslate"><span class="pre">Package.release</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Package.repositories"><code class="docutils literal notranslate"><span class="pre">Package.repositories</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Package.sha256"><code class="docutils literal notranslate"><span class="pre">Package.sha256</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Package.size_bytes"><code class="docutils literal notranslate"><span class="pre">Package.size_bytes</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Package.snapshots"><code class="docutils literal notranslate"><span class="pre">Package.snapshots</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Package.summary"><code class="docutils literal notranslate"><span class="pre">Package.summary</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Package.version"><code class="docutils literal notranslate"><span class="pre">Package.version</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/modules.html#chantal.db.models.Repository"><code class="docutils literal notranslate"><span class="pre">Repository</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Repository.created_at"><code class="docutils literal notranslate"><span class="pre">Repository.created_at</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Repository.enabled"><code class="docutils literal notranslate"><span class="pre">Repository.enabled</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Repository.feed"><code class="docutils literal notranslate"><span class="pre">Repository.feed</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Repository.id"><code class="docutils literal notranslate"><span class="pre">Repository.id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Repository.last_sync_at"><code class="docutils literal notranslate"><span class="pre">Repository.last_sync_at</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Repository.last_sync_status"><code class="docutils literal notranslate"><span class="pre">Repository.last_sync_status</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Repository.latest_path"><code class="docutils literal notranslate"><span class="pre">Repository.latest_path</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Repository.name"><code class="docutils literal notranslate"><span class="pre">Repository.name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Repository.packages"><code class="docutils literal notranslate"><span class="pre">Repository.packages</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Repository.repo_id"><code class="docutils literal notranslate"><span class="pre">Repository.repo_id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Repository.snapshots"><code class="docutils literal notranslate"><span class="pre">Repository.snapshots</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Repository.snapshots_path"><code class="docutils literal notranslate"><span class="pre">Repository.snapshots_path</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Repository.sync_history"><code class="docutils literal notranslate"><span class="pre">Repository.sync_history</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Repository.type"><code class="docutils literal notranslate"><span class="pre">Repository.type</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Repository.updated_at"><code class="docutils literal notranslate"><span class="pre">Repository.updated_at</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/modules.html#chantal.db.models.Snapshot"><code class="docutils literal notranslate"><span class="pre">Snapshot</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Snapshot.created_at"><code class="docutils literal notranslate"><span class="pre">Snapshot.created_at</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Snapshot.description"><code class="docutils literal notranslate"><span class="pre">Snapshot.description</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Snapshot.id"><code class="docutils literal notranslate"><span class="pre">Snapshot.id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Snapshot.is_published"><code class="docutils literal notranslate"><span class="pre">Snapshot.is_published</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Snapshot.name"><code class="docutils literal notranslate"><span class="pre">Snapshot.name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Snapshot.package_count"><code class="docutils literal notranslate"><span class="pre">Snapshot.package_count</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Snapshot.packages"><code class="docutils literal notranslate"><span class="pre">Snapshot.packages</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Snapshot.published_path"><code class="docutils literal notranslate"><span class="pre">Snapshot.published_path</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Snapshot.repository"><code class="docutils literal notranslate"><span class="pre">Snapshot.repository</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Snapshot.repository_id"><code class="docutils literal notranslate"><span class="pre">Snapshot.repository_id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Snapshot.total_size_bytes"><code class="docutils literal notranslate"><span class="pre">Snapshot.total_size_bytes</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/modules.html#chantal.db.models.SyncHistory"><code class="docutils literal notranslate"><span class="pre">SyncHistory</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.SyncHistory.bytes_downloaded"><code class="docutils literal notranslate"><span class="pre">SyncHistory.bytes_downloaded</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.SyncHistory.completed_at"><code class="docutils literal notranslate"><span class="pre">SyncHistory.completed_at</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.SyncHistory.duration_seconds"><code class="docutils literal notranslate"><span class="pre">SyncHistory.duration_seconds</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.SyncHistory.error_message"><code class="docutils literal notranslate"><span class="pre">SyncHistory.error_message</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.SyncHistory.id"><code class="docutils literal notranslate"><span class="pre">SyncHistory.id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.SyncHistory.packages_added"><code class="docutils literal notranslate"><span class="pre">SyncHistory.packages_added</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.SyncHistory.packages_removed"><code class="docutils literal notranslate"><span class="pre">SyncHistory.packages_removed</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.SyncHistory.packages_updated"><code class="docutils literal notranslate"><span class="pre">SyncHistory.packages_updated</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.SyncHistory.repository"><code class="docutils literal notranslate"><span class="pre">SyncHistory.repository</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.SyncHistory.repository_id"><code class="docutils literal notranslate"><span class="pre">SyncHistory.repository_id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.SyncHistory.snapshot"><code class="docutils literal notranslate"><span class="pre">SyncHistory.snapshot</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.SyncHistory.snapshot_id"><code class="docutils literal notranslate"><span class="pre">SyncHistory.snapshot_id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.SyncHistory.started_at"><code class="docutils literal notranslate"><span class="pre">SyncHistory.started_at</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.SyncHistory.status"><code class="docutils literal notranslate"><span class="pre">SyncHistory.status</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/modules.html#chantal.db.models.View"><code class="docutils literal notranslate"><span class="pre">View</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.View.created_at"><code class="docutils literal notranslate"><span class="pre">View.created_at</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.View.description"><code class="docutils literal notranslate"><span class="pre">View.description</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.View.id"><code class="docutils literal notranslate"><span class="pre">View.id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.View.is_published"><code class="docutils literal notranslate"><span class="pre">View.is_published</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.View.name"><code class="docutils literal notranslate"><span class="pre">View.name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.View.published_at"><code class="docutils literal notranslate"><span class="pre">View.published_at</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.View.published_path"><code class="docutils literal notranslate"><span class="pre">View.published_path</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.View.repo_type"><code class="docutils literal notranslate"><span class="pre">View.repo_type</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.View.updated_at"><code class="docutils literal notranslate"><span class="pre">View.updated_at</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.View.view_repositories"><code class="docutils literal notranslate"><span class="pre">View.view_repositories</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.View.view_snapshots"><code class="docutils literal notranslate"><span class="pre">View.view_snapshots</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/modules.html#chantal.db.models.ViewRepository"><code class="docutils literal notranslate"><span class="pre">ViewRepository</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.ViewRepository.added_at"><code class="docutils literal notranslate"><span class="pre">ViewRepository.added_at</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.ViewRepository.id"><code class="docutils literal notranslate"><span class="pre">ViewRepository.id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.ViewRepository.order"><code class="docutils literal notranslate"><span class="pre">ViewRepository.order</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.ViewRepository.repository"><code class="docutils literal notranslate"><span class="pre">ViewRepository.repository</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.ViewRepository.repository_id"><code class="docutils literal notranslate"><span class="pre">ViewRepository.repository_id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.ViewRepository.view"><code class="docutils literal notranslate"><span class="pre">ViewRepository.view</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.ViewRepository.view_id"><code class="docutils literal notranslate"><span class="pre">ViewRepository.view_id</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/modules.html#chantal.db.models.ViewSnapshot"><code class="docutils literal notranslate"><span class="pre">ViewSnapshot</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.ViewSnapshot.created_at"><code class="docutils literal notranslate"><span class="pre">ViewSnapshot.created_at</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.ViewSnapshot.description"><code class="docutils literal notranslate"><span class="pre">ViewSnapshot.description</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.ViewSnapshot.id"><code class="docutils literal notranslate"><span class="pre">ViewSnapshot.id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.ViewSnapshot.is_published"><code class="docutils literal notranslate"><span class="pre">ViewSnapshot.is_published</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.ViewSnapshot.name"><code class="docutils literal notranslate"><span class="pre">ViewSnapshot.name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.ViewSnapshot.package_count"><code class="docutils literal notranslate"><span class="pre">ViewSnapshot.package_count</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.ViewSnapshot.published_at"><code class="docutils literal notranslate"><span class="pre">ViewSnapshot.published_at</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.ViewSnapshot.published_path"><code class="docutils literal notranslate"><span class="pre">ViewSnapshot.published_path</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.ViewSnapshot.snapshot_ids"><code class="docutils literal notranslate"><span class="pre">ViewSnapshot.snapshot_ids</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.ViewSnapshot.total_size_bytes"><code class="docutils literal notranslate"><span class="pre">ViewSnapshot.total_size_bytes</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.ViewSnapshot.view"><code class="docutils literal notranslate"><span class="pre">ViewSnapshot.view</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.ViewSnapshot.view_id"><code class="docutils literal notranslate"><span class="pre">ViewSnapshot.view_id</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/modules.html#plugins">Plugins</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/modules.html#module-chantal.plugins.base">Base Plugins</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.plugins.base.PublisherPlugin"><code class="docutils literal notranslate"><span class="pre">PublisherPlugin</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/modules.html#module-chantal.plugins.rpm">RPM Plugin</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.plugins.rpm.RpmPublisher"><code class="docutils literal notranslate"><span class="pre">RpmPublisher</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.plugins.rpm_sync.CheckUpdatesResult"><code class="docutils literal notranslate"><span class="pre">CheckUpdatesResult</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.plugins.rpm_sync.PackageMetadata"><code class="docutils literal notranslate"><span class="pre">PackageMetadata</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.plugins.rpm_sync.PackageUpdate"><code class="docutils literal notranslate"><span class="pre">PackageUpdate</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.plugins.rpm_sync.RpmSyncPlugin"><code class="docutils literal notranslate"><span class="pre">RpmSyncPlugin</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.plugins.rpm_sync.SyncResult"><code class="docutils literal notranslate"><span class="pre">SyncResult</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../api/modules.html#module-chantal.cli">CLI</a></li>
 </ul>
 </li>
 </ul>

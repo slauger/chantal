@@ -90,6 +90,7 @@
 <li class="toctree-l2"><a class="reference internal" href="../user-guide/cli-commands.html#snapshot-management">Snapshot Management</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="../user-guide/cli-commands.html#chantal-snapshot-list"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">snapshot</span> <span class="pre">list</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../user-guide/cli-commands.html#chantal-snapshot-create"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">snapshot</span> <span class="pre">create</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/cli-commands.html#chantal-snapshot-content"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">snapshot</span> <span class="pre">content</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../user-guide/cli-commands.html#chantal-snapshot-diff"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">snapshot</span> <span class="pre">diff</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../user-guide/cli-commands.html#chantal-snapshot-delete"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">snapshot</span> <span class="pre">delete</span></code></a></li>
 </ul>
@@ -125,41 +126,70 @@
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../user-guide/views.html">Views (Virtual Repositories)</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="../user-guide/views.html#what-are-views">What are Views?</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../user-guide/views.html#configure-views">Configure Views</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../user-guide/views.html#list-and-show-views">List and Show Views</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../user-guide/views.html#publish-views">Publish Views</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../user-guide/views.html#view-snapshots">View Snapshots</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../user-guide/views.html#benefits-of-view-snapshots">Benefits of View Snapshots</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../user-guide/views.html#use-cases">Use Cases</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#use-case-1-rhel-complete-repository">Use Case 1: RHEL Complete Repository</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#use-case-2-rhel-epel-mixed">Use Case 2: RHEL + EPEL Mixed</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#use-case-3-application-stack">Use Case 3: Application Stack</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#use-case-4-monthly-patch-baseline">Use Case 4: Monthly Patch Baseline</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#combining-rhel-channels">1. Combining RHEL Channels</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#mixing-rhel-epel">2. Mixing RHEL + EPEL</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#custom-application-stacks">3. Custom Application Stacks</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="../user-guide/views.html#view-commands-reference">View Commands Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/views.html#configuration">Configuration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#location">Location</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#format">Format</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#requirements">Requirements</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#example-configuration">Example Configuration</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/views.html#cli-commands">CLI Commands</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#list-views">List Views</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#show-view-details">Show View Details</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#publish-view">Publish View</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#create-view-snapshot">Create View Snapshot</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#list-view-snapshots">List View Snapshots</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#compare-view-snapshots">Compare View Snapshots</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#publish-view-latest-rolling">Publish View (Latest/Rolling)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/views.html#view-snapshots">View Snapshots</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#create-view-snapshot-atomic-freeze">Create View Snapshot (Atomic Freeze)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#publish-view-snapshot">Publish View Snapshot</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#show-snapshot-content-compliance-audit">Show Snapshot Content (Compliance/Audit)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/views.html#workflows">Workflows</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#workflow-1-rolling-release-development">Workflow 1: Rolling Release (Development)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#workflow-2-frozen-baselines-production">Workflow 2: Frozen Baselines (Production)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#workflow-3-compliance-audit">Workflow 3: Compliance/Audit</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#workflow-4-automated-monthly-compliance-reports">Workflow 4: Automated Monthly Compliance Reports</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/views.html#important-design-decisions">Important Design Decisions</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#no-deduplication">1. NO Deduplication</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#repository-order-matters">2. Repository Order Matters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#view-snapshots-are-atomic">3. View Snapshots are Atomic</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#hardlink-based-publishing">4. Hardlink-based Publishing</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/views.html#client-configuration-examples">Client Configuration Examples</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#example-1-development-rolling-release">Example 1: Development (Rolling Release)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#example-2-production-frozen-baseline">Example 2: Production (Frozen Baseline)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#example-3-testing-new-baseline">Example 3: Testing New Baseline</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/views.html#troubleshooting">Troubleshooting</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#view-shows-0-packages">View shows 0 packages</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#view-snapshot-creation-fails">View snapshot creation fails</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#published-view-doesnt-update">Published view doesn’t update</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#repository-not-found-in-view">Repository not found in view</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#view-type-mismatch">View type mismatch</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="../user-guide/views.html#best-practices">Best Practices</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/views.html#migration-from-pulp-katello">Migration from Pulp/Katello</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#pulp-composite-content-views-chantal-views">Pulp “Composite Content Views” → Chantal “Views”</a></li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="../user-guide/views.html#technical-details">Technical Details</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#how-views-work">How Views Work</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#storage-layout">Storage Layout</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#duplicate-packages">Duplicate Packages</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#database-models">Database Models</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#storage-structure">Storage Structure</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="../user-guide/views.html#limitations">Limitations</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../user-guide/views.html#troubleshooting">Troubleshooting</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#view-not-found">View Not Found</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#repository-not-found-in-view">Repository Not Found in View</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../user-guide/views.html#view-snapshot-failed">View Snapshot Failed</a></li>
-</ul>
-</li>
+<li class="toctree-l2"><a class="reference internal" href="../user-guide/views.html#future-enhancements">Future Enhancements</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../user-guide/workflows.html">Workflows</a><ul>
@@ -212,12 +242,12 @@
 <li class="toctree-l2"><a class="reference internal" href="../configuration/overview.html#configuration-file-structure">Configuration File Structure</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../configuration/overview.html#configuration-file-priority">Configuration File Priority</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../configuration/overview.html#development-vs-production">Development vs. Production</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="../configuration/overview.html#development-setup">Development Setup</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../configuration/overview.html#production-setup">Production Setup</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../configuration/overview.html#development-setup">Development Setup</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="../configuration/overview.html#database-configuration">Database Configuration</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="../configuration/overview.html#sqlite-development">SQLite (Development)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../configuration/overview.html#sqlite-development-testing">SQLite (Development/Testing)</a></li>
 <li class="toctree-l3"><a class="reference internal" href="../configuration/overview.html#postgresql-production">PostgreSQL (Production)</a></li>
 </ul>
 </li>
@@ -1114,7 +1144,7 @@ alembic<span class="w"> </span>current
 <h3>SQLite (Development)<a class="headerlink" href="#sqlite-development" title="Link to this heading"></a></h3>
 <p><strong>Connection string:</strong></p>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">database</span><span class="p">:</span>
-<span class="w">  </span><span class="nt">url</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">sqlite:///.dev/chantal-dev.db</span>
+<span class="w">  </span><span class="nt">url</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">sqlite:///chantal.db</span>
 </pre></div>
 </div>
 <p><strong>Pros:</strong></p>
@@ -1167,7 +1197,7 @@ alembic<span class="w"> </span>current
 <h2>Maintenance<a class="headerlink" href="#maintenance" title="Link to this heading"></a></h2>
 <section id="vacuum-sqlite">
 <h3>Vacuum (SQLite)<a class="headerlink" href="#vacuum-sqlite" title="Link to this heading"></a></h3>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sqlite3<span class="w"> </span>.dev/chantal-dev.db<span class="w"> </span><span class="s2">&quot;VACUUM;&quot;</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sqlite3<span class="w"> </span>/var/lib/chantal/chantal.db<span class="w"> </span><span class="s2">&quot;VACUUM;&quot;</span>
 </pre></div>
 </div>
 </section>

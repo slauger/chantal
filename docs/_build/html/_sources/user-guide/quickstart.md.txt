@@ -7,21 +7,25 @@ This guide will help you get started with Chantal in minutes.
 Create the database and directory structure:
 
 ```bash
+# Production
+sudo chantal init
+
+# Development/Testing
 chantal init
 ```
 
 Output:
 ```
 Chantal initialization...
-Database: sqlite:///.dev/chantal-dev.db
-Storage base path: ./.dev/dev-storage
-Pool path: ./.dev/dev-storage/pool
-Published path: ./.dev/dev-storage/published
+Database: postgresql://chantal:***@localhost/chantal
+Storage base path: /var/lib/chantal
+Pool path: /var/lib/chantal/pool
+Published path: /var/www/repos
 
 Creating directories...
-  ✓ Created: ./.dev/dev-storage
-  ✓ Created: ./.dev/dev-storage/pool
-  ✓ Created: ./.dev/dev-storage/published
+  ✓ Created: /var/lib/chantal
+  ✓ Created: /var/lib/chantal/pool
+  ✓ Created: /var/www/repos
 
 Initializing database...
   ✓ Database schema created
@@ -31,21 +35,22 @@ Initializing database...
 
 ## 2. Configure Repositories
 
-Create `config.yaml` (or use `.dev/config.yaml` for development):
+Create `/etc/chantal/config.yaml`:
 
 ```yaml
 # Database
 database:
-  url: sqlite:///.dev/chantal-dev.db
+  url: postgresql://chantal:password@localhost/chantal
+  # or for development: sqlite:///chantal.db
 
 # Storage paths
 storage:
-  base_path: ./.dev/dev-storage
-  pool_path: ./.dev/dev-storage/pool
-  published_path: ./.dev/dev-storage/published
+  base_path: /var/lib/chantal
+  pool_path: /var/lib/chantal/pool
+  published_path: /var/www/repos
 
 # Include repository definitions
-include: "conf.d/*.yaml"
+include: /etc/chantal/conf.d/*.yaml
 ```
 
 Create a repository definition in `conf.d/epel9.yaml`:

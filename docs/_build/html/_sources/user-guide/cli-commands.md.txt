@@ -26,11 +26,15 @@ Chantal looks for configuration files in this order:
    - `~/.config/chantal/config.yaml` (user)
    - `./config.yaml` (current directory)
 
-**Development tip:** Use `CHANTAL_CONFIG` to avoid typing `--config .dev/config.yaml` repeatedly:
+**Tip:** If not using default location, set `CHANTAL_CONFIG`:
 
 ```bash
-export CHANTAL_CONFIG=.dev/config.yaml
+# For custom config location
+export CHANTAL_CONFIG=/path/to/config.yaml
 chantal repo sync --repo-id epel9-vim-latest
+
+# Development with local config
+export CHANTAL_CONFIG=./config-dev.yaml
 ```
 
 ## Initialize

@@ -186,10 +186,10 @@ Simple setup for few repositories:
 ```yaml
 # config.yaml
 database:
-  url: sqlite:///.dev/chantal-dev.db
+  url: postgresql://chantal:password@localhost/chantal
 
 storage:
-  base_path: ./.dev/dev-storage
+  base_path: /var/lib/chantal
 
 repositories:
   - id: epel9-latest

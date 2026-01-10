@@ -45,7 +45,7 @@ SQLite is the default and requires no additional setup:
 
 ```yaml
 database:
-  url: sqlite:///.dev/chantal-dev.db
+  url: sqlite:///chantal.db
 ```
 
 ### PostgreSQL (Production)
