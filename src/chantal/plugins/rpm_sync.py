@@ -219,6 +219,14 @@ class RpmSyncPlugin:
                 if pkg_meta.sha256 in existing_packages:
                     print(f"  → Already in pool (SHA256: {pkg_meta.sha256[:16]}...)")
                     packages_skipped += 1
+
+                    # Link existing package to this repository if not already linked
+                    existing_pkg = existing_packages[pkg_meta.sha256]
+                    if repository not in existing_pkg.repositories:
+                        existing_pkg.repositories.append(repository)
+                        session.commit()
+                        print(f"  → Linked to repository")
+
                     continue
 
                 # Download package
@@ -781,6 +789,10 @@ class RpmSyncPlugin:
                     description=pkg_meta.description,
                 )
                 session.add(package)
+                session.commit()
+
+                # Link package to repository
+                package.repositories.append(repository)
                 session.commit()
 
                 return bytes_downloaded

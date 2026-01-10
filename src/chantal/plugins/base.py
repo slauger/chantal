@@ -123,8 +123,8 @@ class PublisherPlugin(ABC):
     ) -> List[Package]:
         """Helper: Get all packages for a repository.
 
-        This is a simplified implementation. In reality, you'd query
-        a repository_packages association table or the latest snapshot.
+        Uses the repository_packages junction table to get packages
+        that are currently in the repository's "latest" state.
 
         Args:
             session: Database session
@@ -133,10 +133,10 @@ class PublisherPlugin(ABC):
         Returns:
             List of packages in repository
         """
-        # TODO: Implement proper repository-package relationship
-        # For now, get all packages matching the repository type
-        # This is a TEMPORARY workaround - we need a repository_packages table!
-        return session.query(Package).filter_by(package_type=repository.type).all()
+        # Use SQLAlchemy relationship to get packages
+        # This automatically uses the repository_packages junction table
+        session.refresh(repository)  # Ensure we have latest data
+        return list(repository.packages)
 
     def _get_snapshot_packages(
         self,

@@ -28,7 +28,18 @@ class Base(DeclarativeBase):
     pass
 
 
+# Association table for many-to-many relationship between repositories and packages
+# This tracks which packages are currently in a repository (the "latest" state)
+repository_packages = Table(
+    "repository_packages",
+    Base.metadata,
+    Column("repository_id", Integer, ForeignKey("repositories.id"), primary_key=True),
+    Column("package_id", Integer, ForeignKey("packages.id"), primary_key=True),
+    Column("added_at", DateTime, default=datetime.utcnow, nullable=False),
+)
+
 # Association table for many-to-many relationship between snapshots and packages
+# This tracks immutable point-in-time copies of repository state
 snapshot_packages = Table(
     "snapshot_packages",
     Base.metadata,
@@ -73,6 +84,9 @@ class Repository(Base):
     )
     sync_history: Mapped[list["SyncHistory"]] = relationship(
         "SyncHistory", back_populates="repository", cascade="all, delete-orphan"
+    )
+    packages: Mapped[list["Package"]] = relationship(
+        "Package", secondary=repository_packages, back_populates="repositories"
     )
 
     def __repr__(self) -> str:
@@ -125,6 +139,9 @@ class Package(Base):
     reference_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
     # Relationships
+    repositories: Mapped[list["Repository"]] = relationship(
+        "Repository", secondary=repository_packages, back_populates="packages"
+    )
     snapshots: Mapped[list["Snapshot"]] = relationship(
         "Snapshot", secondary=snapshot_packages, back_populates="packages"
     )
