@@ -441,10 +441,15 @@ def snapshot_create(ctx: click.Context, repo_id: str, name: str, description: st
               default="table", help="Output format")
 @click.pass_context
 def snapshot_diff(ctx: click.Context, repo_id: str, snapshot1: str, snapshot2: str, output_format: str) -> None:
-    """Compare two snapshots within a repository.
+    """Compare two snapshots within a repository, or a snapshot against upstream.
 
     Shows packages that were added, removed, or updated between two snapshots
-    of the same repository. Perfect for generating patch announcements!
+    or between a snapshot and the current upstream state.
+
+    Use "upstream" as snapshot2 to compare against current repository state:
+      chantal snapshot diff --repo-id rhel9-baseos 2025-01-10 upstream
+
+    Perfect for generating patch announcements!
     """
     config: GlobalConfig = ctx.obj["config"]
     db_manager = DatabaseManager(config.database.url)
@@ -456,28 +461,40 @@ def snapshot_diff(ctx: click.Context, repo_id: str, snapshot1: str, snapshot2: s
             click.echo(f"Error: Repository '{repo_id}' not found.", err=True)
             ctx.exit(1)
 
-        # Get both snapshots
+        # Get first snapshot
         snap1 = (
             session.query(Snapshot)
             .filter_by(repository_id=repository.id, name=snapshot1)
-            .first()
-        )
-        snap2 = (
-            session.query(Snapshot)
-            .filter_by(repository_id=repository.id, name=snapshot2)
             .first()
         )
 
         if not snap1:
             click.echo(f"Error: Snapshot '{snapshot1}' not found.", err=True)
             ctx.exit(1)
-        if not snap2:
-            click.echo(f"Error: Snapshot '{snapshot2}' not found.", err=True)
-            ctx.exit(1)
 
-        # Get packages for both snapshots
+        # Get packages from first snapshot
         packages1 = {pkg.sha256: pkg for pkg in snap1.packages}
-        packages2 = {pkg.sha256: pkg for pkg in snap2.packages}
+
+        # Get second comparison source (snapshot or upstream)
+        if snapshot2.lower() == "upstream":
+            # Compare against current repository state
+            session.refresh(repository)
+            packages2 = {pkg.sha256: pkg for pkg in repository.packages}
+            comparison_name = "upstream (current)"
+        else:
+            # Compare against another snapshot
+            snap2 = (
+                session.query(Snapshot)
+                .filter_by(repository_id=repository.id, name=snapshot2)
+                .first()
+            )
+
+            if not snap2:
+                click.echo(f"Error: Snapshot '{snapshot2}' not found.", err=True)
+                ctx.exit(1)
+
+            packages2 = {pkg.sha256: pkg for pkg in snap2.packages}
+            comparison_name = snapshot2
 
         # Calculate differences
         added_sha256s = set(packages2.keys()) - set(packages1.keys())
@@ -519,7 +536,7 @@ def snapshot_diff(ctx: click.Context, repo_id: str, snapshot1: str, snapshot2: s
             result = {
                 "repository": repo_id,
                 "snapshot1": snapshot1,
-                "snapshot2": snapshot2,
+                "snapshot2": comparison_name,
                 "added": [
                     {
                         "name": pkg.name,
@@ -559,7 +576,7 @@ def snapshot_diff(ctx: click.Context, repo_id: str, snapshot1: str, snapshot2: s
         else:
             # Table format
             click.echo(f"Repository: {repo_id}")
-            click.echo(f"Comparing: {snapshot1} → {snapshot2}")
+            click.echo(f"Comparing: {snapshot1} → {comparison_name}")
             click.echo()
 
             if added:
