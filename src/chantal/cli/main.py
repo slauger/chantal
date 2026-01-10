@@ -18,8 +18,11 @@ from chantal.db.models import Repository, Snapshot
 from chantal.plugins.rpm_sync import RpmSyncPlugin
 from chantal.plugins.rpm import RpmPublisher
 
+# Click context settings to enable -h as alias for --help
+CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 
-@click.group()
+
+@click.group(context_settings=CONTEXT_SETTINGS)
 @click.version_option(version=__version__)
 @click.option(
     "--config",
@@ -88,7 +91,7 @@ def init(ctx: click.Context) -> None:
     click.echo("\n✓ Chantal initialized successfully!")
 
 
-@cli.group()
+@cli.group(context_settings=CONTEXT_SETTINGS)
 def repo() -> None:
     """Repository management commands."""
     pass
@@ -280,7 +283,7 @@ def repo_history(ctx: click.Context, repo_id: str, limit: int, output_format: st
     click.echo("TODO: Query sync_history table from database")
 
 
-@cli.group()
+@cli.group(context_settings=CONTEXT_SETTINGS)
 def snapshot() -> None:
     """Snapshot management commands."""
     pass
@@ -668,7 +671,7 @@ def snapshot_delete(ctx: click.Context, repo_id: str, snapshot_name: str, force:
         click.echo("Note: Packages remain in pool for other repositories/snapshots")
 
 
-@cli.group()
+@cli.group(context_settings=CONTEXT_SETTINGS)
 def package() -> None:
     """Package management commands."""
     pass
@@ -755,7 +758,7 @@ def stats(ctx: click.Context, repo_id: str) -> None:
     click.echo("  Total Snapshots: 23")
 
 
-@cli.group()
+@cli.group(context_settings=CONTEXT_SETTINGS)
 def db() -> None:
     """Database management commands."""
     pass
@@ -802,7 +805,7 @@ def db_verify(ctx: click.Context) -> None:
     click.echo("  - Foreign key constraints are valid")
 
 
-@cli.group()
+@cli.group(context_settings=CONTEXT_SETTINGS)
 def pool() -> None:
     """Storage pool management commands."""
     pass
@@ -972,7 +975,7 @@ def pool_verify(ctx: click.Context) -> None:
         session.close()
 
 
-@cli.group()
+@cli.group(context_settings=CONTEXT_SETTINGS)
 def publish() -> None:
     """Publishing management commands."""
     pass
