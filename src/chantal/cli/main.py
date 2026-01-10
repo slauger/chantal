@@ -14,8 +14,8 @@ from chantal import __version__
 from chantal.core.config import GlobalConfig, load_config
 from chantal.core.storage import StorageManager
 from chantal.db.connection import DatabaseManager
-from chantal.db.models import Repository, Snapshot
-from chantal.plugins.rpm_sync import RpmSyncPlugin
+from chantal.db.models import Repository, Snapshot, SyncHistory, Package
+from chantal.plugins.rpm_sync import RpmSyncPlugin, CheckUpdatesResult, PackageUpdate
 from chantal.plugins.rpm import RpmPublisher
 
 # Click context settings to enable -h as alias for --help
@@ -51,6 +51,10 @@ def cli(ctx: click.Context, config: Optional[Path], verbose: bool) -> None:
         else:
             # No config file found, use defaults
             ctx.obj["config"] = GlobalConfig()
+    except ValueError as e:
+        # YAML syntax error or validation error
+        click.echo(f"Error: {e}", err=True)
+        ctx.exit(1)
 
     if verbose:
         click.echo(f"Loaded configuration: {len(ctx.obj['config'].repositories)} repositories")
@@ -98,23 +102,106 @@ def repo() -> None:
 
 
 @repo.command("list")
+@click.option("--format", "output_format", type=click.Choice(["table", "json"]),
+              default="table", help="Output format")
 @click.pass_context
-def repo_list(ctx: click.Context) -> None:
-    """List configured repositories."""
-    click.echo("Configured Repositories:")
-    click.echo("TODO: Load and display repositories")
+def repo_list(ctx: click.Context, output_format: str) -> None:
+    """List configured repositories.
+
+    Shows all repositories from config with their current sync status.
+    Config is the source of truth - database provides runtime status only.
+    """
+    config: GlobalConfig = ctx.obj["config"]
+    db_manager = DatabaseManager(config.database.url)
+
+    with db_manager.session() as session:
+        # Get all repositories from config (source of truth)
+        config_repos = config.repositories
+
+        # Get DB status for all repos
+        db_repos = {repo.repo_id: repo for repo in session.query(Repository).all()}
+
+        if output_format == "json":
+            import json
+            result = []
+            for repo_config in config_repos:
+                db_repo = db_repos.get(repo_config.id)
+                result.append({
+                    "repo_id": repo_config.id,
+                    "name": repo_config.name,
+                    "type": repo_config.type,
+                    "feed": repo_config.feed,
+                    "enabled": repo_config.enabled,
+                    "package_count": len(db_repo.packages) if db_repo else 0,
+                    "last_sync": db_repo.last_sync_at.isoformat() if db_repo and db_repo.last_sync_at else None,
+                    "synced": db_repo is not None,
+                })
+            click.echo(json.dumps(result, indent=2))
+        else:
+            # Table format
+            click.echo("Configured Repositories:")
+            click.echo()
+
+            if not config_repos:
+                click.echo("  No repositories configured.")
+                click.echo("\nAdd repositories to your config file.")
+                return
+
+            # Collect all rows first to calculate column widths
+            rows = []
+            for repo_config in config_repos:
+                db_repo = db_repos.get(repo_config.id)
+
+                enabled_str = "Yes" if repo_config.enabled else "No"
+                package_count = len(db_repo.packages) if db_repo else 0
+
+                if db_repo and db_repo.last_sync_at:
+                    last_sync_str = db_repo.last_sync_at.strftime("%Y-%m-%d %H:%M")
+                else:
+                    last_sync_str = "Not synced"
+
+                rows.append({
+                    "id": repo_config.id,
+                    "type": repo_config.type,
+                    "enabled": enabled_str,
+                    "packages": str(package_count),
+                    "last_sync": last_sync_str,
+                })
+
+            # Calculate column widths (minimum 10 chars, based on longest entry)
+            col_widths = {
+                "id": max(len("ID"), max(len(row["id"]) for row in rows)),
+                "type": max(len("Type"), max(len(row["type"]) for row in rows)),
+                "enabled": max(len("Enabled"), max(len(row["enabled"]) for row in rows)),
+                "packages": max(len("Packages"), max(len(row["packages"]) for row in rows)),
+                "last_sync": max(len("Last Sync"), max(len(row["last_sync"]) for row in rows)),
+            }
+
+            # Header
+            header = f"{('ID'):<{col_widths['id']}} {('Type'):<{col_widths['type']}} {('Enabled'):<{col_widths['enabled']}} {('Packages'):>{col_widths['packages']}} {('Last Sync'):<{col_widths['last_sync']}}"
+            click.echo(header)
+            click.echo("-" * len(header))
+
+            # Rows
+            for row in rows:
+                click.echo(f"{row['id']:<{col_widths['id']}} {row['type']:<{col_widths['type']}} {row['enabled']:<{col_widths['enabled']}} {row['packages']:>{col_widths['packages']}} {row['last_sync']:<{col_widths['last_sync']}}")
+
+            click.echo()
+            click.echo(f"Total: {len(config_repos)} repository(ies)")
 
 
 @repo.command("sync")
 @click.option("--repo-id", help="Repository ID to sync")
 @click.option("--all", is_flag=True, help="Sync all enabled repositories")
-@click.option("--type", help="Filter by repository type (rpm, apt) when using --all")
-@click.option("--workers", type=int, default=1, help="Number of parallel workers for --all")
+@click.option("--pattern", help="Sync repositories matching pattern (e.g., 'epel9-*', '*-latest')")
+@click.option("--type", help="Filter by repository type (rpm, apt) when using --all or --pattern")
+@click.option("--workers", type=int, default=1, help="Number of parallel workers for --all or --pattern")
 @click.pass_context
 def repo_sync(
     ctx: click.Context,
     repo_id: str,
     all: bool,
+    pattern: str,
     type: str,
     workers: int,
 ) -> None:
@@ -123,14 +210,24 @@ def repo_sync(
     Downloads packages from upstream and stores them in the content-addressed pool.
     Does NOT create snapshots automatically - use 'chantal snapshot create' for that.
 
-    Either specify --repo-id for a single repository or --all for all enabled repositories.
+    Options:
+      --repo-id ID       Sync a single repository
+      --all              Sync all enabled repositories
+      --pattern PATTERN  Sync repositories matching pattern (e.g., 'epel9-*', '*-latest')
+      --type TYPE        Filter by repository type (rpm, apt)
+
+    Examples:
+      chantal repo sync --repo-id rhel9-baseos-vim-latest
+      chantal repo sync --all
+      chantal repo sync --pattern "epel9-*"
+      chantal repo sync --pattern "*-latest" --type rpm
     """
-    if not repo_id and not all:
-        click.echo("Error: Either --repo-id or --all is required")
+    if not repo_id and not all and not pattern:
+        click.echo("Error: Either --repo-id, --all, or --pattern is required")
         raise click.Abort()
 
-    if repo_id and all:
-        click.echo("Error: Cannot use both --repo-id and --all")
+    if sum([bool(repo_id), bool(all), bool(pattern)]) > 1:
+        click.echo("Error: Cannot use multiple selection methods (--repo-id, --all, --pattern)")
         raise click.Abort()
 
     config: GlobalConfig = ctx.obj["config"]
@@ -155,6 +252,38 @@ def repo_sync(
 
             if not repos_to_sync:
                 click.echo("No enabled repositories found")
+                return
+
+            click.echo(f"Found {len(repos_to_sync)} repositories to sync\n")
+
+            # TODO: Implement parallel workers if workers > 1
+            for repo_config in repos_to_sync:
+                click.echo(f"--- Syncing {repo_config.id} ---")
+                _sync_single_repository(session, storage, config, repo_config)
+
+        elif pattern:
+            import fnmatch
+
+            click.echo(f"Syncing repositories matching pattern: {pattern}")
+            if type:
+                click.echo(f"Filtered by type: {type}")
+            if workers > 1:
+                click.echo(f"Using {workers} parallel workers")
+
+            # Get all enabled repositories matching pattern
+            repos_to_sync = [
+                r for r in config.repositories
+                if r.enabled and fnmatch.fnmatch(r.id, pattern)
+            ]
+            if type:
+                repos_to_sync = [r for r in repos_to_sync if r.type == type]
+
+            if not repos_to_sync:
+                click.echo(f"No enabled repositories found matching pattern '{pattern}'")
+                click.echo("\nAvailable enabled repositories:")
+                for r in config.repositories:
+                    if r.enabled:
+                        click.echo(f"  - {r.id}")
                 return
 
             click.echo(f"Found {len(repos_to_sync)} repositories to sync\n")
@@ -192,12 +321,17 @@ def _sync_single_repository(session, storage, global_config, repo_config):
         session.add(repository)
         session.commit()
 
+    # Merge proxy and SSL config: repo-specific overrides global
+    effective_proxy = repo_config.proxy if repo_config.proxy is not None else global_config.proxy
+    effective_ssl = repo_config.ssl if repo_config.ssl is not None else global_config.ssl
+
     # Initialize sync plugin based on repository type
     if repo_config.type == "rpm":
         sync_plugin = RpmSyncPlugin(
             storage=storage,
             config=repo_config,
-            proxy_config=global_config.proxy,
+            proxy_config=effective_proxy,
+            ssl_config=effective_ssl,
         )
     else:
         click.echo(f"Error: Unsupported repository type: {repo_config.type}")
@@ -208,6 +342,11 @@ def _sync_single_repository(session, storage, global_config, repo_config):
 
     # Display result
     if result.success:
+        # Update last sync timestamp
+        from datetime import datetime, timezone
+        repository.last_sync_at = datetime.now(timezone.utc)
+        session.commit()
+
         click.echo(f"\n✓ Sync completed successfully!")
         click.echo(f"  Total packages: {result.packages_total}")
         click.echo(f"  Downloaded: {result.packages_downloaded}")
@@ -219,40 +358,325 @@ def _sync_single_repository(session, storage, global_config, repo_config):
 
 @repo.command("show")
 @click.option("--repo-id", required=True, help="Repository ID")
-@click.pass_context
-def repo_show(ctx: click.Context, repo_id: str) -> None:
-    """Show repository details."""
-    click.echo(f"Repository: {repo_id}")
-    click.echo("TODO: Show repository configuration and status")
-
-
-@repo.command("check-updates")
-@click.option("--repo-id", required=True, help="Repository ID")
 @click.option("--format", "output_format", type=click.Choice(["table", "json"]),
               default="table", help="Output format")
 @click.pass_context
-def repo_check_updates(ctx: click.Context, repo_id: str, output_format: str) -> None:
+def repo_show(ctx: click.Context, repo_id: str, output_format: str) -> None:
+    """Show detailed repository information.
+
+    Displays comprehensive repository details including configuration,
+    package statistics, sync history, and snapshots.
+    """
+    config: GlobalConfig = ctx.obj["config"]
+    db_manager = DatabaseManager(config.database.url)
+
+    with db_manager.session() as session:
+        # Get repository from database
+        repository = session.query(Repository).filter_by(repo_id=repo_id).first()
+
+        if not repository:
+            click.echo(f"Error: Repository '{repo_id}' not found in database.", err=True)
+            click.echo("Run 'chantal repo list' to see available repositories.", err=True)
+            ctx.exit(1)
+
+        # Get repository config from YAML
+        repo_config = next((r for r in config.repositories if r.id == repo_id), None)
+
+        # Get statistics
+        session.refresh(repository)
+        packages = list(repository.packages)
+        package_count = len(packages)
+        total_size_bytes = sum(pkg.size_bytes for pkg in packages) if packages else 0
+
+        # Get snapshots count
+        snapshots = session.query(Snapshot).filter_by(repository_id=repository.id).all()
+        snapshot_count = len(snapshots)
+
+        if output_format == "json":
+            import json
+            result = {
+                "repo_id": repository.repo_id,
+                "name": repository.name,
+                "type": repository.type,
+                "feed": repository.feed,
+                "enabled": repository.enabled,
+                "statistics": {
+                    "package_count": package_count,
+                    "total_size_bytes": total_size_bytes,
+                    "total_size_gb": round(total_size_bytes / (1024**3), 2),
+                    "snapshot_count": snapshot_count,
+                },
+                "sync": {
+                    "last_sync": repository.last_sync_at.isoformat() if repository.last_sync_at else None,
+                },
+                "config": {
+                    "has_filters": bool(repo_config.filters) if repo_config else False,
+                } if repo_config else None,
+            }
+            click.echo(json.dumps(result, indent=2))
+        else:
+            # Table format
+            click.echo("=" * 70)
+            click.echo(f"Repository: {repository.repo_id}")
+            click.echo("=" * 70)
+            click.echo()
+
+            click.echo("Configuration:")
+            click.echo(f"  Name:         {repository.name}")
+            click.echo(f"  Type:         {repository.type}")
+            click.echo(f"  Feed URL:     {repository.feed}")
+            click.echo(f"  Enabled:      {'Yes' if repository.enabled else 'No'}")
+
+            if repo_config and repo_config.filters:
+                click.echo(f"  Filters:      Active")
+                if hasattr(repo_config.filters, 'post_processing') and repo_config.filters.post_processing:
+                    if repo_config.filters.post_processing.only_latest_version:
+                        click.echo(f"                - Only latest versions")
+            else:
+                click.echo(f"  Filters:      None")
+
+            click.echo()
+            click.echo("Statistics:")
+            click.echo(f"  Total Packages:   {package_count:,}")
+
+            if total_size_bytes > 0:
+                size_gb = total_size_bytes / (1024**3)
+                if size_gb >= 1.0:
+                    click.echo(f"  Total Size:       {size_gb:.2f} GB")
+                else:
+                    size_mb = total_size_bytes / (1024**2)
+                    click.echo(f"  Total Size:       {size_mb:.1f} MB")
+            else:
+                click.echo(f"  Total Size:       0 bytes")
+
+            click.echo(f"  Snapshots:        {snapshot_count}")
+
+            click.echo()
+            click.echo("Sync Information:")
+            if repository.last_sync_at:
+                click.echo(f"  Last Sync:    {repository.last_sync_at.strftime('%Y-%m-%d %H:%M:%S')}")
+            else:
+                click.echo(f"  Last Sync:    Never")
+                click.echo()
+                click.echo(f"  Run 'chantal repo sync --repo-id {repo_id}' to sync this repository.")
+
+            if snapshots:
+                click.echo()
+                click.echo(f"Recent Snapshots (showing {min(5, len(snapshots))}):")
+                for snap in sorted(snapshots, key=lambda s: s.created_at, reverse=True)[:5]:
+                    published = " [PUBLISHED]" if snap.is_published else ""
+                    click.echo(f"  - {snap.name:<30} {snap.created_at.strftime('%Y-%m-%d %H:%M')}{published}")
+
+            click.echo()
+            click.echo("=" * 70)
+
+
+@repo.command("check-updates")
+@click.option("--repo-id", help="Repository ID to check")
+@click.option("--all", is_flag=True, help="Check all enabled repositories")
+@click.option("--pattern", help="Check repositories matching pattern (e.g., 'epel9-*', '*-latest')")
+@click.option("--type", help="Filter by repository type (rpm, apt) when using --all or --pattern")
+@click.option("--format", "output_format", type=click.Choice(["table", "json"]),
+              default="table", help="Output format")
+@click.pass_context
+def repo_check_updates(
+    ctx: click.Context,
+    repo_id: str,
+    all: bool,
+    pattern: str,
+    type: str,
+    output_format: str,
+) -> None:
     """Check for available updates without syncing.
 
     Downloads remote metadata and compares with local database
     to show which packages have updates available.
     Similar to 'dnf check-update'.
+
+    Options:
+      --repo-id ID       Check a single repository
+      --all              Check all enabled repositories
+      --pattern PATTERN  Check repositories matching pattern (e.g., 'epel9-*', '*-latest')
+      --type TYPE        Filter by repository type (rpm, apt)
+
+    Examples:
+      chantal repo check-updates --repo-id rhel9-baseos-vim-latest
+      chantal repo check-updates --all
+      chantal repo check-updates --pattern "epel9-*"
+      chantal repo check-updates --pattern "*-latest" --type rpm
     """
-    click.echo(f"Checking for updates: {repo_id}")
-    click.echo("TODO: Download remote metadata and compare with local")
-    click.echo()
-    click.echo("Expected output:")
-    click.echo()
-    click.echo("Available Updates:")
-    click.echo("  Name                 Local Version        Remote Version       Size")
-    click.echo("  ------------------------------------------------------------------------------------")
-    click.echo("  kernel              5.14.0-360.el9       5.14.0-362.el9       85 MB")
-    click.echo("  nginx               1.20.1-10.el9        1.20.2-1.el9         1.2 MB")
-    click.echo("  httpd               2.4.50-1.el9         2.4.51-1.el9         1.5 MB")
-    click.echo()
-    click.echo("Summary: 3 package updates available (87.7 MB)")
-    click.echo()
-    click.echo("Run 'chantal repo sync --repo-id {repo_id}' to download updates")
+    if not repo_id and not all and not pattern:
+        click.echo("Error: Either --repo-id, --all, or --pattern is required")
+        raise click.Abort()
+
+    if sum([bool(repo_id), bool(all), bool(pattern)]) > 1:
+        click.echo("Error: Cannot use multiple selection methods (--repo-id, --all, --pattern)")
+        raise click.Abort()
+
+    config: GlobalConfig = ctx.obj["config"]
+
+    # Initialize managers
+    storage = StorageManager(config.storage)
+    db_manager = DatabaseManager(config.database.url)
+    session = db_manager.get_session()
+
+    try:
+        repos_to_check = []
+
+        if all:
+            # Get all enabled repositories from config
+            repos_to_check = [r for r in config.repositories if r.enabled]
+            if type:
+                repos_to_check = [r for r in repos_to_check if r.type == type]
+
+            if not repos_to_check:
+                click.echo("No enabled repositories found")
+                return
+
+        elif pattern:
+            # Pattern matching
+            import fnmatch
+
+            click.echo(f"Matching pattern: {pattern}")
+            if type:
+                click.echo(f"Filtered by type: {type}")
+
+            repos_to_check = [
+                r
+                for r in config.repositories
+                if r.enabled and fnmatch.fnmatch(r.id, pattern)
+            ]
+
+            if type:
+                repos_to_check = [r for r in repos_to_check if r.type == type]
+
+            if not repos_to_check:
+                click.echo(f"No repositories found matching pattern '{pattern}'")
+                return
+
+        else:
+            # Single repository
+            repo_config = config.get_repository(repo_id)
+            if not repo_config:
+                click.echo(f"Error: Repository not found: {repo_id}")
+                raise click.Abort()
+
+            repos_to_check = [repo_config]
+
+        # Check each repository
+        all_results = []
+        for repo_config in repos_to_check:
+            if len(repos_to_check) > 1:
+                click.echo(f"\n{'='*80}")
+                click.echo(f"Repository: {repo_config.id}")
+                click.echo(f"{'='*80}\n")
+
+            result = _check_updates_single_repository(session, storage, config, repo_config)
+            all_results.append((repo_config, result))
+
+        # Display combined summary for multiple repos
+        if len(repos_to_check) > 1:
+            click.echo(f"\n{'='*80}")
+            click.echo("SUMMARY")
+            click.echo(f"{'='*80}\n")
+
+            total_updates = sum(len(r.updates_available) for _, r in all_results if r.success)
+            total_size = sum(r.total_size_bytes for _, r in all_results if r.success)
+
+            click.echo(f"Checked {len(repos_to_check)} repositories")
+            click.echo(f"Total updates available: {total_updates}")
+            click.echo(f"Total download size: {total_size / 1024 / 1024:.2f} MB")
+
+    finally:
+        session.close()
+
+
+def _check_updates_single_repository(session, storage, global_config, repo_config):
+    """Helper function to check updates for a single repository."""
+    # Get or create repository in database
+    repository = session.query(Repository).filter_by(repo_id=repo_config.id).first()
+    if not repository:
+        click.echo(f"Repository not found in database: {repo_config.id}")
+        click.echo("Run 'chantal repo sync' first to initialize the repository")
+        return CheckUpdatesResult(
+            updates_available=[],
+            total_packages=0,
+            total_size_bytes=0,
+            success=False,
+            error_message="Repository not initialized",
+        )
+
+    # Merge proxy and SSL config: repo-specific overrides global
+    effective_proxy = repo_config.proxy if repo_config.proxy is not None else global_config.proxy
+    effective_ssl = repo_config.ssl if repo_config.ssl is not None else global_config.ssl
+
+    # Initialize sync plugin based on repository type
+    if repo_config.type == "rpm":
+        sync_plugin = RpmSyncPlugin(
+            storage=storage,
+            config=repo_config,
+            proxy_config=effective_proxy,
+            ssl_config=effective_ssl,
+        )
+    else:
+        click.echo(f"Error: Unsupported repository type: {repo_config.type}")
+        return CheckUpdatesResult(
+            updates_available=[],
+            total_packages=0,
+            total_size_bytes=0,
+            success=False,
+            error_message=f"Unsupported repository type: {repo_config.type}",
+        )
+
+    # Check for updates
+    result = sync_plugin.check_updates(session, repository)
+
+    # Display result
+    if result.success:
+        if len(result.updates_available) == 0:
+            click.echo("\n✓ No updates available. Repository is up to date.")
+        else:
+            click.echo(f"\nAvailable Updates ({len(result.updates_available)} packages):")
+            click.echo()
+
+            # Calculate column widths
+            max_name = max((len(u.name) for u in result.updates_available), default=20)
+            max_name = min(max_name, 40)  # Cap at 40 chars
+
+            # Header
+            header = f"{'Name':<{max_name}}  {'Arch':<10}  {'Local Version':<20}  {'Remote Version':<20}  {'Size':>10}"
+            click.echo(header)
+            click.echo("=" * len(header))
+
+            # Rows
+            for update in result.updates_available:
+                if update.is_new:
+                    local_ver = "[new]"
+                else:
+                    local_ver = f"{update.local_version}-{update.local_release}"
+
+                remote_ver = f"{update.remote_version}-{update.remote_release}"
+                if update.remote_epoch and update.remote_epoch != "0":
+                    remote_ver = f"{update.remote_epoch}:{remote_ver}"
+
+                size_mb = update.size_bytes / 1024 / 1024
+                size_str = f"{size_mb:.1f} MB" if size_mb >= 1 else f"{update.size_bytes / 1024:.0f} KB"
+
+                name_display = update.name[:max_name] if len(update.name) > max_name else update.name
+
+                click.echo(
+                    f"{name_display:<{max_name}}  {update.arch:<10}  {local_ver:<20}  {remote_ver:<20}  {size_str:>10}"
+                )
+
+            click.echo()
+            click.echo(f"Summary: {len(result.updates_available)} package update(s) available ({result.total_size_bytes / 1024 / 1024:.2f} MB)")
+            click.echo()
+            click.echo(f"Run 'chantal repo sync --repo-id {repo_config.id}' to download updates")
+
+    else:
+        click.echo(f"\n✗ Check failed: {result.error_message}", err=True)
+
+    return result
 
 
 @repo.command("history")
@@ -266,21 +690,104 @@ def repo_history(ctx: click.Context, repo_id: str, limit: int, output_format: st
 
     Displays past sync operations with status, duration, packages added/removed, etc.
     """
-    click.echo(f"Sync History: {repo_id}")
-    click.echo(f"Showing last {limit} syncs")
-    click.echo()
-    click.echo("Expected output:")
-    click.echo()
-    click.echo("Date                 Status   Packages    Downloaded  Duration")
-    click.echo("--------------------------------------------------------------------------------")
-    click.echo("2025-01-09 14:30:00  Success  47 added    450 MB      5m 23s")
-    click.echo("                              5 updated")
-    click.echo("                              2 removed")
-    click.echo("2025-01-08 02:00:00  Success  12 added    120 MB      2m 15s")
-    click.echo("2025-01-07 02:00:00  Failed   -           -           -")
-    click.echo("                              Error: Connection timeout")
-    click.echo()
-    click.echo("TODO: Query sync_history table from database")
+    config: GlobalConfig = ctx.obj["config"]
+    db_manager = DatabaseManager(config.database.url)
+
+    with db_manager.session() as session:
+        # Get repository from database
+        repository = session.query(Repository).filter_by(repo_id=repo_id).first()
+
+        if not repository:
+            click.echo(f"Error: Repository '{repo_id}' not found in database.", err=True)
+            click.echo("Run 'chantal repo list' to see available repositories.", err=True)
+            ctx.exit(1)
+
+        # Get sync history ordered by most recent first
+        history = (
+            session.query(SyncHistory)
+            .filter_by(repository_id=repository.id)
+            .order_by(SyncHistory.started_at.desc())
+            .limit(limit)
+            .all()
+        )
+
+        if output_format == "json":
+            import json
+            result = []
+            for sync in history:
+                duration = None
+                if sync.completed_at:
+                    duration_seconds = (sync.completed_at - sync.started_at).total_seconds()
+                    duration = duration_seconds
+
+                result.append({
+                    "started_at": sync.started_at.isoformat(),
+                    "completed_at": sync.completed_at.isoformat() if sync.completed_at else None,
+                    "status": sync.status,
+                    "duration_seconds": duration,
+                    "packages_added": sync.packages_added,
+                    "packages_removed": sync.packages_removed,
+                    "packages_updated": sync.packages_updated,
+                    "bytes_downloaded": sync.bytes_downloaded,
+                    "error_message": sync.error_message,
+                })
+            click.echo(json.dumps(result, indent=2))
+        else:
+            # Table format
+            click.echo(f"Sync History: {repo_id}")
+            click.echo(f"Showing last {limit} sync(s)")
+            click.echo()
+
+            if not history:
+                click.echo("  No sync history found.")
+                click.echo()
+                click.echo(f"  Run 'chantal repo sync --repo-id {repo_id}' to sync this repository.")
+                return
+
+            click.echo(f"{'Date':<20} {'Status':<10} {'Duration':>10} {'Changes':<30}")
+            click.echo("-" * 80)
+
+            for sync in history:
+                # Format date
+                date_str = sync.started_at.strftime("%Y-%m-%d %H:%M")
+
+                # Format status
+                status_str = sync.status.capitalize()
+
+                # Format duration
+                if sync.completed_at:
+                    duration_seconds = (sync.completed_at - sync.started_at).total_seconds()
+                    if duration_seconds >= 60:
+                        minutes = int(duration_seconds // 60)
+                        seconds = int(duration_seconds % 60)
+                        duration_str = f"{minutes}m {seconds}s"
+                    else:
+                        duration_str = f"{int(duration_seconds)}s"
+                else:
+                    duration_str = "Running"
+
+                # Format changes
+                changes = []
+                if sync.packages_added > 0:
+                    changes.append(f"+{sync.packages_added}")
+                if sync.packages_updated > 0:
+                    changes.append(f"~{sync.packages_updated}")
+                if sync.packages_removed > 0:
+                    changes.append(f"-{sync.packages_removed}")
+
+                if changes:
+                    changes_str = " ".join(changes)
+                else:
+                    changes_str = "No changes"
+
+                click.echo(f"{date_str:<20} {status_str:<10} {duration_str:>10} {changes_str:<30}")
+
+                # Show error message if failed
+                if sync.status == "failed" and sync.error_message:
+                    click.echo(f"  Error: {sync.error_message}")
+
+            click.echo()
+            click.echo(f"Total: {len(history)} sync operation(s)")
 
 
 @cli.group(context_settings=CONTEXT_SETTINGS)
@@ -687,13 +1194,91 @@ def package() -> None:
 def package_list(
     ctx: click.Context, repo_id: str, limit: int, arch: str, output_format: str
 ) -> None:
-    """List packages in repository."""
-    click.echo(f"Packages in repository: {repo_id}")
-    if arch:
-        click.echo(f"Filtered by architecture: {arch}")
-    click.echo(f"Showing up to {limit} packages")
-    click.echo(f"Format: {output_format}")
-    click.echo("TODO: Query packages from database")
+    """List packages in repository.
+
+    Shows packages currently in the specified repository with optional
+    architecture filtering.
+    """
+    config: GlobalConfig = ctx.obj["config"]
+    db_manager = DatabaseManager(config.database.url)
+
+    with db_manager.session() as session:
+        # Get repository from database
+        repository = session.query(Repository).filter_by(repo_id=repo_id).first()
+
+        if not repository:
+            click.echo(f"Error: Repository '{repo_id}' not found in database.", err=True)
+            click.echo("Run 'chantal repo list' to see available repositories.", err=True)
+            ctx.exit(1)
+
+        # Build query for packages in this repository
+        session.refresh(repository)
+        packages = list(repository.packages)
+
+        # Apply architecture filter if specified
+        if arch:
+            packages = [pkg for pkg in packages if pkg.arch == arch]
+
+        # Apply limit
+        packages = packages[:limit]
+
+        if output_format == "json":
+            import json
+            result = []
+            for pkg in packages:
+                result.append({
+                    "name": pkg.name,
+                    "version": pkg.version,
+                    "release": pkg.release,
+                    "arch": pkg.arch,
+                    "nevra": pkg.nevra,
+                    "size_bytes": pkg.size_bytes,
+                    "sha256": pkg.sha256,
+                })
+            click.echo(json.dumps(result, indent=2))
+        elif output_format == "csv":
+            import csv
+            import sys
+            writer = csv.writer(sys.stdout)
+            writer.writerow(["Name", "Version", "Release", "Arch", "Size (bytes)", "SHA256"])
+            for pkg in packages:
+                writer.writerow([pkg.name, pkg.version, pkg.release, pkg.arch, pkg.size_bytes, pkg.sha256])
+        else:
+            # Table format
+            click.echo(f"Packages in repository: {repo_id}")
+            if arch:
+                click.echo(f"Filtered by architecture: {arch}")
+            click.echo(f"Showing up to {limit} packages")
+            click.echo()
+
+            if not packages:
+                click.echo("  No packages found.")
+                if arch:
+                    click.echo(f"  Try removing the --arch filter or sync the repository.")
+                return
+
+            click.echo(f"{'Name':<35} {'Version':<20} {'Arch':<10} {'Size':>12}")
+            click.echo("-" * 85)
+
+            for pkg in packages:
+                version_str = f"{pkg.version}-{pkg.release}" if pkg.release else pkg.version
+
+                # Format size
+                size_mb = pkg.size_bytes / (1024**2)
+                if size_mb >= 1.0:
+                    size_str = f"{size_mb:.1f} MB"
+                else:
+                    size_kb = pkg.size_bytes / 1024
+                    size_str = f"{size_kb:.0f} KB"
+
+                click.echo(f"{pkg.name:<35} {version_str:<20} {pkg.arch:<10} {size_str:>12}")
+
+            click.echo()
+            click.echo(f"Total: {len(packages)} package(s)")
+
+            total_packages = len(list(repository.packages))
+            if arch:
+                click.echo(f"(Repository has {total_packages} total packages across all architectures)")
 
 
 @package.command("search")
@@ -706,36 +1291,217 @@ def package_list(
 def package_search(
     ctx: click.Context, query: str, repo_id: str, arch: str, output_format: str
 ) -> None:
-    """Search for packages by name."""
-    click.echo(f"Searching for: {query}")
-    if repo_id:
-        click.echo(f"In repository: {repo_id}")
-    if arch:
-        click.echo(f"Architecture: {arch}")
-    click.echo("TODO: Search packages in database")
+    """Search for packages by name.
+
+    Searches package names using case-insensitive pattern matching.
+    Use wildcards (* or %) for broader searches.
+    """
+    config: GlobalConfig = ctx.obj["config"]
+    db_manager = DatabaseManager(config.database.url)
+
+    with db_manager.session() as session:
+        # Build base query
+        packages_query = session.query(Package)
+
+        # Filter by repository if specified
+        if repo_id:
+            repository = session.query(Repository).filter_by(repo_id=repo_id).first()
+            if not repository:
+                click.echo(f"Error: Repository '{repo_id}' not found in database.", err=True)
+                click.echo("Run 'chantal repo list' to see available repositories.", err=True)
+                ctx.exit(1)
+
+            # Filter packages belonging to this repository
+            packages_query = packages_query.filter(Package.repositories.contains(repository))
+
+        # Apply name search (case-insensitive, wildcard support)
+        search_pattern = query.replace("*", "%")
+        packages_query = packages_query.filter(Package.name.ilike(f"%{search_pattern}%"))
+
+        # Filter by architecture if specified
+        if arch:
+            packages_query = packages_query.filter_by(arch=arch)
+
+        # Get results
+        packages = packages_query.all()
+
+        if output_format == "json":
+            import json
+            result = []
+            for pkg in packages:
+                # Get repository names for this package
+                repo_names = [repo.repo_id for repo in pkg.repositories]
+                result.append({
+                    "name": pkg.name,
+                    "version": pkg.version,
+                    "release": pkg.release,
+                    "arch": pkg.arch,
+                    "nevra": pkg.nevra,
+                    "size_bytes": pkg.size_bytes,
+                    "repositories": repo_names,
+                })
+            click.echo(json.dumps(result, indent=2))
+        else:
+            # Table format
+            click.echo(f"Searching for: {query}")
+            if repo_id:
+                click.echo(f"In repository: {repo_id}")
+            if arch:
+                click.echo(f"Architecture: {arch}")
+            click.echo()
+
+            if not packages:
+                click.echo("  No packages found.")
+                click.echo(f"\n  Try broadening your search query.")
+                return
+
+            click.echo(f"{'Name':<35} {'Version':<20} {'Arch':<10} {'Repositories':<30}")
+            click.echo("-" * 105)
+
+            for pkg in packages:
+                version_str = f"{pkg.version}-{pkg.release}" if pkg.release else pkg.version
+
+                # Get repository names (limit to first 2 for display)
+                repo_names = [repo.repo_id for repo in pkg.repositories]
+                if len(repo_names) > 2:
+                    repo_str = f"{repo_names[0]}, {repo_names[1]}, +{len(repo_names)-2}"
+                else:
+                    repo_str = ", ".join(repo_names)
+
+                click.echo(f"{pkg.name:<35} {version_str:<20} {pkg.arch:<10} {repo_str:<30}")
+
+            click.echo()
+            click.echo(f"Found: {len(packages)} package(s)")
 
 
 @package.command("show")
 @click.argument("package")
+@click.option("--format", "output_format", type=click.Choice(["table", "json"]),
+              default="table", help="Output format")
 @click.pass_context
-def package_show(ctx: click.Context, package: str) -> None:
+def package_show(ctx: click.Context, package: str, output_format: str) -> None:
     """Show detailed package information.
 
     PACKAGE can be either:
-    - Full NEVRA: nginx-1.20.1-10.el9.x86_64
+    - Full NEVRA: vim-minimal-8.2.2637-20.el9_1.x86_64
+    - Package name: vim-minimal (shows all versions)
     - SHA256 checksum: abc123...
     """
-    click.echo(f"Package: {package}")
-    click.echo("TODO: Query package details from database")
-    click.echo()
-    click.echo("Expected output:")
-    click.echo("  Name: nginx")
-    click.echo("  Version: 1.20.1-10.el9")
-    click.echo("  Arch: x86_64")
-    click.echo("  Size: 1.2 MB")
-    click.echo("  SHA256: abc123...")
-    click.echo("  Repositories: rhel9-baseos, rhel9-appstream")
-    click.echo("  Snapshots: rhel9-baseos-20250109, ...")
+    config: GlobalConfig = ctx.obj["config"]
+    db_manager = DatabaseManager(config.database.url)
+
+    with db_manager.session() as session:
+        # Try to find package by different methods
+        pkg = None
+        packages = []
+
+        # Check if it's a SHA256 (64 hex characters)
+        if len(package) == 64 and all(c in '0123456789abcdef' for c in package.lower()):
+            pkg = session.query(Package).filter_by(sha256=package).first()
+            if pkg:
+                packages = [pkg]
+
+        # Try name match (may return multiple packages)
+        if not packages:
+            packages = session.query(Package).filter_by(name=package).all()
+
+        # Try filename match if name didn't work
+        if not packages:
+            pkg = session.query(Package).filter_by(filename=package).first()
+            if pkg:
+                packages = [pkg]
+
+        if not packages:
+            click.echo(f"Error: Package '{package}' not found in database.", err=True)
+            click.echo("\nTry searching: chantal package search <query>", err=True)
+            ctx.exit(1)
+
+        if output_format == "json":
+            import json
+            result = []
+            for pkg in packages:
+                repo_names = [repo.repo_id for repo in pkg.repositories]
+                snapshot_names = [snap.name for snap in pkg.snapshots]
+                result.append({
+                    "name": pkg.name,
+                    "version": pkg.version,
+                    "release": pkg.release,
+                    "arch": pkg.arch,
+                    "nevra": pkg.nevra,
+                    "filename": pkg.filename,
+                    "size_bytes": pkg.size_bytes,
+                    "sha256": pkg.sha256,
+                    "pool_path": pkg.pool_path,
+                    "repositories": repo_names,
+                    "snapshots": snapshot_names,
+                })
+            click.echo(json.dumps(result, indent=2))
+        else:
+            # Table format
+            if len(packages) > 1:
+                click.echo(f"Found {len(packages)} packages matching '{package}':")
+                click.echo()
+
+            for i, pkg in enumerate(packages, 1):
+                if len(packages) > 1:
+                    click.echo(f"[{i}/{len(packages)}]")
+                    click.echo("=" * 70)
+                else:
+                    click.echo("=" * 70)
+                    click.echo(f"Package: {pkg.nevra}")
+                    click.echo("=" * 70)
+                    click.echo()
+
+                click.echo("Basic Information:")
+                click.echo(f"  Name:         {pkg.name}")
+                click.echo(f"  Version:      {pkg.version}")
+                if pkg.release:
+                    click.echo(f"  Release:      {pkg.release}")
+                click.echo(f"  Architecture: {pkg.arch}")
+                click.echo(f"  NEVRA:        {pkg.nevra}")
+                click.echo(f"  Filename:     {pkg.filename}")
+
+                click.echo()
+                click.echo("Storage:")
+                size_mb = pkg.size_bytes / (1024**2)
+                if size_mb >= 1.0:
+                    size_str = f"{size_mb:.2f} MB"
+                else:
+                    size_kb = pkg.size_bytes / 1024
+                    size_str = f"{size_kb:.1f} KB"
+                click.echo(f"  Size:         {size_str} ({pkg.size_bytes:,} bytes)")
+                click.echo(f"  SHA256:       {pkg.sha256}")
+                click.echo(f"  Pool Path:    {pkg.pool_path}")
+
+                # Get repositories
+                repo_names = [repo.repo_id for repo in pkg.repositories]
+                click.echo()
+                click.echo(f"Repositories ({len(repo_names)}):")
+                if repo_names:
+                    for repo_name in repo_names:
+                        click.echo(f"  - {repo_name}")
+                else:
+                    click.echo("  (none)")
+
+                # Get snapshots
+                snapshot_names = [snap.name for snap in pkg.snapshots]
+                click.echo()
+                click.echo(f"Snapshots ({len(snapshot_names)}):")
+                if snapshot_names:
+                    for snap_name in snapshot_names[:10]:  # Show first 10
+                        click.echo(f"  - {snap_name}")
+                    if len(snapshot_names) > 10:
+                        click.echo(f"  ... and {len(snapshot_names) - 10} more")
+                else:
+                    click.echo("  (none)")
+
+                if len(packages) > 1 and i < len(packages):
+                    click.echo()
+                    click.echo()
+
+            if len(packages) == 1:
+                click.echo()
+                click.echo("=" * 70)
 
 
 @cli.command("stats")
@@ -1181,47 +1947,142 @@ def publish_snapshot(ctx: click.Context, snapshot: str, repo_id: str, target: st
 
 
 @publish.command("list")
+@click.option("--format", "output_format", type=click.Choice(["table", "json"]),
+              default="table", help="Output format")
 @click.pass_context
-def publish_list(ctx: click.Context) -> None:
-    """List currently published repositories and snapshots."""
-    click.echo("Currently Published:")
-    click.echo()
-    click.echo("Expected output:")
-    click.echo()
-    click.echo("Repositories:")
-    click.echo("  rhel9-baseos     → /var/www/repos/rhel9-baseos/latest")
-    click.echo("  rhel9-appstream  → /var/www/repos/rhel9-appstream/latest")
-    click.echo()
-    click.echo("Snapshots:")
-    click.echo("  rhel9-baseos-20250109  → /var/www/repos/rhel9-baseos/snapshots/20250109")
-    click.echo("  rhel9-baseos-20250108  → /var/www/repos/rhel9-baseos/snapshots/20250108")
-    click.echo()
-    click.echo("TODO: Query database for published repos/snapshots")
+def publish_list(ctx: click.Context, output_format: str) -> None:
+    """List currently published repositories and snapshots.
+
+    Shows all published snapshots with their paths and metadata.
+    """
+    config: GlobalConfig = ctx.obj["config"]
+    db_manager = DatabaseManager(config.database.url)
+
+    with db_manager.session() as session:
+        # Get all published snapshots
+        published_snapshots = (
+            session.query(Snapshot)
+            .filter_by(is_published=True)
+            .order_by(Snapshot.created_at.desc())
+            .all()
+        )
+
+        if output_format == "json":
+            import json
+            result = {
+                "snapshots": []
+            }
+
+            for snapshot in published_snapshots:
+                repo = session.query(Repository).filter_by(id=snapshot.repository_id).first()
+                result["snapshots"].append({
+                    "name": snapshot.name,
+                    "repository": repo.repo_id if repo else "Unknown",
+                    "path": snapshot.published_path,
+                    "packages": snapshot.package_count,
+                    "size_bytes": snapshot.total_size_bytes,
+                    "created": snapshot.created_at.isoformat(),
+                })
+
+            click.echo(json.dumps(result, indent=2))
+        else:
+            # Table format
+            click.echo("Currently Published:")
+            click.echo()
+
+            if not published_snapshots:
+                click.echo("  No published snapshots found.")
+                click.echo()
+                click.echo("  Publish a snapshot with:")
+                click.echo("    chantal publish snapshot --snapshot <name>")
+                return
+
+            click.echo("Snapshots:")
+            click.echo(f"{'Name':<35} {'Repository':<25} {'Path':<50}")
+            click.echo("-" * 115)
+
+            for snapshot in published_snapshots:
+                # Get repository info
+                repo = session.query(Repository).filter_by(id=snapshot.repository_id).first()
+                repo_name = repo.repo_id if repo else "Unknown"
+
+                # Shorten path if needed
+                path = snapshot.published_path
+                if len(path) > 48:
+                    path = "..." + path[-45:]
+
+                click.echo(f"{snapshot.name:<35} {repo_name:<25} {path:<50}")
+
+            click.echo()
+            click.echo(f"Total: {len(published_snapshots)} published snapshot(s)")
 
 
 @publish.command("unpublish")
-@click.option("--repo-id", help="Repository ID to unpublish")
-@click.option("--snapshot", help="Snapshot name to unpublish")
+@click.option("--snapshot", required=True, help="Snapshot name to unpublish")
+@click.option("--repo-id", help="Repository ID (optional if snapshot name is unique)")
 @click.pass_context
-def publish_unpublish(ctx: click.Context, repo_id: str, snapshot: str) -> None:
-    """Unpublish repository or snapshot.
+def publish_unpublish(ctx: click.Context, snapshot: str, repo_id: str) -> None:
+    """Unpublish a snapshot.
 
     Removes the published directory (hardlinks). Does not delete packages from pool.
+    The snapshot remains in the database and can be re-published later.
     """
-    if not repo_id and not snapshot:
-        click.echo("Error: Either --repo-id or --snapshot is required")
-        raise click.Abort()
+    config: GlobalConfig = ctx.obj["config"]
+    db_manager = DatabaseManager(config.database.url)
 
-    if repo_id and snapshot:
-        click.echo("Error: Cannot use both --repo-id and --snapshot")
-        raise click.Abort()
+    with db_manager.session() as session:
+        # Find snapshot
+        query = session.query(Snapshot).filter_by(name=snapshot)
 
-    if repo_id:
-        click.echo(f"Unpublishing repository: {repo_id}")
-    else:
+        if repo_id:
+            # Filter by repository if specified
+            repository = session.query(Repository).filter_by(repo_id=repo_id).first()
+            if not repository:
+                click.echo(f"Error: Repository '{repo_id}' not found.", err=True)
+                ctx.exit(1)
+            query = query.filter_by(repository_id=repository.id)
+
+        snap = query.first()
+
+        if not snap:
+            if repo_id:
+                click.echo(f"Error: Snapshot '{snapshot}' not found for repository '{repo_id}'.", err=True)
+            else:
+                click.echo(f"Error: Snapshot '{snapshot}' not found.", err=True)
+                click.echo("Specify --repo-id if multiple repositories have snapshots with this name.", err=True)
+            ctx.exit(1)
+
+        # Check if published
+        if not snap.is_published:
+            click.echo(f"Snapshot '{snapshot}' is not currently published.", err=True)
+            ctx.exit(1)
+
+        # Get repository info
+        repository = session.query(Repository).filter_by(id=snap.repository_id).first()
+
         click.echo(f"Unpublishing snapshot: {snapshot}")
+        click.echo(f"Repository: {repository.repo_id}")
+        click.echo(f"Path: {snap.published_path}")
+        click.echo()
 
-    click.echo("TODO: Remove published directory")
+        # Remove published directory
+        published_path = Path(snap.published_path)
+        if published_path.exists():
+            import shutil
+            shutil.rmtree(published_path)
+            click.echo(f"✓ Removed published directory")
+        else:
+            click.echo(f"⚠ Published directory not found (already deleted?)")
+
+        # Update snapshot metadata
+        snap.is_published = False
+        snap.published_path = None
+        session.commit()
+
+        click.echo()
+        click.echo(f"✓ Snapshot '{snapshot}' unpublished successfully!")
+        click.echo("Note: Snapshot remains in database and can be re-published with:")
+        click.echo(f"  chantal publish snapshot --snapshot {snapshot}")
 
 
 def main() -> None:

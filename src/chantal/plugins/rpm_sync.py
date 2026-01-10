@@ -6,6 +6,7 @@ This module implements syncing RPM repositories from upstream sources.
 
 import gzip
 import hashlib
+import lzma
 import re
 import tempfile
 import xml.etree.ElementTree as ET
@@ -73,6 +74,44 @@ class SyncResult:
     error_message: Optional[str] = None
 
 
+@dataclass
+class PackageUpdate:
+    """Information about an available package update."""
+
+    name: str
+    arch: str
+    local_version: Optional[str]  # None if package is new
+    local_release: Optional[str]
+    remote_version: str
+    remote_release: str
+    remote_epoch: Optional[str]
+    size_bytes: int
+    sha256: str
+    location: str
+
+    @property
+    def is_new(self) -> bool:
+        """Check if this is a new package (not currently installed)."""
+        return self.local_version is None
+
+    @property
+    def nvra(self) -> str:
+        """Get name-version-release.arch string."""
+        epoch_str = f"{self.remote_epoch}:" if self.remote_epoch else ""
+        return f"{self.name}-{epoch_str}{self.remote_version}-{self.remote_release}.{self.arch}"
+
+
+@dataclass
+class CheckUpdatesResult:
+    """Result of a check-updates operation."""
+
+    updates_available: List[PackageUpdate]
+    total_packages: int  # Total packages in upstream
+    total_size_bytes: int  # Total size of updates
+    success: bool
+    error_message: Optional[str] = None
+
+
 class RpmSyncPlugin:
     """Plugin for syncing RPM repositories.
 
@@ -88,6 +127,7 @@ class RpmSyncPlugin:
         storage: StorageManager,
         config: RepositoryConfig,
         proxy_config: Optional[ProxyConfig] = None,
+        ssl_config: Optional["SSLConfig"] = None,
     ):
         """Initialize RPM sync plugin.
 
@@ -95,10 +135,12 @@ class RpmSyncPlugin:
             storage: Storage manager instance
             config: Repository configuration
             proxy_config: Optional proxy configuration
+            ssl_config: Optional SSL/TLS configuration
         """
         self.storage = storage
         self.config = config
         self.proxy_config = proxy_config
+        self.ssl_config = ssl_config
 
         # Setup HTTP session with proxy
         self.session = requests.Session()
@@ -113,6 +155,31 @@ class RpmSyncPlugin:
             # Basic auth for proxy if needed
             if proxy_config.username and proxy_config.password:
                 self.session.auth = (proxy_config.username, proxy_config.password)
+
+        # Setup SSL/TLS verification
+        if ssl_config:
+            if not ssl_config.verify:
+                # Disable SSL verification (not recommended)
+                self.session.verify = False
+            elif ssl_config.ca_cert:
+                # Use inline CA certificate - write to temp file
+                import tempfile
+                ca_file = tempfile.NamedTemporaryFile(mode='w', suffix='.pem', delete=False)
+                ca_file.write(ssl_config.ca_cert)
+                ca_file.flush()
+                ca_file.close()
+                self.session.verify = ca_file.name
+                self._temp_ca_file = ca_file.name  # Store for cleanup
+            elif ssl_config.ca_bundle:
+                # Use CA bundle file path
+                self.session.verify = ssl_config.ca_bundle
+
+            # Setup client certificate for mTLS if configured
+            if ssl_config.client_cert:
+                if ssl_config.client_key:
+                    self.session.cert = (ssl_config.client_cert, ssl_config.client_key)
+                else:
+                    self.session.cert = ssl_config.client_cert
 
         # Setup repository authentication
         if config.auth:
@@ -268,6 +335,146 @@ class RpmSyncPlugin:
                 error_message=str(e),
             )
 
+    def check_updates(
+        self, session: Session, repository: Repository
+    ) -> CheckUpdatesResult:
+        """Check for available package updates without downloading.
+
+        Args:
+            session: Database session
+            repository: Repository model instance
+
+        Returns:
+            CheckUpdatesResult with list of available updates
+        """
+        try:
+            print(f"Checking for updates: {repository.repo_id}")
+            print(f"Feed URL: {self.config.feed}")
+
+            # Step 1: Fetch repomd.xml
+            print("Fetching repomd.xml...")
+            repomd_root = self._fetch_repomd_xml(self.config.feed)
+
+            # Step 2: Extract primary.xml location
+            primary_location = self._extract_primary_location(repomd_root)
+
+            # Step 3: Download and parse primary.xml
+            print("Fetching primary.xml...")
+            packages = self._fetch_primary_xml(self.config.feed, primary_location)
+            print(f"Found {len(packages)} packages in upstream repository")
+
+            # Step 4: Apply filters if configured
+            if self.config.filters:
+                original_count = len(packages)
+                packages = self._apply_filters(packages, self.config.filters)
+                filtered_out = original_count - len(packages)
+                if filtered_out > 0:
+                    print(f"Filtered out {filtered_out} packages, {len(packages)} remaining")
+
+            # Step 5: Get existing packages from database for this repository
+            existing_packages = {}
+            for pkg in repository.packages:
+                # Build a key based on name and arch
+                key = f"{pkg.name}#{pkg.arch}"
+                existing_packages[key] = pkg
+
+            print(f"Currently have {len(existing_packages)} unique packages (by name-arch)")
+
+            # Step 6: Compare and find updates/new packages
+            updates = []
+            total_update_size = 0
+
+            for pkg_meta in packages:
+                key = f"{pkg_meta.name}#{pkg_meta.arch}"
+                existing_pkg = existing_packages.get(key)
+
+                if existing_pkg is None:
+                    # New package not in our repository
+                    update = PackageUpdate(
+                        name=pkg_meta.name,
+                        arch=pkg_meta.arch,
+                        local_version=None,
+                        local_release=None,
+                        remote_version=pkg_meta.version,
+                        remote_release=pkg_meta.release,
+                        remote_epoch=pkg_meta.epoch,
+                        size_bytes=pkg_meta.size_bytes,
+                        sha256=pkg_meta.sha256,
+                        location=pkg_meta.location,
+                    )
+                    updates.append(update)
+                    total_update_size += pkg_meta.size_bytes
+                else:
+                    # Package exists - check if remote version is newer
+                    remote_epoch = int(pkg_meta.epoch or "0")
+                    local_epoch = int(existing_pkg.epoch or "0")
+
+                    # EPO CH-style version comparison: compare epoch, then version, then release
+                    is_newer = False
+
+                    if remote_epoch > local_epoch:
+                        is_newer = True
+                    elif remote_epoch == local_epoch:
+                        # Compare version (use packaging library for proper version comparison)
+                        try:
+                            remote_ver = version.parse(pkg_meta.version)
+                            local_ver = version.parse(existing_pkg.version)
+
+                            if remote_ver > local_ver:
+                                is_newer = True
+                            elif remote_ver == local_ver:
+                                # Compare release
+                                remote_rel = version.parse(pkg_meta.release)
+                                local_rel = version.parse(existing_pkg.release)
+
+                                if remote_rel > local_rel:
+                                    is_newer = True
+                        except Exception:
+                            # Fallback to string comparison if packaging fails
+                            if pkg_meta.version > existing_pkg.version:
+                                is_newer = True
+                            elif pkg_meta.version == existing_pkg.version:
+                                if pkg_meta.release > existing_pkg.release:
+                                    is_newer = True
+
+                    if is_newer:
+                        # Update available
+                        update = PackageUpdate(
+                            name=pkg_meta.name,
+                            arch=pkg_meta.arch,
+                            local_version=existing_pkg.version,
+                            local_release=existing_pkg.release,
+                            remote_version=pkg_meta.version,
+                            remote_release=pkg_meta.release,
+                            remote_epoch=pkg_meta.epoch,
+                            size_bytes=pkg_meta.size_bytes,
+                            sha256=pkg_meta.sha256,
+                            location=pkg_meta.location,
+                        )
+                        updates.append(update)
+                        total_update_size += pkg_meta.size_bytes
+
+            print(f"\nCheck complete!")
+            print(f"  Updates available: {len(updates)}")
+            print(f"  Total size: {total_update_size / 1024 / 1024:.2f} MB")
+
+            return CheckUpdatesResult(
+                updates_available=updates,
+                total_packages=len(packages),
+                total_size_bytes=total_update_size,
+                success=True,
+            )
+
+        except Exception as e:
+            print(f"Check failed: {e}")
+            return CheckUpdatesResult(
+                updates_available=[],
+                total_packages=0,
+                total_size_bytes=0,
+                success=False,
+                error_message=str(e),
+            )
+
     def _fetch_repomd_xml(self, base_url: str) -> ET.Element:
         """Fetch and parse repomd.xml.
 
@@ -324,11 +531,11 @@ class RpmSyncPlugin:
     def _fetch_primary_xml(
         self, base_url: str, primary_location: str
     ) -> List[PackageMetadata]:
-        """Download and parse primary.xml.gz.
+        """Download and parse primary.xml.gz or primary.xml.xz.
 
         Args:
             base_url: Base URL of repository
-            primary_location: Relative path to primary.xml.gz
+            primary_location: Relative path to primary.xml.gz or primary.xml.xz
 
         Returns:
             List of package metadata
@@ -340,8 +547,19 @@ class RpmSyncPlugin:
         response = self.session.get(primary_url, timeout=60)
         response.raise_for_status()
 
-        # Decompress gzip
-        xml_content = gzip.decompress(response.content)
+        # Decompress based on file extension
+        if primary_location.endswith('.xz'):
+            xml_content = lzma.decompress(response.content)
+        elif primary_location.endswith('.gz'):
+            xml_content = gzip.decompress(response.content)
+        else:
+            # Try to auto-detect based on magic bytes
+            if response.content[:2] == b'\x1f\x8b':  # gzip magic
+                xml_content = gzip.decompress(response.content)
+            elif response.content[:6] == b'\xfd7zXZ\x00':  # xz magic
+                xml_content = lzma.decompress(response.content)
+            else:
+                raise ValueError(f"Unknown compression format for {primary_location}")
 
         # Parse XML
         root = ET.fromstring(xml_content)

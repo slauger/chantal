@@ -331,3 +331,60 @@ def test_auth_config():
     )
     assert auth.type == "bearer"
     assert auth.token == "abc123"
+
+
+def test_yaml_syntax_error_validation():
+    """Test that YAML syntax errors are caught and reported clearly."""
+    import pytest
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        config_path = Path(tmpdir) / "bad-config.yaml"
+
+        # Write config with YAML syntax error (missing newline)
+        config_yaml = """database:
+  url: sqlite:///test.db
+
+repositories:
+  - id: test-repo
+    type: rpm
+    feed: https://example.com/repo
+    enabled: true
+    ssl:
+      verify: true    filters:
+      patterns:
+        include: ["test"]
+"""
+        with open(config_path, "w") as f:
+            f.write(config_yaml)
+
+        # Should raise ValueError with YAML syntax error
+        loader = ConfigLoader(config_path)
+        with pytest.raises(ValueError) as exc_info:
+            loader.load()
+
+        assert "YAML syntax error" in str(exc_info.value)
+        assert "mapping values are not allowed here" in str(exc_info.value)
+
+
+def test_config_loader_validates_pydantic_models():
+    """Test that Pydantic validation errors are caught."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        config_path = Path(tmpdir) / "config.yaml"
+
+        # Write invalid config (invalid repository type)
+        config_yaml = """
+database:
+  url: sqlite:///test.db
+
+repositories:
+  - id: test-repo
+    type: invalid_type
+    feed: https://example.com
+"""
+        config_path.write_text(config_yaml)
+
+        # Should raise ValueError with validation error
+        loader = ConfigLoader(config_path)
+        with pytest.raises(ValueError, match="Configuration validation error"):
+            loader.load()
+

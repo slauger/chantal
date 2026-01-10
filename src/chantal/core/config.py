@@ -22,6 +22,23 @@ class ProxyConfig(BaseModel):
     password: Optional[str] = None
 
 
+class SSLConfig(BaseModel):
+    """SSL/TLS configuration for HTTPS connections."""
+
+    # Path to CA bundle file (PEM format)
+    ca_bundle: Optional[str] = None
+
+    # Inline CA certificates (PEM format, multiple certs separated by newlines)
+    ca_cert: Optional[str] = None
+
+    # Disable SSL verification (not recommended for production)
+    verify: bool = True
+
+    # Client certificate for mTLS
+    client_cert: Optional[str] = None
+    client_key: Optional[str] = None
+
+
 class AuthConfig(BaseModel):
     """Repository authentication configuration."""
 
@@ -232,6 +249,9 @@ class RepositoryConfig(BaseModel):
     feed: str  # upstream URL
     enabled: bool = True
 
+    # Tags for grouping/filtering (e.g., ["production", "web", "rhel"])
+    tags: Optional[List[str]] = Field(default_factory=list)
+
     # Authentication
     auth: Optional[AuthConfig] = None
 
@@ -248,8 +268,11 @@ class RepositoryConfig(BaseModel):
     # Package filtering
     filters: Optional[FilterConfig] = None
 
-    # Per-repository proxy override
+    # Per-repository proxy override (overrides global proxy config)
     proxy: Optional[ProxyConfig] = None
+
+    # Per-repository SSL/TLS override (overrides global ssl config)
+    ssl: Optional[SSLConfig] = None
 
     @field_validator("type")
     @classmethod
@@ -302,6 +325,7 @@ class GlobalConfig(BaseModel):
     database: DatabaseConfig = Field(default_factory=DatabaseConfig)
     storage: StorageConfig = Field(default_factory=StorageConfig)
     proxy: Optional[ProxyConfig] = None
+    ssl: Optional[SSLConfig] = None
     repositories: List[RepositoryConfig] = Field(default_factory=list)
 
     # Include pattern for additional config files
@@ -348,8 +372,11 @@ class ConfigLoader:
             raise FileNotFoundError(f"Configuration file not found: {self.config_path}")
 
         # Load main config file
-        with open(self.config_path) as f:
-            config_data = yaml.safe_load(f) or {}
+        try:
+            with open(self.config_path) as f:
+                config_data = yaml.safe_load(f) or {}
+        except yaml.YAMLError as e:
+            raise ValueError(f"YAML syntax error in {self.config_path}:\n{e}")
 
         # Handle includes
         if "include" in config_data:
@@ -362,7 +389,10 @@ class ConfigLoader:
             config_data["repositories"].extend(included_repos)
 
         # Validate and create GlobalConfig
-        return GlobalConfig(**config_data)
+        try:
+            return GlobalConfig(**config_data)
+        except Exception as e:
+            raise ValueError(f"Configuration validation error in {self.config_path}:\n{e}")
 
     def _load_includes(self, include_pattern: str) -> List[Dict[str, Any]]:
         """Load included configuration files.
@@ -401,10 +431,13 @@ class ConfigLoader:
         all_repos = []
         for config_file in config_files:
             if config_file.suffix in [".yaml", ".yml"]:
-                with open(config_file) as f:
-                    data = yaml.safe_load(f) or {}
-                    if "repositories" in data:
-                        all_repos.extend(data["repositories"])
+                try:
+                    with open(config_file) as f:
+                        data = yaml.safe_load(f) or {}
+                        if "repositories" in data:
+                            all_repos.extend(data["repositories"])
+                except yaml.YAMLError as e:
+                    raise ValueError(f"YAML syntax error in {config_file}:\n{e}")
 
         return all_repos
 
