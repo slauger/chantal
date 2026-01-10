@@ -14,6 +14,7 @@ from chantal.core.storage import StorageManager
 from chantal.db.connection import DatabaseManager
 from chantal.db.models import Repository
 from chantal.plugins.rpm_sync import RpmSyncPlugin
+from chantal.plugins.rpm import RpmPublisher
 
 
 @click.group()
@@ -675,14 +676,80 @@ def publish_repo(ctx: click.Context, repo_id: str, all: bool, target: str) -> No
         click.echo("Error: Cannot use both --repo-id and --all")
         raise click.Abort()
 
-    if all:
-        click.echo("Publishing all repositories")
-        click.echo("TODO: Publish all repos to their configured paths")
+    config: GlobalConfig = ctx.obj["config"]
+
+    # Initialize managers
+    storage = StorageManager(config.storage)
+    db_manager = DatabaseManager(config.database.url)
+    session = db_manager.get_session()
+
+    try:
+        if all:
+            click.echo("Publishing all repositories")
+            repos_to_publish = config.repositories
+
+            if not repos_to_publish:
+                click.echo("No repositories found in configuration")
+                return
+
+            click.echo(f"Found {len(repos_to_publish)} repositories to publish\n")
+
+            for repo_config in repos_to_publish:
+                click.echo(f"--- Publishing {repo_config.id} ---")
+                _publish_single_repository(session, storage, config, repo_config, target)
+                click.echo()
+        else:
+            # Publish single repository
+            repo_config = next((r for r in config.repositories if r.id == repo_id), None)
+            if not repo_config:
+                click.echo(f"Error: Repository '{repo_id}' not found in configuration")
+                raise click.Abort()
+
+            _publish_single_repository(session, storage, config, repo_config, target)
+    finally:
+        session.close()
+
+
+def _publish_single_repository(session, storage, global_config, repo_config, custom_target=None):
+    """Helper function to publish a single repository."""
+    # Get repository from database
+    repository = session.query(Repository).filter_by(repo_id=repo_config.id).first()
+    if not repository:
+        click.echo(f"Error: Repository '{repo_config.id}' not found in database. Sync it first.")
+        return
+
+    # Determine target path
+    if custom_target:
+        target_path = Path(custom_target)
     else:
-        click.echo(f"Publishing repository: {repo_id}")
-        if target:
-            click.echo(f"Target: {target}")
-        click.echo("TODO: Create hardlinks and generate metadata")
+        # Use configured published path + repo_id
+        target_path = Path(global_config.storage.published_path) / repo_config.id
+
+    click.echo(f"Publishing repository: {repo_config.id}")
+    click.echo(f"Target: {target_path}")
+
+    # Initialize publisher based on repository type
+    if repo_config.type == "rpm":
+        publisher = RpmPublisher(storage=storage)
+    else:
+        click.echo(f"Error: Unsupported repository type: {repo_config.type}")
+        return
+
+    # Publish repository
+    try:
+        publisher.publish_repository(
+            session=session,
+            repository=repository,
+            config=repo_config,
+            target_path=target_path
+        )
+        click.echo(f"\n✓ Repository published successfully!")
+        click.echo(f"  Location: {target_path}")
+        click.echo(f"  Packages directory: {target_path}/Packages")
+        click.echo(f"  Metadata directory: {target_path}/repodata")
+    except Exception as e:
+        click.echo(f"\n✗ Publishing failed: {e}", err=True)
+        raise
 
 
 @publish.command("snapshot")

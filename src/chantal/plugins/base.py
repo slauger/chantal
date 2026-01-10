@@ -134,8 +134,9 @@ class PublisherPlugin(ABC):
             List of packages in repository
         """
         # TODO: Implement proper repository-package relationship
-        # For now, return empty list (will be populated during sync)
-        return []
+        # For now, get all packages matching the repository type
+        # This is a TEMPORARY workaround - we need a repository_packages table!
+        return session.query(Package).filter_by(package_type=repository.type).all()
 
     def _get_snapshot_packages(
         self,
