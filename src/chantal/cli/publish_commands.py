@@ -31,6 +31,7 @@ def create_publish_group(cli: click.Group) -> click.Group:
     Returns:
         The publish command group
     """
+
     @cli.group(context_settings=CONTEXT_SETTINGS)
     def publish() -> None:
         """Publishing management commands."""
@@ -57,6 +58,7 @@ def create_publish_group(cli: click.Group) -> click.Group:
 
         # Check database schema version
         from chantal.cli.db_commands import check_db_schema_version
+
         check_db_schema_version(ctx)
 
         config: GlobalConfig = ctx.obj["config"]
@@ -111,6 +113,7 @@ def create_publish_group(cli: click.Group) -> click.Group:
         """
         # Check database schema version
         from chantal.cli.db_commands import check_db_schema_version
+
         check_db_schema_version(ctx)
 
         config: GlobalConfig = ctx.obj["config"]
@@ -129,7 +132,9 @@ def create_publish_group(cli: click.Group) -> click.Group:
             _publish_view_snapshot(ctx, config, db_manager, storage, view, snapshot, target)
         else:
             # Publish repository snapshot (existing behavior)
-            _publish_repository_snapshot(ctx, config, db_manager, storage, repo_id, snapshot, target)
+            _publish_repository_snapshot(
+                ctx, config, db_manager, storage, repo_id, snapshot, target
+            )
 
     @publish.command("view")
     @click.option("--name", required=True, help="View name to publish")
@@ -307,7 +312,8 @@ def create_publish_group(cli: click.Group) -> click.Group:
             if not snap:
                 if repo_id:
                     click.echo(
-                        f"Error: Snapshot '{snapshot}' not found for repository '{repo_id}'.", err=True
+                        f"Error: Snapshot '{snapshot}' not found for repository '{repo_id}'.",
+                        err=True,
                     )
                 else:
                     click.echo(f"Error: Snapshot '{snapshot}' not found.", err=True)

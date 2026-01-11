@@ -216,7 +216,7 @@ class FilterConfig(BaseModel):
                     raise ValueError(f"Invalid regex pattern '{pattern}': {e}") from e
         return v
 
-    def normalize(self) -> "FilterConfig":
+    def normalize(self) -> FilterConfig:
         """Normalize legacy config to new structure."""
         # If using legacy structure, migrate to new structure
         if self.metadata is None and (self.include_architectures or self.exclude_architectures):
@@ -300,7 +300,7 @@ class RepositoryConfig(BaseModel):
         return v
 
     @model_validator(mode="after")
-    def validate_mode_and_filters(self) -> "RepositoryConfig":
+    def validate_mode_and_filters(self) -> RepositoryConfig:
         """Validate that mirror mode is not used with filters."""
         if self.mode == "mirror" and self.filters is not None:
             raise ValueError(
@@ -522,9 +522,7 @@ class ConfigLoader:
         try:
             return GlobalConfig(**config_data)
         except Exception as e:
-            raise ValueError(
-                f"Configuration validation error in {self.config_path}:\n{e}"
-            ) from e
+            raise ValueError(f"Configuration validation error in {self.config_path}:\n{e}") from e
 
     def _load_includes(
         self, include_pattern: str

@@ -12,7 +12,6 @@ import hashlib
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 import requests
 
@@ -92,7 +91,7 @@ class RequestsBackend(DownloadBackend):
         self.download_config = download_config or DownloadConfig()
         self.proxy_config = proxy_config
         self.ssl_config = ssl_config
-        self._temp_ca_file: Optional[str] = None
+        self._temp_ca_file: str | None = None
 
         # Setup HTTP session
         self.session = self._setup_session()

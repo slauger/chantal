@@ -47,7 +47,7 @@ class ApkMetadata(BaseModel):
     build_time: int | None = Field(None, description="Build timestamp (Unix)")
 
     @classmethod
-    def from_apkindex_entry(cls, entry: dict) -> "ApkMetadata":
+    def from_apkindex_entry(cls, entry: dict) -> ApkMetadata:
         """Create ApkMetadata from parsed APKINDEX entry.
 
         Args:

@@ -22,6 +22,7 @@ def create_pool_group(cli: click.Group) -> click.Group:
     Returns:
         The pool command group
     """
+
     @cli.group(context_settings=CONTEXT_SETTINGS)
     def pool() -> None:
         """Storage pool management commands."""
@@ -124,7 +125,9 @@ def create_pool_group(cli: click.Group) -> click.Group:
                 else:
                     click.echo("Removing orphaned files...")
 
-                files_removed, bytes_freed = storage.cleanup_orphaned_files(session, dry_run=dry_run)
+                files_removed, bytes_freed = storage.cleanup_orphaned_files(
+                    session, dry_run=dry_run
+                )
                 total_files_removed += files_removed
                 total_bytes_freed += bytes_freed
 

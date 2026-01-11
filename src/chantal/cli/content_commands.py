@@ -25,6 +25,7 @@ def create_content_group(cli: click.Group) -> click.Group:
     Returns:
         The content command group
     """
+
     @cli.group(context_settings=CONTEXT_SETTINGS)
     def content() -> None:
         """Content management commands (works with all content types: RPM, Helm, APT, etc.)."""
@@ -148,7 +149,14 @@ def create_content_group(cli: click.Group) -> click.Group:
                         else "-"
                     )
                     writer.writerow(
-                        [item.name, item.version, item.content_type, arch, item.size_bytes, item.sha256]
+                        [
+                            item.name,
+                            item.version,
+                            item.content_type,
+                            arch,
+                            item.size_bytes,
+                            item.sha256,
+                        ]
                     )
 
             else:
@@ -169,7 +177,9 @@ def create_content_group(cli: click.Group) -> click.Group:
 
                 # Dynamic column headers
                 if has_arch:
-                    click.echo(f"{'Name':<35} {'Version':<20} {'Type':<6} {'Arch':<10} {'Size':>12}")
+                    click.echo(
+                        f"{'Name':<35} {'Version':<20} {'Type':<6} {'Arch':<10} {'Size':>12}"
+                    )
                     click.echo("-" * 91)
                 else:
                     click.echo(f"{'Name':<35} {'Version':<20} {'Type':<6} {'Size':>12}")
@@ -331,7 +341,9 @@ def create_content_group(cli: click.Group) -> click.Group:
                     click.echo("  Try broadening your search query.")
                     return
 
-                click.echo(f"{'Repository':<25} {'Name':<30} {'Version':<15} {'Type':<6} {'Size':>10}")
+                click.echo(
+                    f"{'Repository':<25} {'Name':<30} {'Version':<15} {'Type':<6} {'Size':>10}"
+                )
                 click.echo("-" * 93)
 
                 for item in items:
@@ -454,9 +466,13 @@ def create_content_group(cli: click.Group) -> click.Group:
                                 click.echo(f"  Release:      {item.content_metadata['release']}")
                         elif item.content_type == "helm":
                             if "app_version" in item.content_metadata:
-                                click.echo(f"  App Version:  {item.content_metadata['app_version']}")
+                                click.echo(
+                                    f"  App Version:  {item.content_metadata['app_version']}"
+                                )
                             if "description" in item.content_metadata:
-                                click.echo(f"  Description:  {item.content_metadata['description']}")
+                                click.echo(
+                                    f"  Description:  {item.content_metadata['description']}"
+                                )
 
                     click.echo()
                     click.echo("Storage:")

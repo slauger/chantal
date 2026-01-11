@@ -11,7 +11,6 @@ from pathlib import Path
 import click
 
 from chantal import __version__
-from chantal.core.config import GlobalConfig, load_config
 
 # Import command group factories
 from chantal.cli.content_commands import create_content_group
@@ -21,6 +20,7 @@ from chantal.cli.publish_commands import create_publish_group
 from chantal.cli.repo_commands import create_repo_group
 from chantal.cli.snapshot_commands import create_snapshot_group
 from chantal.cli.view_commands import create_view_group
+from chantal.core.config import GlobalConfig, load_config
 
 # Click context settings to enable -h as alias for --help
 CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}

@@ -29,6 +29,7 @@ def create_repo_group(cli: click.Group) -> click.Group:
     Returns:
         The repo command group
     """
+
     @cli.group(context_settings=CONTEXT_SETTINGS)
     def repo() -> None:
         """Repository management commands."""
@@ -152,8 +153,12 @@ def create_repo_group(cli: click.Group) -> click.Group:
     @repo.command("sync")
     @click.option("--repo-id", help="Repository ID to sync")
     @click.option("--all", is_flag=True, help="Sync all enabled repositories")
-    @click.option("--pattern", help="Sync repositories matching pattern (e.g., 'epel9-*', '*-latest')")
-    @click.option("--type", help="Filter by repository type (rpm, apt) when using --all or --pattern")
+    @click.option(
+        "--pattern", help="Sync repositories matching pattern (e.g., 'epel9-*', '*-latest')"
+    )
+    @click.option(
+        "--type", help="Filter by repository type (rpm, apt) when using --all or --pattern"
+    )
     @click.option(
         "--workers", type=int, default=1, help="Number of parallel workers for --all or --pattern"
     )
@@ -297,7 +302,9 @@ def create_repo_group(cli: click.Group) -> click.Group:
                     click.echo(f"Error: Repository '{repo_id}' has not been synced yet.", err=True)
                     click.echo(f"Run 'chantal repo sync --repo-id {repo_id}' first.", err=True)
                 else:
-                    click.echo(f"Error: Repository '{repo_id}' not found in configuration.", err=True)
+                    click.echo(
+                        f"Error: Repository '{repo_id}' not found in configuration.", err=True
+                    )
                     click.echo("Run 'chantal repo list' to see available repositories.", err=True)
                 ctx.exit(1)
 
@@ -411,8 +418,12 @@ def create_repo_group(cli: click.Group) -> click.Group:
     @repo.command("check-updates")
     @click.option("--repo-id", help="Repository ID to check")
     @click.option("--all", is_flag=True, help="Check all enabled repositories")
-    @click.option("--pattern", help="Check repositories matching pattern (e.g., 'epel9-*', '*-latest')")
-    @click.option("--type", help="Filter by repository type (rpm, apt) when using --all or --pattern")
+    @click.option(
+        "--pattern", help="Check repositories matching pattern (e.g., 'epel9-*', '*-latest')"
+    )
+    @click.option(
+        "--type", help="Filter by repository type (rpm, apt) when using --all or --pattern"
+    )
     @click.option(
         "--format",
         "output_format",
@@ -560,7 +571,9 @@ def create_repo_group(cli: click.Group) -> click.Group:
                     click.echo(f"Error: Repository '{repo_id}' has not been synced yet.", err=True)
                     click.echo(f"Run 'chantal repo sync --repo-id {repo_id}' first.", err=True)
                 else:
-                    click.echo(f"Error: Repository '{repo_id}' not found in configuration.", err=True)
+                    click.echo(
+                        f"Error: Repository '{repo_id}' not found in configuration.", err=True
+                    )
                     click.echo("Run 'chantal repo list' to see available repositories.", err=True)
                 ctx.exit(1)
 
@@ -649,7 +662,9 @@ def create_repo_group(cli: click.Group) -> click.Group:
                     else:
                         changes_str = "No changes"
 
-                    click.echo(f"{date_str:<20} {status_str:<10} {duration_str:>10} {changes_str:<30}")
+                    click.echo(
+                        f"{date_str:<20} {status_str:<10} {duration_str:>10} {changes_str:<30}"
+                    )
 
                     # Show error message if failed
                     if sync.status == "failed" and sync.error_message:

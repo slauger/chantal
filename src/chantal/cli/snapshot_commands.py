@@ -25,6 +25,7 @@ def create_snapshot_group(cli: click.Group) -> click.Group:
     Returns:
         The snapshot command group
     """
+
     @cli.group(context_settings=CONTEXT_SETTINGS)
     def snapshot() -> None:
         """Snapshot management commands."""
@@ -70,7 +71,9 @@ def create_snapshot_group(cli: click.Group) -> click.Group:
                 return
 
             click.echo()
-            click.echo(f"{'Name':<30} {'Repository':<20} {'Packages':>10} {'Size':>12} {'Created':<20}")
+            click.echo(
+                f"{'Name':<30} {'Repository':<20} {'Packages':>10} {'Size':>12} {'Created':<20}"
+            )
             click.echo("-" * 100)
 
             for snapshot in snapshots:
@@ -175,7 +178,9 @@ def create_snapshot_group(cli: click.Group) -> click.Group:
 
             # Get first snapshot
             snap1 = (
-                session.query(Snapshot).filter_by(repository_id=repository.id, name=snapshot1).first()
+                session.query(Snapshot)
+                .filter_by(repository_id=repository.id, name=snapshot1)
+                .first()
             )
 
             if not snap1:
@@ -345,7 +350,8 @@ def create_snapshot_group(cli: click.Group) -> click.Group:
 
             if not snapshot:
                 click.echo(
-                    f"Error: Snapshot '{snapshot_name}' not found for repository '{repo_id}'.", err=True
+                    f"Error: Snapshot '{snapshot_name}' not found for repository '{repo_id}'.",
+                    err=True,
                 )
                 ctx.exit(1)
 
@@ -416,7 +422,8 @@ def create_snapshot_group(cli: click.Group) -> click.Group:
 
             if not source_snapshot:
                 click.echo(
-                    f"Error: Source snapshot '{source}' not found for repository '{repo_id}'.", err=True
+                    f"Error: Source snapshot '{source}' not found for repository '{repo_id}'.",
+                    err=True,
                 )
                 ctx.exit(1)
 
@@ -484,7 +491,12 @@ def create_snapshot_group(cli: click.Group) -> click.Group:
     @click.option("--limit", type=int, help="Limit number of packages shown (table format only)")
     @click.pass_context
     def snapshot_content(
-        ctx: click.Context, repo_id: str, view: str, snapshot_name: str, output_format: str, limit: int
+        ctx: click.Context,
+        repo_id: str,
+        view: str,
+        snapshot_name: str,
+        output_format: str,
+        limit: int,
     ) -> None:
         """Show content (package list) of a snapshot.
 

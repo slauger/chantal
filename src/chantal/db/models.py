@@ -9,7 +9,6 @@ snapshots, and their relationships.
 
 import enum
 from datetime import datetime
-from typing import Optional
 
 from sqlalchemy import (
     JSON,
@@ -118,16 +117,16 @@ class Repository(Base):
     )  # success, failed, running
 
     # Relationships
-    snapshots: Mapped[list["Snapshot"]] = relationship(
+    snapshots: Mapped[list[Snapshot]] = relationship(
         "Snapshot", back_populates="repository", cascade="all, delete-orphan"
     )
-    sync_history: Mapped[list["SyncHistory"]] = relationship(
+    sync_history: Mapped[list[SyncHistory]] = relationship(
         "SyncHistory", back_populates="repository", cascade="all, delete-orphan"
     )
-    content_items: Mapped[list["ContentItem"]] = relationship(
+    content_items: Mapped[list[ContentItem]] = relationship(
         "ContentItem", secondary=repository_content_items, back_populates="repositories"
     )
-    repository_files: Mapped[list["RepositoryFile"]] = relationship(
+    repository_files: Mapped[list[RepositoryFile]] = relationship(
         "RepositoryFile", secondary=repository_repository_files, back_populates="repositories"
     )
 
@@ -180,10 +179,10 @@ class ContentItem(Base):
     reference_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
     # Relationships (generic)
-    repositories: Mapped[list["Repository"]] = relationship(
+    repositories: Mapped[list[Repository]] = relationship(
         "Repository", secondary=repository_content_items, back_populates="content_items"
     )
-    snapshots: Mapped[list["Snapshot"]] = relationship(
+    snapshots: Mapped[list[Snapshot]] = relationship(
         "Snapshot", secondary=snapshot_content_items, back_populates="content_items"
     )
 
@@ -242,11 +241,11 @@ class Snapshot(Base):
     total_size_bytes: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
     # Relationships
-    repository: Mapped["Repository"] = relationship("Repository", back_populates="snapshots")
-    content_items: Mapped[list["ContentItem"]] = relationship(
+    repository: Mapped[Repository] = relationship("Repository", back_populates="snapshots")
+    content_items: Mapped[list[ContentItem]] = relationship(
         "ContentItem", secondary=snapshot_content_items, back_populates="snapshots"
     )
-    repository_files: Mapped[list["RepositoryFile"]] = relationship(
+    repository_files: Mapped[list[RepositoryFile]] = relationship(
         "RepositoryFile", secondary=snapshot_repository_files, back_populates="snapshots"
     )
 
@@ -287,8 +286,8 @@ class SyncHistory(Base):
     )
 
     # Relationships
-    repository: Mapped["Repository"] = relationship("Repository", back_populates="sync_history")
-    snapshot: Mapped[Optional["Snapshot"]] = relationship("Snapshot")
+    repository: Mapped[Repository] = relationship("Repository", back_populates="sync_history")
+    snapshot: Mapped[Snapshot | None] = relationship("Snapshot")
 
     def __repr__(self) -> str:
         return f"<SyncHistory(repository_id={self.repository_id}, status='{self.status}', started_at='{self.started_at}')>"
@@ -332,10 +331,10 @@ class View(Base):
     published_path: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Relationships
-    view_repositories: Mapped[list["ViewRepository"]] = relationship(
+    view_repositories: Mapped[list[ViewRepository]] = relationship(
         "ViewRepository", back_populates="view", cascade="all, delete-orphan"
     )
-    view_snapshots: Mapped[list["ViewSnapshot"]] = relationship(
+    view_snapshots: Mapped[list[ViewSnapshot]] = relationship(
         "ViewSnapshot", back_populates="view", cascade="all, delete-orphan"
     )
 
@@ -364,8 +363,8 @@ class ViewRepository(Base):
     added_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
 
     # Relationships
-    view: Mapped["View"] = relationship("View", back_populates="view_repositories")
-    repository: Mapped["Repository"] = relationship("Repository")
+    view: Mapped[View] = relationship("View", back_populates="view_repositories")
+    repository: Mapped[Repository] = relationship("Repository")
 
     # Unique constraint: repository can only be in view once
     __table_args__ = (UniqueConstraint("view_id", "repository_id", name="uq_view_repository"),)
@@ -407,7 +406,7 @@ class ViewSnapshot(Base):
     total_size_bytes: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
     # Relationships
-    view: Mapped["View"] = relationship("View", back_populates="view_snapshots")
+    view: Mapped[View] = relationship("View", back_populates="view_snapshots")
 
     # Unique constraint: snapshot name must be unique per view
     __table_args__ = (UniqueConstraint("view_id", "name", name="uq_view_snapshot_name"),)
@@ -471,10 +470,10 @@ class RepositoryFile(Base):
     )
 
     # Relationships (many-to-many like ContentItem)
-    repositories: Mapped[list["Repository"]] = relationship(
+    repositories: Mapped[list[Repository]] = relationship(
         "Repository", secondary=repository_repository_files, back_populates="repository_files"
     )
-    snapshots: Mapped[list["Snapshot"]] = relationship(
+    snapshots: Mapped[list[Snapshot]] = relationship(
         "Snapshot", secondary=snapshot_repository_files, back_populates="repository_files"
     )
 

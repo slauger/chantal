@@ -20,6 +20,7 @@ def create_db_group(cli: click.Group) -> click.Group:
     Returns:
         The db command group
     """
+
     @cli.group(context_settings=CONTEXT_SETTINGS)
     def db() -> None:
         """Database management commands."""

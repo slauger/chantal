@@ -21,6 +21,7 @@ def create_view_group(cli: click.Group) -> click.Group:
     Returns:
         The view command group
     """
+
     @cli.group(context_settings=CONTEXT_SETTINGS)
     def view() -> None:
         """View management commands.
@@ -31,7 +32,9 @@ def create_view_group(cli: click.Group) -> click.Group:
         pass
 
     @view.command("list")
-    @click.option("--format", "output_format", type=click.Choice(["table", "json"]), default="table")
+    @click.option(
+        "--format", "output_format", type=click.Choice(["table", "json"]), default="table"
+    )
     @click.pass_context
     def view_list(ctx, output_format):
         """List all configured views."""
@@ -79,7 +82,9 @@ def create_view_group(cli: click.Group) -> click.Group:
 
     @view.command("show")
     @click.option("--name", required=True, help="View name")
-    @click.option("--format", "output_format", type=click.Choice(["table", "json"]), default="table")
+    @click.option(
+        "--format", "output_format", type=click.Choice(["table", "json"]), default="table"
+    )
     @click.pass_context
     def view_show(ctx, name, output_format):
         """Show detailed information about a view."""
