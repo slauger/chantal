@@ -2467,6 +2467,53 @@ def pool_cleanup(ctx: click.Context, dry_run: bool) -> None:
         session.close()
 
 
+@pool.command("orphaned")
+@click.pass_context
+def pool_orphaned(ctx: click.Context) -> None:
+    """List orphaned files in storage pool.
+
+    Orphaned files are package files in the pool that are not referenced
+    in the database. This can happen after package deletion or cleanup operations.
+    """
+    from chantal.core.storage import StorageManager
+    from chantal.db.connection import DatabaseManager
+
+    config: GlobalConfig = ctx.obj["config"]
+
+    # Initialize storage manager
+    storage = StorageManager(config.storage)
+
+    # Initialize database connection
+    db_manager = DatabaseManager(config.database.url)
+    session = db_manager.get_session()
+
+    try:
+        click.echo("Finding orphaned files...")
+        click.echo()
+
+        orphaned_files = storage.get_orphaned_files(session)
+
+        if orphaned_files:
+            click.echo(f"Found {len(orphaned_files):,} orphaned files:")
+            click.echo()
+
+            total_size = 0
+            for file_path in orphaned_files:
+                file_size = file_path.stat().st_size
+                total_size += file_size
+                # Show relative path from pool root
+                rel_path = file_path.relative_to(storage.pool_path)
+                click.echo(f"  {rel_path} ({file_size:,} bytes)")
+
+            click.echo()
+            click.echo(f"Total: {len(orphaned_files):,} files, {total_size:,} bytes ({total_size / (1024**2):.2f} MB)")
+        else:
+            click.echo("No orphaned files found.")
+
+    finally:
+        session.close()
+
+
 @pool.command("verify")
 @click.pass_context
 def pool_verify(ctx: click.Context) -> None:
