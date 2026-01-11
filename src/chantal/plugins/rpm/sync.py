@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 RPM repository sync plugin.
 
@@ -9,22 +11,18 @@ import os
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional
 from urllib.parse import urljoin
 
 import requests
 from packaging import version
 from sqlalchemy.orm import Session
 
-from chantal.core.config import (
-    ProxyConfig,
-    RepositoryConfig,
-)
+from chantal.core.config import ProxyConfig, RepositoryConfig, SSLConfig
 from chantal.core.downloader import DownloadManager
 from chantal.core.storage import StorageManager
 from chantal.db.models import ContentItem, Repository, RepositoryFile
+from chantal.plugins.rpm import filters, parsers
 from chantal.plugins.rpm.models import RpmMetadata
-from chantal.plugins.rpm import parsers, filters
 
 
 @dataclass
@@ -35,23 +33,23 @@ class PackageMetadata:
     name: str
     version: str
     release: str
-    epoch: Optional[str]
+    epoch: str | None
     arch: str
     sha256: str
     size_bytes: int
     location: str  # Relative URL to package file
 
     # Optional metadata
-    summary: Optional[str] = None
-    description: Optional[str] = None
+    summary: str | None = None
+    description: str | None = None
 
     # Extended metadata for filtering
-    build_time: Optional[int] = None      # Unix timestamp (when built)
-    file_time: Optional[int] = None       # Unix timestamp (file modification)
-    group: Optional[str] = None           # RPM group (e.g., "Applications/Internet")
-    license: Optional[str] = None         # License string
-    vendor: Optional[str] = None          # Vendor/Packager
-    sourcerpm: Optional[str] = None       # Source RPM filename (to identify .src.rpm)
+    build_time: int | None = None  # Unix timestamp (when built)
+    file_time: int | None = None  # Unix timestamp (file modification)
+    group: str | None = None  # RPM group (e.g., "Applications/Internet")
+    license: str | None = None  # License string
+    vendor: str | None = None  # Vendor/Packager
+    sourcerpm: str | None = None  # Source RPM filename (to identify .src.rpm)
 
 
 @dataclass
@@ -62,8 +60,8 @@ class MetadataFileInfo:
     location: str  # Relative path (e.g., "repodata/abc123-updateinfo.xml.gz")
     checksum: str  # SHA256 checksum
     size: int  # File size in bytes
-    open_checksum: Optional[str] = None  # Checksum of uncompressed file
-    open_size: Optional[int] = None  # Size of uncompressed file
+    open_checksum: str | None = None  # Checksum of uncompressed file
+    open_size: int | None = None  # Size of uncompressed file
 
 
 @dataclass
@@ -76,7 +74,7 @@ class SyncResult:
     bytes_downloaded: int
     metadata_files_downloaded: int  # Number of metadata files downloaded
     success: bool
-    error_message: Optional[str] = None
+    error_message: str | None = None
 
 
 @dataclass
@@ -85,11 +83,11 @@ class PackageUpdate:
 
     name: str
     arch: str
-    local_version: Optional[str]  # None if package is new
-    local_release: Optional[str]
+    local_version: str | None  # None if package is new
+    local_release: str | None
     remote_version: str
     remote_release: str
-    remote_epoch: Optional[str]
+    remote_epoch: str | None
     size_bytes: int
     sha256: str
     location: str
@@ -110,11 +108,11 @@ class PackageUpdate:
 class CheckUpdatesResult:
     """Result of a check-updates operation."""
 
-    updates_available: List[PackageUpdate]
+    updates_available: list[PackageUpdate]
     total_packages: int  # Total packages in upstream
     total_size_bytes: int  # Total size of updates
     success: bool
-    error_message: Optional[str] = None
+    error_message: str | None = None
 
 
 class RpmSyncPlugin:
@@ -131,8 +129,8 @@ class RpmSyncPlugin:
         self,
         storage: StorageManager,
         config: RepositoryConfig,
-        proxy_config: Optional[ProxyConfig] = None,
-        ssl_config: Optional["SSLConfig"] = None,
+        proxy_config: ProxyConfig | None = None,
+        ssl_config: SSLConfig | None = None,
     ):
         """Initialize RPM sync plugin.
 
@@ -149,17 +147,13 @@ class RpmSyncPlugin:
 
         # Setup download manager with all authentication and SSL/TLS configuration
         self.downloader = DownloadManager(
-            config=config,
-            proxy_config=proxy_config,
-            ssl_config=ssl_config
+            config=config, proxy_config=proxy_config, ssl_config=ssl_config
         )
 
         # Backward compatibility for parsers module
         self.session = self.downloader.session
 
-    def sync_repository(
-        self, session: Session, repository: Repository
-    ) -> SyncResult:
+    def sync_repository(self, session: Session, repository: Repository) -> SyncResult:
         """Sync repository from upstream.
 
         Args:
@@ -183,7 +177,9 @@ class RpmSyncPlugin:
 
             # Step 3: Download and parse primary.xml.gz
             print("Fetching primary.xml.gz...")
-            xml_content = parsers.fetch_primary_xml(self.session, self.config.feed, primary_location)
+            xml_content = parsers.fetch_primary_xml(
+                self.session, self.config.feed, primary_location
+            )
             packages = parsers.parse_primary_xml(xml_content)
             print(f"Found {len(packages)} packages in repository")
 
@@ -212,7 +208,9 @@ class RpmSyncPlugin:
                 pkg_sha256 = pkg_meta["sha256"]
                 pkg_location = pkg_meta["location"]
 
-                print(f"[{i}/{len(packages)}] Processing {pkg_name}-{pkg_version}-{pkg_release}.{pkg_arch}")
+                print(
+                    f"[{i}/{len(packages)}] Processing {pkg_name}-{pkg_version}-{pkg_release}.{pkg_arch}"
+                )
 
                 # Check if package already exists by SHA256
                 if pkg_sha256 in existing_packages:
@@ -224,7 +222,7 @@ class RpmSyncPlugin:
                     if repository not in existing_pkg.repositories:
                         existing_pkg.repositories.append(repository)
                         session.commit()
-                        print(f"  → Linked to repository")
+                        print("  → Linked to repository")
 
                     continue
 
@@ -244,7 +242,7 @@ class RpmSyncPlugin:
                     # Continue with next package
 
             # Step 7: Download metadata files
-            print(f"\nDownloading metadata files...")
+            print("\nDownloading metadata files...")
             metadata_files = parsers.extract_all_metadata(repomd_root)
             metadata_downloaded = 0
 
@@ -263,9 +261,7 @@ class RpmSyncPlugin:
                         open_checksum=metadata_info.get("open_checksum"),
                         open_size=metadata_info.get("open_size"),
                     )
-                    self._download_metadata_file(
-                        mfi, session, repository, self.config.feed
-                    )
+                    self._download_metadata_file(mfi, session, repository, self.config.feed)
                     metadata_downloaded += 1
                     print(f"  → Downloaded {metadata_info['file_type']}.xml.gz")
                 except Exception as e:
@@ -273,7 +269,7 @@ class RpmSyncPlugin:
                     # Continue with next metadata file
 
             # Step 8: Check for .treeinfo and download installer files
-            print(f"\nChecking for installer files (.treeinfo)...")
+            print("\nChecking for installer files (.treeinfo)...")
             treeinfo_url = urljoin(self.config.feed, ".treeinfo")
             try:
                 response = self.session.get(treeinfo_url, timeout=30)
@@ -292,7 +288,7 @@ class RpmSyncPlugin:
                                 session=session,
                                 repository=repository,
                                 base_url=self.config.feed,
-                                file_info=file_info
+                                file_info=file_info,
                             )
                             installer_downloaded += 1
                         except Exception as e:
@@ -302,7 +298,9 @@ class RpmSyncPlugin:
                     # Store .treeinfo itself
                     self._store_treeinfo(session, repository, treeinfo_content)
 
-                    print(f"Installer files downloaded: {installer_downloaded}/{len(installer_files)}")
+                    print(
+                        f"Installer files downloaded: {installer_downloaded}/{len(installer_files)}"
+                    )
 
             except requests.exceptions.HTTPError as e:
                 if e.response.status_code == 404:
@@ -312,7 +310,7 @@ class RpmSyncPlugin:
             except Exception as e:
                 print(f"  → Warning: Failed to process .treeinfo: {e}")
 
-            print(f"\nSync complete!")
+            print("\nSync complete!")
             print(f"  Packages downloaded: {packages_downloaded}")
             print(f"  Packages skipped: {packages_skipped}")
             print(f"  Metadata files downloaded: {metadata_downloaded}")
@@ -339,9 +337,7 @@ class RpmSyncPlugin:
                 error_message=str(e),
             )
 
-    def check_updates(
-        self, session: Session, repository: Repository
-    ) -> CheckUpdatesResult:
+    def check_updates(self, session: Session, repository: Repository) -> CheckUpdatesResult:
         """Check for available package updates without downloading.
 
         Args:
@@ -364,7 +360,9 @@ class RpmSyncPlugin:
 
             # Step 3: Download and parse primary.xml
             print("Fetching primary.xml...")
-            xml_content = parsers.fetch_primary_xml(self.session, self.config.feed, primary_location)
+            xml_content = parsers.fetch_primary_xml(
+                self.session, self.config.feed, primary_location
+            )
             packages = parsers.parse_primary_xml(xml_content)
             print(f"Found {len(packages)} packages in upstream repository")
 
@@ -432,7 +430,9 @@ class RpmSyncPlugin:
                             elif remote_ver == local_ver:
                                 # Compare release
                                 remote_rel = version.parse(pkg_meta["release"])
-                                local_rel = version.parse(existing_pkg.content_metadata.get("release", ""))
+                                local_rel = version.parse(
+                                    existing_pkg.content_metadata.get("release", "")
+                                )
 
                                 if remote_rel > local_rel:
                                     is_newer = True
@@ -441,7 +441,9 @@ class RpmSyncPlugin:
                             if pkg_meta["version"] > existing_pkg.version:
                                 is_newer = True
                             elif pkg_meta["version"] == existing_pkg.version:
-                                if pkg_meta["release"] > existing_pkg.content_metadata.get("release", ""):
+                                if pkg_meta["release"] > existing_pkg.content_metadata.get(
+                                    "release", ""
+                                ):
                                     is_newer = True
 
                     if is_newer:
@@ -461,7 +463,7 @@ class RpmSyncPlugin:
                         updates.append(update)
                         total_update_size += pkg_meta["size_bytes"]
 
-            print(f"\nCheck complete!")
+            print("\nCheck complete!")
             print(f"  Updates available: {len(updates)}")
             print(f"  Total size: {total_update_size / 1024 / 1024:.2f} MB")
 
@@ -482,7 +484,7 @@ class RpmSyncPlugin:
                 error_message=str(e),
             )
 
-    def _get_existing_packages(self, session: Session) -> Dict[str, ContentItem]:
+    def _get_existing_packages(self, session: Session) -> dict[str, ContentItem]:
         """Get existing content items from database.
 
         Args:
@@ -497,7 +499,7 @@ class RpmSyncPlugin:
     def _download_package(
         self,
         url: str,
-        pkg_meta: Dict,
+        pkg_meta: dict,
         session: Session,
         repository: Repository,
     ) -> int:
@@ -603,7 +605,9 @@ class RpmSyncPlugin:
         # Download metadata file to temporary location
         metadata_url = urljoin(base_url + "/", metadata_info.location)
 
-        with tempfile.NamedTemporaryFile(delete=False, suffix=f".{metadata_info.file_type}") as tmp_file:
+        with tempfile.NamedTemporaryFile(
+            delete=False, suffix=f".{metadata_info.file_type}"
+        ) as tmp_file:
             tmp_path = Path(tmp_file.name)
 
             try:
@@ -666,11 +670,7 @@ class RpmSyncPlugin:
                     tmp_path.unlink()
 
     def _download_installer_file(
-        self,
-        session: Session,
-        repository: Repository,
-        base_url: str,
-        file_info: Dict[str, str]
+        self, session: Session, repository: Repository, base_url: str, file_info: dict[str, str]
     ) -> None:
         """Download and store installer file.
 
@@ -680,9 +680,9 @@ class RpmSyncPlugin:
             base_url: Repository base URL
             file_info: Dict with path, file_type, sha256
         """
-        file_path = file_info['path']
-        file_type = file_info['file_type']
-        expected_sha256 = file_info.get('sha256')
+        file_path = file_info["path"]
+        file_type = file_info["file_type"]
+        expected_sha256 = file_info.get("sha256")
 
         file_url = urljoin(base_url, file_path)
 
@@ -695,7 +695,7 @@ class RpmSyncPlugin:
             response.raise_for_status()
 
             # Download with progress for large files
-            total_size = int(response.headers.get('content-length', 0))
+            total_size = int(response.headers.get("content-length", 0))
             downloaded = 0
 
             for chunk in response.iter_content(chunk_size=8192):
@@ -706,7 +706,11 @@ class RpmSyncPlugin:
                 if total_size > 10 * 1024 * 1024:
                     mb_downloaded = downloaded / 1024 / 1024
                     mb_total = total_size / 1024 / 1024
-                    print(f"\r    {mb_downloaded:.1f} MB / {mb_total:.1f} MB ({mb_downloaded/mb_total*100:.0f}%)", end='', flush=True)
+                    print(
+                        f"\r    {mb_downloaded:.1f} MB / {mb_total:.1f} MB ({mb_downloaded/mb_total*100:.0f}%)",
+                        end="",
+                        flush=True,
+                    )
 
             if total_size > 10 * 1024 * 1024:
                 print()  # Newline after progress
@@ -716,8 +720,8 @@ class RpmSyncPlugin:
 
             # Calculate SHA256
             sha256_hash = hashlib.sha256()
-            with open(tmp_file_path, 'rb') as f:
-                for chunk in iter(lambda: f.read(8192), b''):
+            with open(tmp_file_path, "rb") as f:
+                for chunk in iter(lambda: f.read(8192), b""):
                     sha256_hash.update(chunk)
 
             actual_sha256 = sha256_hash.hexdigest()
@@ -732,9 +736,7 @@ class RpmSyncPlugin:
 
             # Store in pool via StorageManager
             pool_path = self.storage.add_repository_file(
-                Path(tmp_file_path),
-                filename=Path(file_path).name,
-                sha256=actual_sha256
+                Path(tmp_file_path), filename=Path(file_path).name, sha256=actual_sha256
             )
 
             # Create RepositoryFile record
@@ -744,7 +746,7 @@ class RpmSyncPlugin:
                 original_path=file_path,
                 pool_path=pool_path,
                 sha256=actual_sha256,
-                size_bytes=os.path.getsize(tmp_file_path)
+                size_bytes=os.path.getsize(tmp_file_path),
             )
 
             session.add(repo_file)
@@ -756,17 +758,14 @@ class RpmSyncPlugin:
 
             print(f"    ✓ Stored {file_type} ({actual_sha256[:8]}...)")
 
-        except Exception as e:
+        except Exception:
             # Clean up on error
             if os.path.exists(tmp_file.name):
                 os.unlink(tmp_file.name)
             raise
 
     def _store_treeinfo(
-        self,
-        session: Session,
-        repository: Repository,
-        treeinfo_content: str
+        self, session: Session, repository: Repository, treeinfo_content: str
     ) -> None:
         """Store .treeinfo file itself as RepositoryFile.
 
@@ -776,7 +775,7 @@ class RpmSyncPlugin:
             treeinfo_content: .treeinfo file content
         """
         # Write to temp file
-        tmp_file = tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.treeinfo')
+        tmp_file = tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".treeinfo")
         tmp_file.write(treeinfo_content)
         tmp_file.close()
         tmp_path = tmp_file.name
@@ -787,9 +786,7 @@ class RpmSyncPlugin:
 
             # Store in pool
             pool_path = self.storage.add_repository_file(
-                Path(tmp_path),
-                filename=".treeinfo",
-                sha256=sha256_hash
+                Path(tmp_path), filename=".treeinfo", sha256=sha256_hash
             )
 
             # Create RepositoryFile record
@@ -799,7 +796,7 @@ class RpmSyncPlugin:
                 original_path=".treeinfo",
                 pool_path=pool_path,
                 sha256=sha256_hash,
-                size_bytes=len(treeinfo_content)
+                size_bytes=len(treeinfo_content),
             )
 
             session.add(repo_file)

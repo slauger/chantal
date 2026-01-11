@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 RPM repository metadata parsers.
 
@@ -8,8 +10,6 @@ import configparser
 import gzip
 import lzma
 import xml.etree.ElementTree as ET
-from pathlib import Path
-from typing import Dict, List, Optional
 from urllib.parse import urljoin
 
 import requests
@@ -71,7 +71,7 @@ def extract_primary_location(repomd_root: ET.Element) -> str:
     return location
 
 
-def extract_all_metadata(repomd_root: ET.Element) -> List[Dict]:
+def extract_all_metadata(repomd_root: ET.Element) -> list[dict]:
     """Extract all metadata file information from repomd.xml.
 
     Args:
@@ -135,7 +135,11 @@ def extract_all_metadata(repomd_root: ET.Element) -> List[Dict]:
             open_size_elem = data_elem.find("repo:open-size", ns)
             if open_size_elem is None:
                 open_size_elem = data_elem.find("open-size")
-            open_size = int(open_size_elem.text) if open_size_elem is not None and open_size_elem.text else None
+            open_size = (
+                int(open_size_elem.text)
+                if open_size_elem is not None and open_size_elem.text
+                else None
+            )
 
             # Create metadata file info dict
             metadata_info = {
@@ -156,11 +160,7 @@ def extract_all_metadata(repomd_root: ET.Element) -> List[Dict]:
     return metadata_files
 
 
-def fetch_primary_xml(
-    session: requests.Session,
-    base_url: str,
-    primary_location: str
-) -> bytes:
+def fetch_primary_xml(session: requests.Session, base_url: str, primary_location: str) -> bytes:
     """Download and decompress primary.xml.gz or primary.xml.xz.
 
     Args:
@@ -180,15 +180,15 @@ def fetch_primary_xml(
     response.raise_for_status()
 
     # Decompress based on file extension
-    if primary_location.endswith('.xz'):
+    if primary_location.endswith(".xz"):
         xml_content = lzma.decompress(response.content)
-    elif primary_location.endswith('.gz'):
+    elif primary_location.endswith(".gz"):
         xml_content = gzip.decompress(response.content)
     else:
         # Try to auto-detect based on magic bytes
-        if response.content[:2] == b'\x1f\x8b':  # gzip magic
+        if response.content[:2] == b"\x1f\x8b":  # gzip magic
             xml_content = gzip.decompress(response.content)
-        elif response.content[:6] == b'\xfd7zXZ\x00':  # xz magic
+        elif response.content[:6] == b"\xfd7zXZ\x00":  # xz magic
             xml_content = lzma.decompress(response.content)
         else:
             raise ValueError(f"Unknown compression format for {primary_location}")
@@ -196,7 +196,7 @@ def fetch_primary_xml(
     return xml_content
 
 
-def parse_primary_xml(xml_content: bytes) -> List[Dict]:
+def parse_primary_xml(xml_content: bytes) -> list[dict]:
     """Parse primary.xml content and extract package metadata.
 
     Args:
@@ -266,7 +266,13 @@ def parse_primary_xml(xml_content: bytes) -> List[Dict]:
                 file_time = int(file_time_str) if file_time_str else None
 
             # ElementTree elements can be falsy even if not None, so check explicitly
-            if name_elem is None or arch_elem is None or version_elem is None or checksum_elem is None or location_elem is None:
+            if (
+                name_elem is None
+                or arch_elem is None
+                or version_elem is None
+                or checksum_elem is None
+                or location_elem is None
+            ):
                 continue  # Skip incomplete packages
 
             pkg_meta = {
@@ -297,7 +303,7 @@ def parse_primary_xml(xml_content: bytes) -> List[Dict]:
     return packages
 
 
-def parse_treeinfo(content: str) -> List[Dict[str, str]]:
+def parse_treeinfo(content: str) -> list[dict[str, str]]:
     """Parse .treeinfo and extract installer file metadata.
 
     Args:
@@ -313,16 +319,16 @@ def parse_treeinfo(content: str) -> List[Dict[str, str]]:
 
     # Parse checksums section
     checksums = {}
-    if parser.has_section('checksums'):
-        for key, value in parser.items('checksums'):
+    if parser.has_section("checksums"):
+        for key, value in parser.items("checksums"):
             # Format: "images/boot.iso = sha256:abc123..."
-            if 'sha256:' in value:
-                checksum = value.split('sha256:')[1].strip()
+            if "sha256:" in value:
+                checksum = value.split("sha256:")[1].strip()
                 checksums[key] = checksum
 
     # Parse images section for current arch
-    arch = parser.get('general', 'arch', fallback='x86_64')
-    images_section = f'images-{arch}'
+    arch = parser.get("general", "arch", fallback="x86_64")
+    images_section = f"images-{arch}"
 
     if parser.has_section(images_section):
         for file_type, file_path in parser.items(images_section):
@@ -331,10 +337,6 @@ def parse_treeinfo(content: str) -> List[Dict[str, str]]:
 
             sha256 = checksums.get(file_path)
 
-            installer_files.append({
-                'path': file_path,
-                'file_type': file_type,
-                'sha256': sha256
-            })
+            installer_files.append({"path": file_path, "file_type": file_type, "sha256": sha256})
 
     return installer_files

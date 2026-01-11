@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Chantal - Unified Offline Repository Mirroring
 

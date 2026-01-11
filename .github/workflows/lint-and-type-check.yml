@@ -44,15 +44,13 @@ jobs:
         run: |
           echo "Running ruff linter..."
           ruff check src/chantal/ tests/ --output-format=github
-        continue-on-error: true
-        # TODO: Set to false once linting errors are fixed
+        continue-on-error: false
 
       - name: Run black (code formatting check)
         run: |
           echo "Checking code formatting with black..."
           black --check --diff src/chantal/ tests/
-        continue-on-error: true
-        # TODO: Set to false once formatting is consistent
+        continue-on-error: false
 
       - name: Run mypy (type checking)
         run: |

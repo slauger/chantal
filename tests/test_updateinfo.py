@@ -2,9 +2,7 @@
 
 import bz2
 import gzip
-import tempfile
 import xml.etree.ElementTree as ET
-from pathlib import Path
 
 import pytest
 
@@ -270,7 +268,7 @@ class TestUpdateInfoGenerator:
         generator = UpdateInfoGenerator()
         xml_bytes = generator.generate_xml(sample_updates)
 
-        assert xml_bytes.startswith(b'<?xml version=')
+        assert xml_bytes.startswith(b"<?xml version=")
         assert b"<updates>" in xml_bytes
         assert b"RHSA-2024:0001" in xml_bytes
         assert b"RHBA-2024:0002" in xml_bytes
@@ -356,9 +354,7 @@ class TestUpdateInfoIntegration:
         assert update_elems[0].find("id").text == "RHSA-2024:0001"
         assert update_elems[1].find("id").text == "RHBA-2024:0002"
 
-    def test_filtered_xml_excludes_unavailable_updates(
-        self, sample_updateinfo_xml, tmp_path
-    ):
+    def test_filtered_xml_excludes_unavailable_updates(self, sample_updateinfo_xml, tmp_path):
         """Test that filtered XML excludes updates with unavailable packages."""
         xml_file = tmp_path / "updateinfo.xml"
         xml_file.write_text(sample_updateinfo_xml, encoding="utf-8")

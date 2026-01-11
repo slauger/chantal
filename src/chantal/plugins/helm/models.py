@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Helm chart metadata models.
 
 This module defines Pydantic models for type-safe Helm chart metadata.
@@ -5,7 +7,6 @@ The metadata is stored as JSON in the ContentItem.content_metadata field.
 """
 
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -14,8 +15,8 @@ class HelmMaintainer(BaseModel):
     """Helm chart maintainer."""
 
     name: str
-    email: Optional[str] = None
-    url: Optional[str] = None
+    email: str | None = None
+    url: str | None = None
 
 
 class HelmDependency(BaseModel):
@@ -23,12 +24,12 @@ class HelmDependency(BaseModel):
 
     name: str
     version: str
-    repository: Optional[str] = None
-    condition: Optional[str] = None
-    tags: Optional[list[str]] = None
-    enabled: Optional[bool] = None
-    import_values: Optional[list] = Field(None, alias="import-values")
-    alias: Optional[str] = None
+    repository: str | None = None
+    condition: str | None = None
+    tags: list[str] | None = None
+    enabled: bool | None = None
+    import_values: list | None = Field(None, alias="import-values")
+    alias: str | None = None
 
 
 class HelmMetadata(BaseModel):
@@ -53,33 +54,32 @@ class HelmMetadata(BaseModel):
     version: str  # Chart version (semantic versioning)
 
     # Optional fields from index.yaml
-    app_version: Optional[str] = Field(None, alias="appVersion")
-    description: Optional[str] = None
-    home: Optional[str] = None
-    icon: Optional[str] = None
-    keywords: Optional[list[str]] = None
-    sources: Optional[list[str]] = None
-    maintainers: Optional[list[HelmMaintainer]] = None
-    dependencies: Optional[list[HelmDependency]] = None
+    app_version: str | None = Field(None, alias="appVersion")
+    description: str | None = None
+    home: str | None = None
+    icon: str | None = None
+    keywords: list[str] | None = None
+    sources: list[str] | None = None
+    maintainers: list[HelmMaintainer] | None = None
+    dependencies: list[HelmDependency] | None = None
 
     # Metadata
-    created: Optional[datetime] = None
-    digest: Optional[str] = None  # SHA256 from index.yaml (may differ from actual file SHA256)
-    urls: Optional[list[str]] = None  # Download URLs from index.yaml
+    created: datetime | None = None
+    digest: str | None = None  # SHA256 from index.yaml (may differ from actual file SHA256)
+    urls: list[str] | None = None  # Download URLs from index.yaml
 
     # Additional chart metadata
-    api_version: Optional[str] = Field(None, alias="apiVersion")  # Chart API version (usually "v2")
-    type: Optional[str] = None  # Chart type: application, library
-    deprecated: Optional[bool] = None
-    annotations: Optional[dict[str, str]] = None
-    kube_version: Optional[str] = Field(None, alias="kubeVersion")
-    app_version_field: Optional[str] = Field(None, alias="appVersion")
+    api_version: str | None = Field(None, alias="apiVersion")  # Chart API version (usually "v2")
+    type: str | None = None  # Chart type: application, library
+    deprecated: bool | None = None
+    annotations: dict[str, str] | None = None
+    kube_version: str | None = Field(None, alias="kubeVersion")
+    app_version_field: str | None = Field(None, alias="appVersion")
 
     class Config:
         """Pydantic config."""
 
         populate_by_name = True  # Allow both 'appVersion' and 'app_version'
-
 
     def to_index_entry(self) -> dict:
         """Convert to Helm index.yaml entry format.
@@ -108,7 +108,9 @@ class HelmMetadata(BaseModel):
         if self.maintainers:
             entry["maintainers"] = [m.model_dump(exclude_none=True) for m in self.maintainers]
         if self.dependencies:
-            entry["dependencies"] = [d.model_dump(exclude_none=True, by_alias=True) for d in self.dependencies]
+            entry["dependencies"] = [
+                d.model_dump(exclude_none=True, by_alias=True) for d in self.dependencies
+            ]
         if self.created:
             entry["created"] = self.created.isoformat()
         if self.digest:

@@ -1,28 +1,23 @@
+from __future__ import annotations
+
 """
 Helm chart repository syncer.
 
 This module implements syncing for Helm chart repositories.
 """
 
-import gzip
-import hashlib
 import logging
-import os
-import shutil
 import tempfile
-from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
 from urllib.parse import urljoin
 
-import requests
 import yaml
 from sqlalchemy.orm import Session
 
-from chantal.core.config import ProxyConfig, RepositoryConfig
+from chantal.core.config import ProxyConfig, RepositoryConfig, SSLConfig
 from chantal.core.downloader import DownloadManager
 from chantal.core.storage import StorageManager
-from chantal.db.models import ContentItem, Repository, Snapshot
+from chantal.db.models import ContentItem, Repository
 from chantal.plugins.helm.models import HelmMetadata
 
 logger = logging.getLogger(__name__)
@@ -43,8 +38,8 @@ class HelmSyncer:
         self,
         storage: StorageManager,
         config: RepositoryConfig,
-        proxy_config: Optional[ProxyConfig] = None,
-        ssl_config: Optional["SSLConfig"] = None,
+        proxy_config: ProxyConfig | None = None,
+        ssl_config: SSLConfig | None = None,
     ):
         """Initialize Helm syncer.
 
@@ -61,9 +56,7 @@ class HelmSyncer:
 
         # Setup download manager with all authentication and SSL/TLS configuration
         self.downloader = DownloadManager(
-            config=config,
-            proxy_config=proxy_config,
-            ssl_config=ssl_config
+            config=config, proxy_config=proxy_config, ssl_config=ssl_config
         )
 
         # Backward compatibility
@@ -89,7 +82,7 @@ class HelmSyncer:
 
         # Fetch and parse index.yaml
         # Ensure feed URL ends with / for proper urljoin behavior
-        feed_url = config.feed if config.feed.endswith('/') else config.feed + '/'
+        feed_url = config.feed if config.feed.endswith("/") else config.feed + "/"
         index_url = urljoin(feed_url, "index.yaml")
         index_data = self._fetch_index(index_url, config)
 
@@ -112,10 +105,14 @@ class HelmSyncer:
         for chart_entry in filtered_charts:
             try:
                 # Check if chart already exists
-                existing = session.query(ContentItem).filter_by(
-                    content_type="helm",
-                    sha256=chart_entry["digest"] if chart_entry.get("digest") else None
-                ).first()
+                existing = (
+                    session.query(ContentItem)
+                    .filter_by(
+                        content_type="helm",
+                        sha256=chart_entry["digest"] if chart_entry.get("digest") else None,
+                    )
+                    .first()
+                )
 
                 if existing:
                     # Chart already exists - link to repository if not already linked
@@ -131,7 +128,7 @@ class HelmSyncer:
                 if not chart_url.startswith(("http://", "https://")):
                     # Relative URL - make absolute
                     # Ensure feed URL ends with / for proper urljoin behavior
-                    feed_url = config.feed if config.feed.endswith('/') else config.feed + '/'
+                    feed_url = config.feed if config.feed.endswith("/") else config.feed + "/"
                     chart_url = urljoin(feed_url, chart_url)
 
                 pool_path, sha256, size = self._download_chart(chart_url, config)
@@ -185,19 +182,20 @@ class HelmSyncer:
         # Handle encoding - response.content is bytes, decode as UTF-8
         # Some index.yaml files may have special chars, ignore errors
         try:
-            content = response.content.decode('utf-8')
+            content = response.content.decode("utf-8")
         except UnicodeDecodeError:
             # Fallback to latin-1 if UTF-8 fails
-            content = response.content.decode('latin-1')
+            content = response.content.decode("latin-1")
 
         # Remove control characters that YAML doesn't allow
         # Keep tab (\x09), newline (\x0A), carriage return (\x0D)
         import re
-        content = re.sub(r'[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F-\x9F]', '', content)
+
+        content = re.sub(r"[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F-\x9F]", "", content)
 
         return yaml.safe_load(content)
 
-    def _parse_index(self, index_data: dict) -> List[dict]:
+    def _parse_index(self, index_data: dict) -> list[dict]:
         """Parse chart entries from index.yaml.
 
         Args:
@@ -209,17 +207,13 @@ class HelmSyncer:
         all_charts = []
 
         entries = index_data.get("entries", {})
-        for chart_name, versions in entries.items():
+        for _chart_name, versions in entries.items():
             for version_entry in versions:
                 all_charts.append(version_entry)
 
         return all_charts
 
-    def _apply_filters(
-        self,
-        charts: List[dict],
-        config: RepositoryConfig
-    ) -> List[dict]:
+    def _apply_filters(self, charts: list[dict], config: RepositoryConfig) -> list[dict]:
         """Apply filters to chart list.
 
         Args:
@@ -235,17 +229,21 @@ class HelmSyncer:
         if config.filters and config.filters.patterns:
             if config.filters.patterns.include:
                 import re
+
                 include_patterns = [re.compile(p) for p in config.filters.patterns.include]
                 filtered = [
-                    c for c in filtered
+                    c
+                    for c in filtered
                     if any(pattern.match(c["name"]) for pattern in include_patterns)
                 ]
 
             if config.filters.patterns.exclude:
                 import re
+
                 exclude_patterns = [re.compile(p) for p in config.filters.patterns.exclude]
                 filtered = [
-                    c for c in filtered
+                    c
+                    for c in filtered
                     if not any(pattern.match(c["name"]) for pattern in exclude_patterns)
                 ]
 
@@ -275,11 +273,7 @@ class HelmSyncer:
 
         return filtered
 
-    def _download_chart(
-        self,
-        url: str,
-        config: RepositoryConfig
-    ) -> tuple[Path, str, int]:
+    def _download_chart(self, url: str, config: RepositoryConfig) -> tuple[Path, str, int]:
         """Download chart .tgz file to pool.
 
         Args:

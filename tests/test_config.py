@@ -387,4 +387,3 @@ repositories:
         loader = ConfigLoader(config_path)
         with pytest.raises(ValueError, match="Configuration validation error"):
             loader.load()
-

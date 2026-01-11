@@ -1,6 +1,5 @@
 """Tests for CLI module."""
 
-import pytest
 from click.testing import CliRunner
 
 from chantal.cli.main import cli
@@ -87,7 +86,9 @@ def test_repo_check_updates():
     # Command should fail because test-repo doesn't exist in config
     # But verify the command itself works (or raises an exception due to permission/config issues)
     assert result.exit_code != 0
-    assert ("Repository not found" in result.output or "test-repo" in result.output or result.exception)
+    assert (
+        "Repository not found" in result.output or "test-repo" in result.output or result.exception
+    )
 
 
 def test_db_stats():
@@ -125,15 +126,17 @@ def test_db_current():
     runner = CliRunner()
     result = runner.invoke(cli, ["db", "current"])
     # Command should show current revision or message about uninitialized DB
-    assert ("Current revision" in result.output or
-            "Database not initialized" in result.output or
-            "revision" in result.output.lower())
+    assert (
+        "Current revision" in result.output
+        or "Database not initialized" in result.output
+        or "revision" in result.output.lower()
+    )
 
 
 def test_db_history():
     """Test db history command."""
     runner = CliRunner()
-    result = runner.invoke(cli, ["db", "history"])
+    runner.invoke(cli, ["db", "history"])
     # Command exists (manual testing confirms it works in practice)
     # Alembic's iterate_revisions API is complex, accept any result
     assert True  # Command runs, that's what matters

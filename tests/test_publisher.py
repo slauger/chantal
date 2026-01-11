@@ -6,20 +6,18 @@ This module tests the publisher plugin base class and RPM publisher implementati
 
 import gzip
 import xml.etree.ElementTree as ET
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import sessionmaker
 
 from chantal.core.config import RepositoryConfig, StorageConfig
 from chantal.core.storage import StorageManager
 from chantal.db.models import Base, ContentItem, Repository, Snapshot
-from chantal.plugins.rpm.models import RpmMetadata
 from chantal.plugins.base import PublisherPlugin
+from chantal.plugins.rpm.models import RpmMetadata
 from chantal.plugins.rpm.publisher import RpmPublisher
-
 
 # Test fixtures
 
@@ -103,7 +101,7 @@ def test_package(db_session, test_repository, temp_storage, test_package_file):
         filename="test-package-1.0-1.el9.x86_64.rpm",
         size_bytes=size_bytes,
         pool_path=pool_path,
-        content_metadata=rpm_metadata.model_dump(exclude_none=False)
+        content_metadata=rpm_metadata.model_dump(exclude_none=False),
     )
     db_session.add(content_item)
     db_session.commit()
@@ -167,9 +165,7 @@ def test_publisher_plugin_requires_implementation(temp_storage):
         IncompletePublisher(temp_storage)
 
 
-def test_publisher_plugin_create_hardlinks_helper(
-    temp_storage, test_package, db_session, tmp_path
-):
+def test_publisher_plugin_create_hardlinks_helper(temp_storage, test_package, db_session, tmp_path):
     """Test the _create_hardlinks helper method."""
 
     class TestPublisher(PublisherPlugin):
@@ -245,12 +241,8 @@ def test_rpm_publisher_publish_repository(
     target_path = tmp_path / "published" / "latest"
 
     # Mock _get_repository_packages to return our test package
-    with patch.object(
-        rpm_publisher, "_get_repository_packages", return_value=[test_package]
-    ):
-        rpm_publisher.publish_repository(
-            db_session, test_repository, repo_config, target_path
-        )
+    with patch.object(rpm_publisher, "_get_repository_packages", return_value=[test_package]):
+        rpm_publisher.publish_repository(db_session, test_repository, repo_config, target_path)
 
     # Verify directory structure was created
     assert target_path.exists()
@@ -292,17 +284,13 @@ def test_rpm_publisher_unpublish_nonexistent(rpm_publisher, tmp_path):
     assert not target_path.exists()
 
 
-def test_rpm_publisher_generate_primary_xml(
-    rpm_publisher, test_package, db_session, tmp_path
-):
+def test_rpm_publisher_generate_primary_xml(rpm_publisher, test_package, db_session, tmp_path):
     """Test primary.xml.gz generation."""
     repodata_path = tmp_path / "repodata"
     repodata_path.mkdir()
 
     # Generate primary.xml.gz
-    primary_xml_path = rpm_publisher._generate_primary_xml(
-        [test_package], repodata_path
-    )
+    primary_xml_path = rpm_publisher._generate_primary_xml([test_package], repodata_path)
 
     # Verify file was created
     assert primary_xml_path.exists()
@@ -382,7 +370,7 @@ def test_rpm_publisher_generate_primary_xml_multiple_packages(
             filename=f"test-pkg-{i}-1.0-1.el9.x86_64.rpm",
             size_bytes=size_bytes,
             pool_path=pool_path,
-            content_metadata=rpm_metadata.model_dump(exclude_none=False)
+            content_metadata=rpm_metadata.model_dump(exclude_none=False),
         )
         db_session.add(content_item)
         packages.append(content_item)
@@ -429,9 +417,7 @@ def test_rpm_publisher_generate_repomd_xml(rpm_publisher, tmp_path):
 
     # Generate repomd.xml (with metadata files list)
     metadata_files = [("primary", primary_xml_path)]
-    repomd_xml_path = rpm_publisher._generate_repomd_xml(
-        repodata_path, metadata_files
-    )
+    repomd_xml_path = rpm_publisher._generate_repomd_xml(repodata_path, metadata_files)
 
     # Verify file was created
     assert repomd_xml_path.exists()
@@ -499,9 +485,7 @@ def test_rpm_publisher_publish_empty_snapshot(
     target_path = tmp_path / "published" / "empty-snapshot"
 
     # Publish snapshot
-    rpm_publisher.publish_snapshot(
-        db_session, snapshot, test_repository, repo_config, target_path
-    )
+    rpm_publisher.publish_snapshot(db_session, snapshot, test_repository, repo_config, target_path)
 
     # Verify directory structure was created
     assert target_path.exists()
@@ -523,8 +507,7 @@ def test_rpm_publisher_publish_empty_snapshot(
 
 
 def test_rpm_publisher_hardlink_preservation(
-    rpm_publisher, db_session, test_snapshot, test_repository, repo_config, tmp_path,
-    temp_storage
+    rpm_publisher, db_session, test_snapshot, test_repository, repo_config, tmp_path, temp_storage
 ):
     """Test that published packages are hardlinks, not copies."""
     target_path = tmp_path / "published" / "test-snapshot"
@@ -578,11 +561,11 @@ def test_rpm_publisher_metadata_xml_well_formed(
     # Verify XML declaration exists in both files (accept both single and double quotes)
     with open(target_path / "repodata" / "repomd.xml", "rb") as f:
         repomd_content = f.read()
-    assert b'<?xml version' in repomd_content
+    assert b"<?xml version" in repomd_content
 
     with gzip.open(target_path / "repodata" / "primary.xml.gz", "rb") as f:
         primary_content = f.read()
-    assert b'<?xml version' in primary_content
+    assert b"<?xml version" in primary_content
 
 
 # Kickstart/Installer File Tests
@@ -592,8 +575,8 @@ def test_rpm_publisher_publish_kickstart_files(
     rpm_publisher, db_session, test_repository, tmp_path, temp_storage
 ):
     """Test publishing kickstart/installer files."""
+
     from chantal.db.models import RepositoryFile
-    import os
 
     # Create test installer files in pool
     treeinfo_content = b"[general]\narch = x86_64\n"
@@ -610,19 +593,14 @@ def test_rpm_publisher_publish_kickstart_files(
 
     # Add files to storage pool
     import hashlib
+
     treeinfo_sha256 = hashlib.sha256(treeinfo_content).hexdigest()
     boot_iso_sha256 = hashlib.sha256(boot_iso_content).hexdigest()
     vmlinuz_sha256 = hashlib.sha256(vmlinuz_content).hexdigest()
 
-    _, treeinfo_pool_path, _ = temp_storage.add_repository_file(
-        treeinfo_file, ".treeinfo"
-    )
-    _, boot_iso_pool_path, _ = temp_storage.add_repository_file(
-        boot_iso_file, "boot.iso"
-    )
-    _, vmlinuz_pool_path, _ = temp_storage.add_repository_file(
-        vmlinuz_file, "vmlinuz"
-    )
+    _, treeinfo_pool_path, _ = temp_storage.add_repository_file(treeinfo_file, ".treeinfo")
+    _, boot_iso_pool_path, _ = temp_storage.add_repository_file(boot_iso_file, "boot.iso")
+    _, vmlinuz_pool_path, _ = temp_storage.add_repository_file(vmlinuz_file, "vmlinuz")
 
     # Create RepositoryFile records
     kickstart_files = [
@@ -683,15 +661,18 @@ def test_rpm_publisher_publish_kickstart_files(
 
     assert (target_path / ".treeinfo").stat().st_ino == treeinfo_pool.stat().st_ino
     assert (target_path / "images" / "boot.iso").stat().st_ino == boot_iso_pool.stat().st_ino
-    assert (target_path / "images" / "pxeboot" / "vmlinuz").stat().st_ino == vmlinuz_pool.stat().st_ino
+    assert (
+        target_path / "images" / "pxeboot" / "vmlinuz"
+    ).stat().st_ino == vmlinuz_pool.stat().st_ino
 
 
 def test_rpm_publisher_publish_with_kickstart_integration(
     rpm_publisher, db_session, test_repository, test_package, repo_config, tmp_path, temp_storage
 ):
     """Test full publish workflow with both packages and kickstart files."""
-    from chantal.db.models import RepositoryFile
     import hashlib
+
+    from chantal.db.models import RepositoryFile
 
     # Create kickstart file
     treeinfo_content = b"[general]\narch = x86_64\n"
@@ -699,9 +680,7 @@ def test_rpm_publisher_publish_with_kickstart_integration(
     treeinfo_file.write_bytes(treeinfo_content)
 
     treeinfo_sha256 = hashlib.sha256(treeinfo_content).hexdigest()
-    _, treeinfo_pool_path, _ = temp_storage.add_repository_file(
-        treeinfo_file, ".treeinfo"
-    )
+    _, treeinfo_pool_path, _ = temp_storage.add_repository_file(treeinfo_file, ".treeinfo")
 
     # Create RepositoryFile record
     kickstart_file = RepositoryFile(
@@ -720,12 +699,8 @@ def test_rpm_publisher_publish_with_kickstart_integration(
     # Publish repository
     target_path = tmp_path / "published" / "repo-with-kickstart"
 
-    with patch.object(
-        rpm_publisher, "_get_repository_packages", return_value=[test_package]
-    ):
-        rpm_publisher.publish_repository(
-            db_session, test_repository, repo_config, target_path
-        )
+    with patch.object(rpm_publisher, "_get_repository_packages", return_value=[test_package]):
+        rpm_publisher.publish_repository(db_session, test_repository, repo_config, target_path)
 
     # Verify packages were published
     assert (target_path / "Packages").exists()

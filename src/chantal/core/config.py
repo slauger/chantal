@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Configuration management for Chantal.
 
@@ -6,7 +8,7 @@ YAML-based configuration loading with include support.
 """
 
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Literal
 
 import yaml
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -15,28 +17,28 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 class ProxyConfig(BaseModel):
     """HTTP proxy configuration."""
 
-    http_proxy: Optional[str] = None
-    https_proxy: Optional[str] = None
-    no_proxy: Optional[str] = None
-    username: Optional[str] = None
-    password: Optional[str] = None
+    http_proxy: str | None = None
+    https_proxy: str | None = None
+    no_proxy: str | None = None
+    username: str | None = None
+    password: str | None = None
 
 
 class SSLConfig(BaseModel):
     """SSL/TLS configuration for HTTPS connections."""
 
     # Path to CA bundle file (PEM format)
-    ca_bundle: Optional[str] = None
+    ca_bundle: str | None = None
 
     # Inline CA certificates (PEM format, multiple certs separated by newlines)
-    ca_cert: Optional[str] = None
+    ca_cert: str | None = None
 
     # Disable SSL verification (not recommended for production)
     verify: bool = True
 
     # Client certificate for mTLS
-    client_cert: Optional[str] = None
-    client_key: Optional[str] = None
+    client_cert: str | None = None
+    client_key: str | None = None
 
 
 class AuthConfig(BaseModel):
@@ -45,30 +47,30 @@ class AuthConfig(BaseModel):
     type: str  # client_cert, basic, bearer, custom
 
     # Client certificate authentication (RHEL CDN)
-    cert_dir: Optional[str] = None
-    cert_file: Optional[str] = None
-    key_file: Optional[str] = None
+    cert_dir: str | None = None
+    cert_file: str | None = None
+    key_file: str | None = None
 
     # HTTP Basic authentication
-    username: Optional[str] = None
-    password: Optional[str] = None
+    username: str | None = None
+    password: str | None = None
 
     # Bearer token authentication
-    token: Optional[str] = None
+    token: str | None = None
 
     # Custom HTTP headers
-    headers: Optional[Dict[str, str]] = None  # e.g., {"X-API-Key": "secret"}
+    headers: dict[str, str] | None = None  # e.g., {"X-API-Key": "secret"}
 
     # SSL/TLS verification
     verify_ssl: bool = True  # Verify SSL certificates (set False to disable)
-    ca_bundle: Optional[str] = None  # Path to CA bundle for custom CAs
+    ca_bundle: str | None = None  # Path to CA bundle for custom CAs
 
 
 class RetentionConfig(BaseModel):
     """Package retention policy configuration."""
 
     policy: str = "mirror"  # mirror, newest-only, keep-all, keep-last-n
-    keep_count: Optional[int] = None  # For keep-last-n policy
+    keep_count: int | None = None  # For keep-last-n policy
 
     @field_validator("policy")
     @classmethod
@@ -92,49 +94,49 @@ class ScheduleConfig(BaseModel):
 class SizeFilterConfig(BaseModel):
     """Size-based filtering."""
 
-    min: Optional[int] = None  # Minimum size in bytes
-    max: Optional[int] = None  # Maximum size in bytes
+    min: int | None = None  # Minimum size in bytes
+    max: int | None = None  # Maximum size in bytes
 
 
 class TimeFilterConfig(BaseModel):
     """Time-based filtering."""
 
-    newer_than: Optional[str] = None  # ISO date string (e.g., "2025-01-01")
-    older_than: Optional[str] = None  # ISO date string
-    last_n_days: Optional[int] = None  # Last N days from now
+    newer_than: str | None = None  # ISO date string (e.g., "2025-01-01")
+    older_than: str | None = None  # ISO date string
+    last_n_days: int | None = None  # Last N days from now
 
 
 class ListFilterConfig(BaseModel):
     """Generic list-based filtering (include/exclude)."""
 
-    include: Optional[List[str]] = None
-    exclude: Optional[List[str]] = None
+    include: list[str] | None = None
+    exclude: list[str] | None = None
 
 
 class GenericMetadataFilterConfig(BaseModel):
     """Generic metadata filters (work for all package types)."""
 
-    size_bytes: Optional[SizeFilterConfig] = None
-    build_time: Optional[TimeFilterConfig] = None
-    architectures: Optional[ListFilterConfig] = None
+    size_bytes: SizeFilterConfig | None = None
+    build_time: TimeFilterConfig | None = None
+    architectures: ListFilterConfig | None = None
 
 
 class RpmFilterConfig(BaseModel):
     """RPM-specific filters."""
 
     exclude_source_rpms: bool = False  # Skip .src.rpm packages
-    groups: Optional[ListFilterConfig] = None
-    licenses: Optional[ListFilterConfig] = None
-    vendors: Optional[ListFilterConfig] = None
-    epochs: Optional[ListFilterConfig] = None
+    groups: ListFilterConfig | None = None
+    licenses: ListFilterConfig | None = None
+    vendors: ListFilterConfig | None = None
+    epochs: ListFilterConfig | None = None
 
 
 class DebFilterConfig(BaseModel):
     """DEB/APT-specific filters (future support)."""
 
-    components: Optional[ListFilterConfig] = None  # main, contrib, non-free
-    priorities: Optional[ListFilterConfig] = None  # required, important, standard
-    sections: Optional[ListFilterConfig] = None  # admin, devel, libs
+    components: ListFilterConfig | None = None  # main, contrib, non-free
+    priorities: ListFilterConfig | None = None  # required, important, standard
+    sections: ListFilterConfig | None = None  # admin, devel, libs
 
 
 class ApkConfig(BaseModel):
@@ -148,20 +150,21 @@ class ApkConfig(BaseModel):
 class PatternFilterConfig(BaseModel):
     """Pattern-based filters (regex)."""
 
-    include: Optional[List[str]] = None  # Include patterns
-    exclude: Optional[List[str]] = None  # Exclude patterns
+    include: list[str] | None = None  # Include patterns
+    exclude: list[str] | None = None  # Exclude patterns
 
     @field_validator("include", "exclude")
     @classmethod
-    def validate_patterns(cls, v: Optional[List[str]]) -> Optional[List[str]]:
+    def validate_patterns(cls, v: list[str] | None) -> list[str] | None:
         """Validate regex patterns."""
         if v is not None:
             import re
+
             for pattern in v:
                 try:
                     re.compile(pattern)
                 except re.error as e:
-                    raise ValueError(f"Invalid regex pattern '{pattern}': {e}")
+                    raise ValueError(f"Invalid regex pattern '{pattern}': {e}") from e
         return v
 
 
@@ -169,7 +172,7 @@ class PostProcessingConfig(BaseModel):
     """Post-processing configuration (applied after filtering)."""
 
     only_latest_version: bool = False  # Keep only latest version per (name, arch)
-    only_latest_n_versions: Optional[int] = None  # Keep last N versions
+    only_latest_n_versions: int | None = None  # Keep last N versions
 
 
 class FilterConfig(BaseModel):
@@ -185,39 +188,38 @@ class FilterConfig(BaseModel):
     """
 
     # Generic filters (all package types)
-    metadata: Optional[GenericMetadataFilterConfig] = None
-    patterns: Optional[PatternFilterConfig] = None
-    post_processing: Optional[PostProcessingConfig] = None
+    metadata: GenericMetadataFilterConfig | None = None
+    patterns: PatternFilterConfig | None = None
+    post_processing: PostProcessingConfig | None = None
 
     # Plugin-specific filters
-    rpm: Optional[RpmFilterConfig] = None
-    deb: Optional[DebFilterConfig] = None
+    rpm: RpmFilterConfig | None = None
+    deb: DebFilterConfig | None = None
 
     # Legacy flat structure (backward compatibility)
-    include_packages: Optional[List[str]] = None  # DEPRECATED: use patterns.include
-    exclude_packages: Optional[List[str]] = None  # DEPRECATED: use patterns.exclude
-    include_architectures: Optional[List[str]] = None  # DEPRECATED: use metadata.architectures.include
-    exclude_architectures: Optional[List[str]] = None  # DEPRECATED: use metadata.architectures.exclude
+    include_packages: list[str] | None = None  # DEPRECATED: use patterns.include
+    exclude_packages: list[str] | None = None  # DEPRECATED: use patterns.exclude
+    include_architectures: list[str] | None = None  # DEPRECATED: use metadata.architectures.include
+    exclude_architectures: list[str] | None = None  # DEPRECATED: use metadata.architectures.exclude
 
     @field_validator("include_packages", "exclude_packages")
     @classmethod
-    def validate_patterns_legacy(cls, v: Optional[List[str]]) -> Optional[List[str]]:
+    def validate_patterns_legacy(cls, v: list[str] | None) -> list[str] | None:
         """Validate regex patterns (legacy)."""
         if v is not None:
             import re
+
             for pattern in v:
                 try:
                     re.compile(pattern)
                 except re.error as e:
-                    raise ValueError(f"Invalid regex pattern '{pattern}': {e}")
+                    raise ValueError(f"Invalid regex pattern '{pattern}': {e}") from e
         return v
 
     def normalize(self) -> "FilterConfig":
         """Normalize legacy config to new structure."""
         # If using legacy structure, migrate to new structure
-        if self.metadata is None and (
-            self.include_architectures or self.exclude_architectures
-        ):
+        if self.metadata is None and (self.include_architectures or self.exclude_architectures):
             self.metadata = GenericMetadataFilterConfig(
                 architectures=ListFilterConfig(
                     include=self.include_architectures,
@@ -252,7 +254,7 @@ class RepositoryConfig(BaseModel):
     """Repository configuration."""
 
     id: str
-    name: Optional[str] = None
+    name: str | None = None
     type: str  # rpm, apt
     feed: str  # upstream URL
     enabled: bool = True
@@ -261,32 +263,32 @@ class RepositoryConfig(BaseModel):
     mode: Literal["mirror", "filtered", "hosted"] = "filtered"
 
     # Tags for grouping/filtering (e.g., ["production", "web", "rhel"])
-    tags: Optional[List[str]] = Field(default_factory=list)
+    tags: list[str] | None = Field(default_factory=list)
 
     # Authentication
-    auth: Optional[AuthConfig] = None
+    auth: AuthConfig | None = None
 
     # Paths (optional overrides)
-    latest_path: Optional[str] = None
-    snapshots_path: Optional[str] = None
+    latest_path: str | None = None
+    snapshots_path: str | None = None
 
     # Retention policy
-    retention: Optional[RetentionConfig] = Field(default_factory=lambda: RetentionConfig())
+    retention: RetentionConfig | None = Field(default_factory=lambda: RetentionConfig())
 
     # Scheduling
-    schedule: Optional[ScheduleConfig] = Field(default_factory=lambda: ScheduleConfig())
+    schedule: ScheduleConfig | None = Field(default_factory=lambda: ScheduleConfig())
 
     # Package filtering
-    filters: Optional[FilterConfig] = None
+    filters: FilterConfig | None = None
 
     # Per-repository proxy override (overrides global proxy config)
-    proxy: Optional[ProxyConfig] = None
+    proxy: ProxyConfig | None = None
 
     # Per-repository SSL/TLS override (overrides global ssl config)
-    ssl: Optional[SSLConfig] = None
+    ssl: SSLConfig | None = None
 
     # Plugin-specific configuration
-    apk: Optional[ApkConfig] = None  # APK-specific config (branch, repository, architecture)
+    apk: ApkConfig | None = None  # APK-specific config (branch, repository, architecture)
 
     @field_validator("type")
     @classmethod
@@ -326,9 +328,9 @@ class StorageConfig(BaseModel):
     """Storage paths configuration."""
 
     base_path: str = "/var/lib/chantal"
-    pool_path: Optional[str] = None  # Defaults to {base_path}/pool
+    pool_path: str | None = None  # Defaults to {base_path}/pool
     published_path: str = "/var/www/repos"
-    temp_path: Optional[str] = None  # Defaults to {base_path}/tmp
+    temp_path: str | None = None  # Defaults to {base_path}/tmp
 
     def get_pool_path(self) -> Path:
         """Get pool path (with default)."""
@@ -347,13 +349,13 @@ class ViewConfig(BaseModel):
     """View configuration - groups multiple repositories into one virtual repository."""
 
     name: str
-    description: Optional[str] = None
-    repos: List[str]  # List of repository IDs
+    description: str | None = None
+    repos: list[str]  # List of repository IDs
 
     # Optional: Override publish path
-    publish_path: Optional[str] = None
+    publish_path: str | None = None
 
-    def validate_repos(self, all_repos: List[RepositoryConfig]) -> None:
+    def validate_repos(self, all_repos: list[RepositoryConfig]) -> None:
         """Validate that all referenced repositories exist and have same type.
 
         Args:
@@ -434,38 +436,38 @@ class GlobalConfig(BaseModel):
 
     database: DatabaseConfig = Field(default_factory=DatabaseConfig)
     storage: StorageConfig = Field(default_factory=StorageConfig)
-    proxy: Optional[ProxyConfig] = None
-    ssl: Optional[SSLConfig] = None
-    download: Optional[DownloadConfig] = Field(default_factory=DownloadConfig)
-    repositories: List[RepositoryConfig] = Field(default_factory=list)
-    views: List[ViewConfig] = Field(default_factory=list)
+    proxy: ProxyConfig | None = None
+    ssl: SSLConfig | None = None
+    download: DownloadConfig | None = Field(default_factory=DownloadConfig)
+    repositories: list[RepositoryConfig] = Field(default_factory=list)
+    views: list[ViewConfig] = Field(default_factory=list)
 
     # Include pattern for additional config files
-    include: Optional[str] = None
+    include: str | None = None
 
-    def get_repository(self, repo_id: str) -> Optional[RepositoryConfig]:
+    def get_repository(self, repo_id: str) -> RepositoryConfig | None:
         """Get repository configuration by ID."""
         for repo in self.repositories:
             if repo.id == repo_id:
                 return repo
         return None
 
-    def get_enabled_repositories(self) -> List[RepositoryConfig]:
+    def get_enabled_repositories(self) -> list[RepositoryConfig]:
         """Get all enabled repositories."""
         return [repo for repo in self.repositories if repo.enabled]
 
-    def get_repositories_by_type(self, repo_type: str) -> List[RepositoryConfig]:
+    def get_repositories_by_type(self, repo_type: str) -> list[RepositoryConfig]:
         """Get all repositories of a specific type."""
         return [repo for repo in self.repositories if repo.type == repo_type]
 
-    def get_view(self, view_name: str) -> Optional[ViewConfig]:
+    def get_view(self, view_name: str) -> ViewConfig | None:
         """Get view configuration by name."""
         for view in self.views:
             if view.name == view_name:
                 return view
         return None
 
-    def get_views_for_repository(self, repo_id: str) -> List[ViewConfig]:
+    def get_views_for_repository(self, repo_id: str) -> list[ViewConfig]:
         """Get all views that contain a specific repository."""
         return [view for view in self.views if repo_id in view.repos]
 
@@ -499,7 +501,7 @@ class ConfigLoader:
             with open(self.config_path) as f:
                 config_data = yaml.safe_load(f) or {}
         except yaml.YAMLError as e:
-            raise ValueError(f"YAML syntax error in {self.config_path}:\n{e}")
+            raise ValueError(f"YAML syntax error in {self.config_path}:\n{e}") from e
 
         # Handle includes
         if "include" in config_data:
@@ -520,9 +522,13 @@ class ConfigLoader:
         try:
             return GlobalConfig(**config_data)
         except Exception as e:
-            raise ValueError(f"Configuration validation error in {self.config_path}:\n{e}")
+            raise ValueError(
+                f"Configuration validation error in {self.config_path}:\n{e}"
+            ) from e
 
-    def _load_includes(self, include_pattern: str) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    def _load_includes(
+        self, include_pattern: str
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         """Load included configuration files.
 
         Args:
@@ -568,12 +574,12 @@ class ConfigLoader:
                         if "views" in data:
                             all_views.extend(data["views"])
                 except yaml.YAMLError as e:
-                    raise ValueError(f"YAML syntax error in {config_file}:\n{e}")
+                    raise ValueError(f"YAML syntax error in {config_file}:\n{e}") from e
 
         return all_repos, all_views
 
 
-def load_config(config_path: Optional[Path] = None) -> GlobalConfig:
+def load_config(config_path: Path | None = None) -> GlobalConfig:
     """Load configuration from file.
 
     Priority:
@@ -619,7 +625,9 @@ def load_config(config_path: Optional[Path] = None) -> GlobalConfig:
     if config_path:
         raise FileNotFoundError(f"Configuration file not found: {config_path}")
     elif os.environ.get("CHANTAL_CONFIG"):
-        raise FileNotFoundError(f"Configuration file not found: {os.environ['CHANTAL_CONFIG']} (from CHANTAL_CONFIG)")
+        raise FileNotFoundError(
+            f"Configuration file not found: {os.environ['CHANTAL_CONFIG']} (from CHANTAL_CONFIG)"
+        )
     else:
         # Return default config if no file found
         return GlobalConfig()

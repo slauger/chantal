@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """Plugin system for Chantal repository types."""
 
 from chantal.plugins.base import PublisherPlugin

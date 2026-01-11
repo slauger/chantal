@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Database migration helpers using Alembic.
 
@@ -5,16 +7,14 @@ This module provides programmatic access to Alembic operations for database
 schema management.
 """
 
-import os
-import subprocess
 from pathlib import Path
-from typing import List, Optional, Tuple
+
+from alembic.config import Config
+from alembic.runtime.migration import MigrationContext
+from alembic.script import ScriptDirectory
+from sqlalchemy import create_engine, inspect
 
 from alembic import command
-from alembic.config import Config
-from alembic.script import ScriptDirectory
-from alembic.runtime.migration import MigrationContext
-from sqlalchemy import create_engine, inspect
 
 
 def get_alembic_config(database_url: str) -> Config:
@@ -39,7 +39,7 @@ def get_alembic_config(database_url: str) -> Config:
     return config
 
 
-def get_current_revision(database_url: str) -> Optional[str]:
+def get_current_revision(database_url: str) -> str | None:
     """Get current database schema revision.
 
     Args:
@@ -77,7 +77,7 @@ def get_head_revision(database_url: str) -> str:
     return script.get_current_head()
 
 
-def get_pending_migrations(database_url: str) -> List[Tuple[str, str]]:
+def get_pending_migrations(database_url: str) -> list[tuple[str, str]]:
     """Get list of pending migrations.
 
     Args:
@@ -107,7 +107,7 @@ def get_pending_migrations(database_url: str) -> List[Tuple[str, str]]:
     return pending
 
 
-def get_migration_history(database_url: str) -> List[Tuple[str, str, bool]]:
+def get_migration_history(database_url: str) -> list[tuple[str, str, bool]]:
     """Get full migration history with applied status.
 
     Args:
@@ -138,9 +138,9 @@ def get_migration_history(database_url: str) -> List[Tuple[str, str, bool]]:
                         break
                 else:
                     is_applied = False
-            except:
+            except Exception:
                 # If walk fails, check if it's exactly current
-                is_applied = (rev.revision == current)
+                is_applied = rev.revision == current
 
         history.append((rev.revision, rev.doc or "", is_applied))
 
@@ -198,7 +198,7 @@ def downgrade_database(database_url: str, revision: str) -> None:
     command.downgrade(config, revision)
 
 
-def get_revision_info(database_url: str, revision: str) -> Optional[Tuple[str, str]]:
+def get_revision_info(database_url: str, revision: str) -> tuple[str, str] | None:
     """Get information about a specific revision.
 
     Args:

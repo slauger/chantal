@@ -1,11 +1,13 @@
 """Tests for database models."""
 
-import pytest
 from datetime import datetime
+
+import pytest
 from sqlalchemy import create_engine
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from chantal.db.models import Base, Repository, ContentItem, Snapshot, SyncHistory, RepositoryFile
+from chantal.db.models import Base, ContentItem, Repository, RepositoryFile, Snapshot, SyncHistory
 from chantal.plugins.rpm.models import RpmMetadata
 
 
@@ -28,7 +30,7 @@ def test_create_repository(db_session):
         name="RHEL 9 BaseOS",
         type="rpm",
         feed="https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/os",
-        enabled=True
+        enabled=True,
     )
 
     db_session.add(repo)
@@ -60,7 +62,7 @@ def test_create_package(db_session):
         size_bytes=1258496,
         pool_path="ab/c1/abc123def456_nginx-1.20.1-10.el9.x86_64.rpm",
         filename="nginx-1.20.1-10.el9.x86_64.rpm",
-        content_metadata=rpm_metadata.model_dump(exclude_none=False)
+        content_metadata=rpm_metadata.model_dump(exclude_none=False),
     )
 
     db_session.add(content_item)
@@ -76,11 +78,7 @@ def test_create_package(db_session):
 
 def test_package_nevra_with_epoch(db_session):
     """Test NEVRA string generation with epoch."""
-    rpm_metadata = RpmMetadata(
-        release="1.el9",
-        arch="x86_64",
-        epoch="2"
-    )
+    rpm_metadata = RpmMetadata(release="1.el9", arch="x86_64", epoch="2")
 
     content_item = ContentItem(
         content_type="rpm",
@@ -90,7 +88,7 @@ def test_package_nevra_with_epoch(db_session):
         size_bytes=1000,
         pool_path="de/f4/def456_test.rpm",
         filename="test-package-1.0-1.el9.x86_64.rpm",
-        content_metadata=rpm_metadata.model_dump(exclude_none=False)
+        content_metadata=rpm_metadata.model_dump(exclude_none=False),
     )
 
     assert content_item.nevra == "test-package-2:1.0-1.el9.x86_64"
@@ -104,7 +102,7 @@ def test_create_snapshot(db_session):
         name="Test Repo",
         type="rpm",
         feed="https://example.com/repo",
-        enabled=True
+        enabled=True,
     )
     db_session.add(repo)
     db_session.commit()
@@ -115,7 +113,7 @@ def test_create_snapshot(db_session):
         name="test-repo-20250109",
         description="Test snapshot",
         package_count=100,
-        total_size_bytes=1024 * 1024 * 100  # 100 MB
+        total_size_bytes=1024 * 1024 * 100,  # 100 MB
     )
 
     db_session.add(snapshot)
@@ -136,7 +134,7 @@ def test_snapshot_package_relationship(db_session):
         name="Test Repo",
         type="rpm",
         feed="https://example.com/repo",
-        enabled=True
+        enabled=True,
     )
     db_session.add(repo)
     db_session.commit()
@@ -151,7 +149,7 @@ def test_snapshot_package_relationship(db_session):
         size_bytes=1000,
         pool_path="aa/aa/aaa_pkg1.rpm",
         filename="package1-1.0.x86_64.rpm",
-        content_metadata=rpm_metadata1.model_dump(exclude_none=False)
+        content_metadata=rpm_metadata1.model_dump(exclude_none=False),
     )
 
     rpm_metadata2 = RpmMetadata(release="1", arch="x86_64")
@@ -163,7 +161,7 @@ def test_snapshot_package_relationship(db_session):
         size_bytes=2000,
         pool_path="bb/bb/bbb_pkg2.rpm",
         filename="package2-2.0.x86_64.rpm",
-        content_metadata=rpm_metadata2.model_dump(exclude_none=False)
+        content_metadata=rpm_metadata2.model_dump(exclude_none=False),
     )
 
     db_session.add_all([pkg1, pkg2])
@@ -171,10 +169,7 @@ def test_snapshot_package_relationship(db_session):
 
     # Create snapshot and associate content items
     snapshot = Snapshot(
-        repository_id=repo.id,
-        name="snapshot-1",
-        package_count=2,
-        total_size_bytes=3000
+        repository_id=repo.id, name="snapshot-1", package_count=2, total_size_bytes=3000
     )
     snapshot.content_items.append(pkg1)
     snapshot.content_items.append(pkg2)
@@ -201,7 +196,7 @@ def test_sync_history(db_session):
         name="Test Repo",
         type="rpm",
         feed="https://example.com/repo",
-        enabled=True
+        enabled=True,
     )
     db_session.add(repo)
     db_session.commit()
@@ -215,7 +210,7 @@ def test_sync_history(db_session):
         packages_added=47,
         packages_removed=2,
         packages_updated=5,
-        bytes_downloaded=450 * 1024 * 1024  # 450 MB
+        bytes_downloaded=450 * 1024 * 1024,  # 450 MB
     )
 
     db_session.add(sync)
@@ -237,7 +232,7 @@ def test_unique_constraints(db_session):
         name="Test Repo 1",
         type="rpm",
         feed="https://example.com/repo1",
-        enabled=True
+        enabled=True,
     )
     db_session.add(repo1)
     db_session.commit()
@@ -248,11 +243,11 @@ def test_unique_constraints(db_session):
         name="Test Repo 2",
         type="rpm",
         feed="https://example.com/repo2",
-        enabled=True
+        enabled=True,
     )
     db_session.add(repo2)
 
-    with pytest.raises(Exception):  # SQLAlchemy will raise IntegrityError
+    with pytest.raises(IntegrityError):
         db_session.commit()
 
     db_session.rollback()
@@ -267,7 +262,7 @@ def test_unique_constraints(db_session):
         size_bytes=1000,
         pool_path="cc/cc/ccc_pkg1.rpm",
         filename="package1-1.0.x86_64.rpm",
-        content_metadata=rpm_metadata1.model_dump(exclude_none=False)
+        content_metadata=rpm_metadata1.model_dump(exclude_none=False),
     )
     db_session.add(item1)
     db_session.commit()
@@ -282,16 +277,18 @@ def test_unique_constraints(db_session):
         size_bytes=2000,
         pool_path="cc/cc/ccc_pkg2.rpm",
         filename="package2-2.0.x86_64.rpm",
-        content_metadata=rpm_metadata2.model_dump(exclude_none=False)
+        content_metadata=rpm_metadata2.model_dump(exclude_none=False),
     )
     db_session.add(item2)
 
-    with pytest.raises(Exception):  # SQLAlchemy will raise IntegrityError
+    with pytest.raises(IntegrityError):
         db_session.commit()
+
 
 # ============================================================================
 # RepositoryFile Tests
 # ============================================================================
+
 
 def test_create_repository_file(db_session):
     """Test creating a repository file (metadata/installer)."""
@@ -305,8 +302,8 @@ def test_create_repository_file(db_session):
         file_metadata={
             "checksum_type": "sha256",
             "open_checksum": "xyz789abc456" * 4,
-            "timestamp": 1704844800
-        }
+            "timestamp": 1704844800,
+        },
     )
 
     db_session.add(repo_file)
@@ -329,7 +326,7 @@ def test_repository_to_repository_file_relationship(db_session):
         name="RHEL 9 BaseOS",
         type="rpm",
         feed="https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/os",
-        enabled=True
+        enabled=True,
     )
     db_session.add(repo)
 
@@ -340,7 +337,7 @@ def test_repository_to_repository_file_relationship(db_session):
         sha256="abc123" * 8,
         pool_path="files/ab/c1/abc123_updateinfo.xml.gz",
         size_bytes=100000,
-        original_path="repodata/updateinfo.xml.gz"
+        original_path="repodata/updateinfo.xml.gz",
     )
     db_session.add(repo_file)
 
@@ -366,7 +363,7 @@ def test_snapshot_to_repository_file_relationship(db_session):
         repo_id="rhel9-baseos",
         name="RHEL 9 BaseOS",
         type="rpm",
-        feed="https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/os"
+        feed="https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/os",
     )
     db_session.add(repo)
     db_session.commit()
@@ -377,7 +374,7 @@ def test_snapshot_to_repository_file_relationship(db_session):
         name="snapshot-2025-01-11",
         description="Test snapshot",
         package_count=0,
-        total_size_bytes=0
+        total_size_bytes=0,
     )
     db_session.add(snapshot)
 
@@ -388,7 +385,7 @@ def test_snapshot_to_repository_file_relationship(db_session):
         sha256="def456" * 8,
         pool_path="files/de/f4/def456_updateinfo.xml.gz",
         size_bytes=200000,
-        original_path="repodata/def456-updateinfo.xml.gz"
+        original_path="repodata/def456-updateinfo.xml.gz",
     )
     db_session.add(repo_file)
 
@@ -414,13 +411,13 @@ def test_repository_file_deduplication(db_session):
         repo_id="rhel9-baseos",
         name="RHEL 9 BaseOS",
         type="rpm",
-        feed="https://example.com/rhel9/baseos"
+        feed="https://example.com/rhel9/baseos",
     )
     repo2 = Repository(
         repo_id="rhel9-appstream",
         name="RHEL 9 AppStream",
         type="rpm",
-        feed="https://example.com/rhel9/appstream"
+        feed="https://example.com/rhel9/appstream",
     )
     db_session.add_all([repo1, repo2])
 
@@ -431,7 +428,7 @@ def test_repository_file_deduplication(db_session):
         sha256="fedcba98" * 8,  # Same kernel
         pool_path="files/fe/dc/fedcba98_vmlinuz",
         size_bytes=10485760,  # 10MB
-        original_path="images/pxeboot/vmlinuz"
+        original_path="images/pxeboot/vmlinuz",
     )
     db_session.add(repo_file)
 
@@ -459,7 +456,7 @@ def test_snapshot_preserves_old_metadata(db_session):
         repo_id="rhel9-baseos",
         name="RHEL 9 BaseOS",
         type="rpm",
-        feed="https://example.com/rhel9/baseos"
+        feed="https://example.com/rhel9/baseos",
     )
     db_session.add(repo)
     db_session.commit()
@@ -471,17 +468,14 @@ def test_snapshot_preserves_old_metadata(db_session):
         sha256="old123abc" * 8,
         pool_path="files/ol/d1/old123abc_updateinfo.xml.gz",
         size_bytes=100000,
-        original_path="repodata/old123-updateinfo.xml.gz"
+        original_path="repodata/old123-updateinfo.xml.gz",
     )
     db_session.add(old_metadata)
 
     # Link to repo and create snapshot
     repo.repository_files.append(old_metadata)
     snapshot1 = Snapshot(
-        repository_id=repo.id,
-        name="snapshot-2025-01-10",
-        package_count=0,
-        total_size_bytes=0
+        repository_id=repo.id, name="snapshot-2025-01-10", package_count=0, total_size_bytes=0
     )
     snapshot1.repository_files.append(old_metadata)
     db_session.add(snapshot1)
@@ -494,7 +488,7 @@ def test_snapshot_preserves_old_metadata(db_session):
         sha256="new456def" * 8,  # NEW SHA256
         pool_path="files/ne/w4/new456def_updateinfo.xml.gz",
         size_bytes=150000,
-        original_path="repodata/new456-updateinfo.xml.gz"  # Same path, new file
+        original_path="repodata/new456-updateinfo.xml.gz",  # Same path, new file
     )
     db_session.add(new_metadata)
 
@@ -504,10 +498,7 @@ def test_snapshot_preserves_old_metadata(db_session):
 
     # Create new snapshot
     snapshot2 = Snapshot(
-        repository_id=repo.id,
-        name="snapshot-2025-01-11",
-        package_count=0,
-        total_size_bytes=0
+        repository_id=repo.id, name="snapshot-2025-01-11", package_count=0, total_size_bytes=0
     )
     snapshot2.repository_files.append(new_metadata)
     db_session.add(snapshot2)
@@ -540,7 +531,7 @@ def test_repository_file_repr(db_session):
         sha256="test1234" * 8,
         pool_path="files/te/st/test1234_vmlinuz",
         size_bytes=10000,
-        original_path="images/pxeboot/vmlinuz"
+        original_path="images/pxeboot/vmlinuz",
     )
 
     repr_str = repr(repo_file)

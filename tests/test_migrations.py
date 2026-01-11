@@ -6,7 +6,6 @@ from pathlib import Path
 import pytest
 
 from chantal.db import migrations
-from chantal.db.connection import DatabaseManager
 
 
 @pytest.fixture

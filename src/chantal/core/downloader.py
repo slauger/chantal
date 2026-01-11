@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Central download manager for all repository types.
 
@@ -10,7 +12,6 @@ import hashlib
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional
 
 import requests
 
@@ -29,15 +30,13 @@ class DownloadTask:
 
     url: str
     dest: Path
-    expected_sha256: Optional[str] = None
+    expected_sha256: str | None = None
 
 
 class DownloadBackend:
     """Abstract download backend."""
 
-    def download_file(
-        self, url: str, dest: Path, expected_sha256: Optional[str] = None
-    ) -> Path:
+    def download_file(self, url: str, dest: Path, expected_sha256: str | None = None) -> Path:
         """Download a single file.
 
         Args:
@@ -54,7 +53,7 @@ class DownloadBackend:
         """
         raise NotImplementedError
 
-    def download_batch(self, tasks: List[DownloadTask]) -> List[Path]:
+    def download_batch(self, tasks: list[DownloadTask]) -> list[Path]:
         """Download multiple files.
 
         Args:
@@ -76,9 +75,9 @@ class RequestsBackend(DownloadBackend):
     def __init__(
         self,
         config: RepositoryConfig,
-        download_config: Optional[DownloadConfig] = None,
-        proxy_config: Optional[ProxyConfig] = None,
-        ssl_config: Optional[SSLConfig] = None,
+        download_config: DownloadConfig | None = None,
+        proxy_config: ProxyConfig | None = None,
+        ssl_config: SSLConfig | None = None,
     ):
         """Initialize requests backend.
 
@@ -125,9 +124,7 @@ class RequestsBackend(DownloadBackend):
                 session.verify = False
             elif self.ssl_config.ca_cert:
                 # Use inline CA certificate - write to temp file
-                ca_file = tempfile.NamedTemporaryFile(
-                    mode="w", suffix=".pem", delete=False
-                )
+                ca_file = tempfile.NamedTemporaryFile(mode="w", suffix=".pem", delete=False)
                 ca_file.write(self.ssl_config.ca_cert)
                 ca_file.flush()
                 ca_file.close()
@@ -171,9 +168,7 @@ class RequestsBackend(DownloadBackend):
                 cert_dir = Path(auth.cert_dir)
                 if cert_dir.exists():
                     # Find first .pem certificate (not -key.pem)
-                    certs = [
-                        f for f in cert_dir.glob("*.pem") if not f.name.endswith("-key.pem")
-                    ]
+                    certs = [f for f in cert_dir.glob("*.pem") if not f.name.endswith("-key.pem")]
                     if certs:
                         cert_file = certs[0]
                         # Look for corresponding key file
@@ -202,9 +197,7 @@ class RequestsBackend(DownloadBackend):
                 session.headers.update(auth.headers)
                 print("Using custom HTTP headers")
 
-    def download_file(
-        self, url: str, dest: Path, expected_sha256: Optional[str] = None
-    ) -> Path:
+    def download_file(self, url: str, dest: Path, expected_sha256: str | None = None) -> Path:
         """Download a single file with retry and checksum verification.
 
         Args:
@@ -227,9 +220,7 @@ class RequestsBackend(DownloadBackend):
         for attempt in range(self.download_config.retry_attempts + 1):
             try:
                 # Stream download
-                response = self.session.get(
-                    url, stream=True, timeout=self.download_config.timeout
-                )
+                response = self.session.get(url, stream=True, timeout=self.download_config.timeout)
                 response.raise_for_status()
 
                 # Download to temporary file first
@@ -278,7 +269,7 @@ class RequestsBackend(DownloadBackend):
             raise last_exception
         raise RuntimeError(f"Download failed for {url}")
 
-    def download_batch(self, tasks: List[DownloadTask]) -> List[Path]:
+    def download_batch(self, tasks: list[DownloadTask]) -> list[Path]:
         """Download multiple files sequentially.
 
         Args:
@@ -312,9 +303,9 @@ class DownloadManager:
     def __init__(
         self,
         config: RepositoryConfig,
-        download_config: Optional[DownloadConfig] = None,
-        proxy_config: Optional[ProxyConfig] = None,
-        ssl_config: Optional[SSLConfig] = None,
+        download_config: DownloadConfig | None = None,
+        proxy_config: ProxyConfig | None = None,
+        ssl_config: SSLConfig | None = None,
         backend: str = "requests",
     ):
         """Initialize download manager.
@@ -339,9 +330,9 @@ class DownloadManager:
         self,
         backend: str,
         config: RepositoryConfig,
-        download_config: Optional[DownloadConfig],
-        proxy_config: Optional[ProxyConfig],
-        ssl_config: Optional[SSLConfig],
+        download_config: DownloadConfig | None,
+        proxy_config: ProxyConfig | None,
+        ssl_config: SSLConfig | None,
     ) -> DownloadBackend:
         """Initialize download backend.
 
@@ -365,9 +356,7 @@ class DownloadManager:
         else:
             raise ValueError(f"Unknown download backend: {backend}")
 
-    def download_file(
-        self, url: str, dest: Path, expected_sha256: Optional[str] = None
-    ) -> Path:
+    def download_file(self, url: str, dest: Path, expected_sha256: str | None = None) -> Path:
         """Download a single file.
 
         Args:
@@ -384,7 +373,7 @@ class DownloadManager:
         """
         return self.backend_impl.download_file(url, dest, expected_sha256)
 
-    def download_batch(self, tasks: List[DownloadTask]) -> List[Path]:
+    def download_batch(self, tasks: list[DownloadTask]) -> list[Path]:
         """Download multiple files.
 
         Args:

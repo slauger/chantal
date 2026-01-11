@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Base publisher plugin interface for Chantal.
 
@@ -7,7 +9,6 @@ Each repository type (RPM, APT, etc.) implements its own publisher.
 
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import List
 
 from sqlalchemy.orm import Session
 
@@ -93,10 +94,7 @@ class PublisherPlugin(ABC):
         raise NotImplementedError
 
     def _create_hardlinks(
-        self,
-        packages: List[ContentItem],
-        target_dir: Path,
-        subdir: str = "Packages"
+        self, packages: list[ContentItem], target_dir: Path, subdir: str = "Packages"
     ) -> None:
         """Helper: Create hardlinks for content items.
 
@@ -110,17 +108,11 @@ class PublisherPlugin(ABC):
 
         for package in packages:
             target_path = packages_dir / package.filename
-            self.storage.create_hardlink(
-                package.sha256,
-                package.filename,
-                target_path
-            )
+            self.storage.create_hardlink(package.sha256, package.filename, target_path)
 
     def _get_repository_packages(
-        self,
-        session: Session,
-        repository: Repository
-    ) -> List[ContentItem]:
+        self, session: Session, repository: Repository
+    ) -> list[ContentItem]:
         """Helper: Get all content items for a repository.
 
         Uses the repository_content_items junction table to get content items
@@ -138,11 +130,7 @@ class PublisherPlugin(ABC):
         session.refresh(repository)  # Ensure we have latest data
         return list(repository.content_items)
 
-    def _get_snapshot_packages(
-        self,
-        session: Session,
-        snapshot: Snapshot
-    ) -> List[ContentItem]:
+    def _get_snapshot_packages(self, session: Session, snapshot: Snapshot) -> list[ContentItem]:
         """Helper: Get all content items for a snapshot.
 
         Args:

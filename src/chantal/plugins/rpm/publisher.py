@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 RPM/DNF repository publisher plugin.
 
@@ -11,7 +13,6 @@ import shutil
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from pathlib import Path
-from typing import List, Set, Tuple
 
 from sqlalchemy.orm import Session
 
@@ -109,10 +110,10 @@ class RpmPublisher(PublisherPlugin):
 
     def _publish_packages(
         self,
-        packages: List[ContentItem],
+        packages: list[ContentItem],
         target_path: Path,
-        repository_files: List[RepositoryFile] = None,
-        mode: str = RepositoryMode.MIRROR
+        repository_files: list[RepositoryFile] = None,
+        mode: str = RepositoryMode.MIRROR,
     ) -> None:
         """Publish content items and generate metadata.
 
@@ -156,25 +157,15 @@ class RpmPublisher(PublisherPlugin):
         published_metadata.append(("primary", primary_xml_path))
 
         # Generate repomd.xml with all metadata entries
-        repomd_xml_path = self._generate_repomd_xml(
-            repodata_path,
-            published_metadata
-        )
+        self._generate_repomd_xml(repodata_path, published_metadata)
 
         # Publish kickstart/installer files
-        kickstart_files = [
-            rf for rf in repository_files
-            if rf.file_category == "kickstart"
-        ]
+        kickstart_files = [rf for rf in repository_files if rf.file_category == "kickstart"]
 
         if kickstart_files:
             self._publish_kickstart_files(kickstart_files, target_path)
 
-    def _generate_primary_xml(
-        self,
-        packages: List[ContentItem],
-        repodata_path: Path
-    ) -> Path:
+    def _generate_primary_xml(self, packages: list[ContentItem], repodata_path: Path) -> Path:
         """Generate primary.xml.gz metadata file.
 
         Args:
@@ -247,11 +238,7 @@ class RpmPublisher(PublisherPlugin):
 
         # Pretty print XML
         ET.indent(tree, space="  ")
-        tree.write(
-            primary_xml_path,
-            encoding="UTF-8",
-            xml_declaration=True
-        )
+        tree.write(primary_xml_path, encoding="UTF-8", xml_declaration=True)
 
         # Gzip it
         primary_xml_gz_path = repodata_path / "primary.xml.gz"
@@ -265,10 +252,8 @@ class RpmPublisher(PublisherPlugin):
         return primary_xml_gz_path
 
     def _publish_metadata_files(
-        self,
-        repository_files: List[RepositoryFile],
-        repodata_path: Path
-    ) -> List[Tuple[str, Path]]:
+        self, repository_files: list[RepositoryFile], repodata_path: Path
+    ) -> list[tuple[str, Path]]:
         """Create hardlinks for repository metadata files.
 
         Args:
@@ -303,6 +288,7 @@ class RpmPublisher(PublisherPlugin):
                 target_path.unlink()
 
             import os
+
             os.link(pool_file_path, target_path)
 
             # Add to published list
@@ -311,9 +297,7 @@ class RpmPublisher(PublisherPlugin):
         return published
 
     def _publish_kickstart_files(
-        self,
-        kickstart_files: List[RepositoryFile],
-        target_path: Path
+        self, kickstart_files: list[RepositoryFile], target_path: Path
     ) -> None:
         """Publish kickstart/installer files to images/ directory.
 
@@ -350,9 +334,7 @@ class RpmPublisher(PublisherPlugin):
             print(f"  ✓ Published {repo_file.file_type}: {repo_file.original_path}")
 
     def _generate_repomd_xml(
-        self,
-        repodata_path: Path,
-        metadata_files: List[Tuple[str, Path]]
+        self, repodata_path: Path, metadata_files: list[tuple[str, Path]]
     ) -> Path:
         """Generate repomd.xml root metadata file.
 
@@ -426,20 +408,16 @@ class RpmPublisher(PublisherPlugin):
 
         # Pretty print XML
         ET.indent(tree, space="  ")
-        tree.write(
-            repomd_xml_path,
-            encoding="UTF-8",
-            xml_declaration=True
-        )
+        tree.write(repomd_xml_path, encoding="UTF-8", xml_declaration=True)
 
         return repomd_xml_path
 
     def _filter_and_regenerate_updateinfo(
         self,
-        packages: List[ContentItem],
+        packages: list[ContentItem],
         repodata_path: Path,
-        published_metadata: List[Tuple[str, Path]]
-    ) -> List[Tuple[str, Path]]:
+        published_metadata: list[tuple[str, Path]],
+    ) -> list[tuple[str, Path]]:
         """Filter and regenerate updateinfo.xml based on available packages.
 
         Args:
@@ -489,9 +467,8 @@ class RpmPublisher(PublisherPlugin):
 
             # Write filtered XML to temp file
             import tempfile
-            with tempfile.NamedTemporaryFile(
-                mode="wb", delete=False, suffix=".xml"
-            ) as tmp_f:
+
+            with tempfile.NamedTemporaryFile(mode="wb", delete=False, suffix=".xml") as tmp_f:
                 tmp_f.write(filtered_xml)
                 tmp_xml_path = Path(tmp_f.name)
 
@@ -525,7 +502,7 @@ class RpmPublisher(PublisherPlugin):
             # Return original metadata if filtering fails
             return published_metadata
 
-    def _build_package_nvra_set(self, packages: List[ContentItem]) -> Set[str]:
+    def _build_package_nvra_set(self, packages: list[ContentItem]) -> set[str]:
         """Build set of package NVRAs for filtering.
 
         Args:
@@ -548,7 +525,7 @@ class RpmPublisher(PublisherPlugin):
 
         return nvras
 
-    def _build_package_pkgid_set(self, packages: List[ContentItem]) -> Set[str]:
+    def _build_package_pkgid_set(self, packages: list[ContentItem]) -> set[str]:
         """Build set of package IDs (SHA256) for filtering.
 
         Args:
@@ -561,10 +538,10 @@ class RpmPublisher(PublisherPlugin):
 
     def _filter_and_regenerate_filelists(
         self,
-        packages: List[ContentItem],
+        packages: list[ContentItem],
         repodata_path: Path,
-        published_metadata: List[Tuple[str, Path]]
-    ) -> List[Tuple[str, Path]]:
+        published_metadata: list[tuple[str, Path]],
+    ) -> list[tuple[str, Path]]:
         """Filter and regenerate filelists.xml based on available packages.
 
         Args:
@@ -636,9 +613,8 @@ class RpmPublisher(PublisherPlugin):
 
             # Write filtered XML to temp file
             import tempfile
-            with tempfile.NamedTemporaryFile(
-                mode="wb", delete=False, suffix=".xml"
-            ) as tmp_f:
+
+            with tempfile.NamedTemporaryFile(mode="wb", delete=False, suffix=".xml") as tmp_f:
                 tree.write(tmp_f, encoding="UTF-8", xml_declaration=True)
                 tmp_xml_path = Path(tmp_f.name)
 
@@ -678,10 +654,10 @@ class RpmPublisher(PublisherPlugin):
 
     def _filter_and_regenerate_other(
         self,
-        packages: List[ContentItem],
+        packages: list[ContentItem],
         repodata_path: Path,
-        published_metadata: List[Tuple[str, Path]]
-    ) -> List[Tuple[str, Path]]:
+        published_metadata: list[tuple[str, Path]],
+    ) -> list[tuple[str, Path]]:
         """Filter and regenerate other.xml based on available packages.
 
         Args:
@@ -753,9 +729,8 @@ class RpmPublisher(PublisherPlugin):
 
             # Write filtered XML to temp file
             import tempfile
-            with tempfile.NamedTemporaryFile(
-                mode="wb", delete=False, suffix=".xml"
-            ) as tmp_f:
+
+            with tempfile.NamedTemporaryFile(mode="wb", delete=False, suffix=".xml") as tmp_f:
                 tree.write(tmp_f, encoding="UTF-8", xml_declaration=True)
                 tmp_xml_path = Path(tmp_f.name)
 

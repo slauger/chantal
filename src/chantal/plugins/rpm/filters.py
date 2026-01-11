@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 RPM package filtering logic.
 
@@ -7,7 +9,6 @@ This module provides functions for filtering RPM packages based on various crite
 import re
 from collections import defaultdict
 from datetime import datetime, timedelta
-from typing import Dict, List, Tuple
 
 from packaging import version
 
@@ -21,7 +22,7 @@ from chantal.core.config import (
 )
 
 
-def apply_filters(packages: List[Dict], filters: FilterConfig) -> List[Dict]:
+def apply_filters(packages: list[dict], filters: FilterConfig) -> list[dict]:
     """Apply package filters using generic filter engine.
 
     Args:
@@ -60,16 +61,12 @@ def apply_filters(packages: List[Dict], filters: FilterConfig) -> List[Dict]:
 
     # Apply post-processing (after all filters)
     if filters.post_processing:
-        filtered_packages = apply_post_processing(
-            filtered_packages, filters.post_processing
-        )
+        filtered_packages = apply_post_processing(filtered_packages, filters.post_processing)
 
     return filtered_packages
 
 
-def check_generic_metadata_filters(
-    pkg: Dict, metadata: GenericMetadataFilterConfig
-) -> bool:
+def check_generic_metadata_filters(pkg: dict, metadata: GenericMetadataFilterConfig) -> bool:
     """Check if package passes generic metadata filters.
 
     Args:
@@ -117,7 +114,7 @@ def check_generic_metadata_filters(
     return True
 
 
-def check_rpm_filters(pkg: Dict, rpm_filters: RpmFilterConfig) -> bool:
+def check_rpm_filters(pkg: dict, rpm_filters: RpmFilterConfig) -> bool:
     """Check if package passes RPM-specific filters.
 
     Args:
@@ -185,7 +182,7 @@ def check_list_filter(value: str, list_filter: ListFilterConfig) -> bool:
     return True
 
 
-def check_pattern_filters(pkg: Dict, patterns: PatternFilterConfig) -> bool:
+def check_pattern_filters(pkg: dict, patterns: PatternFilterConfig) -> bool:
     """Check if package passes pattern filters.
 
     Args:
@@ -220,9 +217,7 @@ def check_pattern_filters(pkg: Dict, patterns: PatternFilterConfig) -> bool:
     return True
 
 
-def apply_post_processing(
-    packages: List[Dict], post_proc: PostProcessingConfig
-) -> List[Dict]:
+def apply_post_processing(packages: list[dict], post_proc: PostProcessingConfig) -> list[dict]:
     """Apply post-processing to filtered packages.
 
     Args:
@@ -240,7 +235,7 @@ def apply_post_processing(
     return packages
 
 
-def keep_only_latest_versions(packages: List[Dict], n: int = 1) -> List[Dict]:
+def keep_only_latest_versions(packages: list[dict], n: int = 1) -> list[dict]:
     """Keep only the latest N versions of each package (by name and arch).
 
     Args:
@@ -251,7 +246,7 @@ def keep_only_latest_versions(packages: List[Dict], n: int = 1) -> List[Dict]:
         Filtered list with only latest N versions per (name, arch)
     """
     # Group packages by (name, arch)
-    grouped: Dict[Tuple[str, str], List[Dict]] = defaultdict(list)
+    grouped: dict[tuple[str, str], list[dict]] = defaultdict(list)
     for pkg in packages:
         name = pkg.get("name", "")
         arch = pkg.get("arch", "")

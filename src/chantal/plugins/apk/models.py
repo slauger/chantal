@@ -1,11 +1,11 @@
+from __future__ import annotations
+
 """
 Alpine APK metadata models.
 
 This module contains Pydantic models for APK package metadata
 parsed from APKINDEX files.
 """
-
-from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -36,15 +36,15 @@ class ApkMetadata(BaseModel):
     checksum: str = Field(..., description="SHA1 checksum (base64, Q1-prefixed)")
     size: int = Field(..., description="Package size in bytes")
 
-    installed_size: Optional[int] = Field(None, description="Installed size in bytes")
-    description: Optional[str] = Field(None, description="Package description")
-    url: Optional[str] = Field(None, description="Upstream URL")
-    license: Optional[str] = Field(None, description="Package license")
-    dependencies: Optional[List[str]] = Field(None, description="Runtime dependencies")
-    provides: Optional[List[str]] = Field(None, description="Virtual packages provided")
-    origin: Optional[str] = Field(None, description="Origin package name")
-    maintainer: Optional[str] = Field(None, description="Package maintainer")
-    build_time: Optional[int] = Field(None, description="Build timestamp (Unix)")
+    installed_size: int | None = Field(None, description="Installed size in bytes")
+    description: str | None = Field(None, description="Package description")
+    url: str | None = Field(None, description="Upstream URL")
+    license: str | None = Field(None, description="Package license")
+    dependencies: list[str] | None = Field(None, description="Runtime dependencies")
+    provides: list[str] | None = Field(None, description="Virtual packages provided")
+    origin: str | None = Field(None, description="Origin package name")
+    maintainer: str | None = Field(None, description="Package maintainer")
+    build_time: int | None = Field(None, description="Build timestamp (Unix)")
 
     @classmethod
     def from_apkindex_entry(cls, entry: dict) -> "ApkMetadata":

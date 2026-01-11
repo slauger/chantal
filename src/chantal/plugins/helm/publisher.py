@@ -1,21 +1,17 @@
+from __future__ import annotations
+
 """
 Helm chart repository publisher.
 
 This module implements publishing for Helm chart repositories.
 """
 
-import gzip
-import hashlib
 import logging
 import os
 import shutil
-import tempfile
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
-from urllib.parse import urljoin
 
-import requests
 import yaml
 from sqlalchemy.orm import Session
 
@@ -98,10 +94,7 @@ class HelmPublisher(PublisherPlugin):
             shutil.rmtree(target_path)
 
     def _publish_charts(
-        self,
-        charts: List[ContentItem],
-        target_path: Path,
-        config: RepositoryConfig
+        self, charts: list[ContentItem], target_path: Path, config: RepositoryConfig
     ) -> None:
         """Publish charts and generate index.yaml.
 
@@ -128,10 +121,7 @@ class HelmPublisher(PublisherPlugin):
         logger.info(f"Published {len(charts)} charts to {target_path}")
 
     def _generate_index_yaml(
-        self,
-        charts: List[ContentItem],
-        target_path: Path,
-        config: RepositoryConfig
+        self, charts: list[ContentItem], target_path: Path, config: RepositoryConfig
     ) -> None:
         """Generate Helm index.yaml file.
 
@@ -144,7 +134,7 @@ class HelmPublisher(PublisherPlugin):
         index = {
             "apiVersion": "v1",
             "entries": {},
-            "generated": datetime.utcnow().isoformat() + "Z"
+            "generated": datetime.utcnow().isoformat() + "Z",
         }
 
         # Group charts by name
@@ -159,8 +149,8 @@ class HelmPublisher(PublisherPlugin):
             entry = metadata.to_index_entry()
 
             # Update URLs to point to published location
-            publish_config = getattr(config, 'publish', None)
-            if publish_config and getattr(publish_config, 'base_url', None):
+            publish_config = getattr(config, "publish", None)
+            if publish_config and getattr(publish_config, "base_url", None):
                 entry["urls"] = [f"{publish_config.base_url}/{chart.filename}"]
             else:
                 entry["urls"] = [chart.filename]
@@ -177,11 +167,7 @@ class HelmPublisher(PublisherPlugin):
 
         logger.debug(f"Generated index.yaml with {len(index['entries'])} chart names")
 
-    def _get_repository_charts(
-        self,
-        session: Session,
-        repository: Repository
-    ) -> List[ContentItem]:
+    def _get_repository_charts(self, session: Session, repository: Repository) -> list[ContentItem]:
         """Get all Helm charts from repository.
 
         Args:
@@ -191,16 +177,9 @@ class HelmPublisher(PublisherPlugin):
         Returns:
             list: ContentItem instances (type=helm)
         """
-        return [
-            item for item in repository.content_items
-            if item.content_type == "helm"
-        ]
+        return [item for item in repository.content_items if item.content_type == "helm"]
 
-    def _get_snapshot_charts(
-        self,
-        session: Session,
-        snapshot: Snapshot
-    ) -> List[ContentItem]:
+    def _get_snapshot_charts(self, session: Session, snapshot: Snapshot) -> list[ContentItem]:
         """Get all Helm charts from snapshot.
 
         Args:
@@ -210,7 +189,4 @@ class HelmPublisher(PublisherPlugin):
         Returns:
             list: ContentItem instances (type=helm)
         """
-        return [
-            item for item in snapshot.content_items
-            if item.content_type == "helm"
-        ]
+        return [item for item in snapshot.content_items if item.content_type == "helm"]

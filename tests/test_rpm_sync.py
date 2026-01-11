@@ -4,10 +4,6 @@ Tests for RPM sync plugin.
 This module tests the RpmSyncPlugin implementation, focusing on kickstart support.
 """
 
-import pytest
-from unittest.mock import MagicMock
-
-from chantal.plugins.rpm.sync import RpmSyncPlugin
 from chantal.plugins.rpm import parsers
 
 
@@ -39,19 +35,25 @@ initrd = images/pxeboot/initrd.img
         assert len(installer_files) == 3
 
         # Verify boot.iso
-        boot_iso = next(f for f in installer_files if f['file_type'] == 'boot.iso')
-        assert boot_iso['path'] == 'images/boot.iso'
-        assert boot_iso['sha256'] == '7fa5f43a19f85cfc87dd1f09ea023762ea44eeec79e7e7b13f286fcfe39bb6a8'
+        boot_iso = next(f for f in installer_files if f["file_type"] == "boot.iso")
+        assert boot_iso["path"] == "images/boot.iso"
+        assert (
+            boot_iso["sha256"] == "7fa5f43a19f85cfc87dd1f09ea023762ea44eeec79e7e7b13f286fcfe39bb6a8"
+        )
 
         # Verify kernel (vmlinuz)
-        kernel = next(f for f in installer_files if f['file_type'] == 'kernel')
-        assert kernel['path'] == 'images/pxeboot/vmlinuz'
-        assert kernel['sha256'] == '5b55ab14126b2979ce37a36ecb8dedd9a4dbb4e4de7f69488923aed0611ae8a0'
+        kernel = next(f for f in installer_files if f["file_type"] == "kernel")
+        assert kernel["path"] == "images/pxeboot/vmlinuz"
+        assert (
+            kernel["sha256"] == "5b55ab14126b2979ce37a36ecb8dedd9a4dbb4e4de7f69488923aed0611ae8a0"
+        )
 
         # Verify initrd
-        initrd = next(f for f in installer_files if f['file_type'] == 'initrd')
-        assert initrd['path'] == 'images/pxeboot/initrd.img'
-        assert initrd['sha256'] == '95b778a741fd237d7daf982989ceaafa4496c3ed23376e734f0410c78b09781b'
+        initrd = next(f for f in installer_files if f["file_type"] == "initrd")
+        assert initrd["path"] == "images/pxeboot/initrd.img"
+        assert (
+            initrd["sha256"] == "95b778a741fd237d7daf982989ceaafa4496c3ed23376e734f0410c78b09781b"
+        )
 
     def test_parse_treeinfo_no_checksums(self):
         """Test parsing .treeinfo without checksums section."""
@@ -71,7 +73,7 @@ kernel = images/pxeboot/vmlinuz
 
         # Verify files have no checksums
         for file_info in installer_files:
-            assert file_info['sha256'] is None
+            assert file_info["sha256"] is None
 
     def test_parse_treeinfo_different_arch(self):
         """Test parsing .treeinfo with different architecture."""
@@ -96,10 +98,10 @@ boot.iso = images/boot-x86.iso
         assert len(installer_files) == 2
 
         # Verify paths are from aarch64 section
-        paths = {f['path'] for f in installer_files}
-        assert 'images/boot.iso' in paths
-        assert 'images/pxeboot/vmlinuz' in paths
-        assert 'images/boot-x86.iso' not in paths
+        paths = {f["path"] for f in installer_files}
+        assert "images/boot.iso" in paths
+        assert "images/pxeboot/vmlinuz" in paths
+        assert "images/boot-x86.iso" not in paths
 
     def test_parse_treeinfo_empty(self):
         """Test parsing empty .treeinfo file."""
@@ -127,7 +129,7 @@ boot.iso = images/boot.iso
 
         # Should default to x86_64
         assert len(installer_files) == 1
-        assert installer_files[0]['path'] == 'images/boot.iso'
+        assert installer_files[0]["path"] == "images/boot.iso"
 
     def test_parse_treeinfo_real_centos_stream(self):
         """Test parsing real CentOS Stream .treeinfo format."""
@@ -170,10 +172,10 @@ mainimage = images/install.img
         assert len(installer_files) == 4
 
         # Verify file types
-        file_types = {f['file_type'] for f in installer_files}
-        assert file_types == {'boot.iso', 'initrd', 'kernel', 'efiboot.img'}
+        file_types = {f["file_type"] for f in installer_files}
+        assert file_types == {"boot.iso", "initrd", "kernel", "efiboot.img"}
 
         # Verify all have checksums
         for file_info in installer_files:
-            assert file_info['sha256'] is not None
-            assert len(file_info['sha256']) == 64  # SHA256 hex length
+            assert file_info["sha256"] is not None
+            assert len(file_info["sha256"]) == 64  # SHA256 hex length

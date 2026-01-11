@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Main CLI entry point for Chantal.
 
@@ -5,27 +7,26 @@ This module provides the Click-based command-line interface for Chantal.
 """
 
 import shutil
-from datetime import datetime
+from datetime import datetime, timezone
+from pathlib import Path
 
 import click
-from pathlib import Path
-from typing import Optional
 
 from chantal import __version__
 from chantal.core.config import GlobalConfig, load_config
 from chantal.core.storage import StorageManager
-from chantal.db.connection import DatabaseManager
-from chantal.db.models import Repository, Snapshot, SyncHistory, ContentItem
 from chantal.db import migrations
-from chantal.plugins.rpm.sync import RpmSyncPlugin, CheckUpdatesResult, PackageUpdate
-from chantal.plugins.rpm.publisher import RpmPublisher
-from chantal.plugins.helm.sync import HelmSyncer
-from chantal.plugins.helm.publisher import HelmPublisher
-from chantal.plugins.apk.sync import ApkSyncer
+from chantal.db.connection import DatabaseManager
+from chantal.db.models import ContentItem, Repository, Snapshot, SyncHistory
 from chantal.plugins.apk.publisher import ApkPublisher
+from chantal.plugins.apk.sync import ApkSyncer
+from chantal.plugins.helm.publisher import HelmPublisher
+from chantal.plugins.helm.sync import HelmSyncer
+from chantal.plugins.rpm.publisher import RpmPublisher
+from chantal.plugins.rpm.sync import CheckUpdatesResult, RpmSyncPlugin
 
 # Click context settings to enable -h as alias for --help
-CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
+CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
 
 
 @click.group(context_settings=CONTEXT_SETTINGS)
@@ -38,7 +39,7 @@ CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 )
 @click.option("--verbose", "-v", is_flag=True, help="Verbose output")
 @click.pass_context
-def cli(ctx: click.Context, config: Optional[Path], verbose: bool) -> None:
+def cli(ctx: click.Context, config: Path | None, verbose: bool) -> None:
     """Chantal - Unified offline repository mirroring.
 
     Because every other name was already taken.
@@ -267,10 +268,20 @@ def repo() -> None:
 
 
 @repo.command("list")
-@click.option("--format", "output_format", type=click.Choice(["table", "json"]),
-              default="table", help="Output format")
-@click.option("--type", "repo_type", type=click.Choice(["rpm", "apt", "helm"]),
-              default=None, help="Filter by repository type")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "json"]),
+    default="table",
+    help="Output format",
+)
+@click.option(
+    "--type",
+    "repo_type",
+    type=click.Choice(["rpm", "apt", "helm"]),
+    default=None,
+    help="Filter by repository type",
+)
 @click.pass_context
 def repo_list(ctx: click.Context, output_format: str, repo_type: str = None) -> None:
     """List configured repositories.
@@ -294,19 +305,26 @@ def repo_list(ctx: click.Context, output_format: str, repo_type: str = None) -> 
 
         if output_format == "json":
             import json
+
             result = []
             for repo_config in config_repos:
                 db_repo = db_repos.get(repo_config.id)
-                result.append({
-                    "repo_id": repo_config.id,
-                    "name": repo_config.name,
-                    "type": repo_config.type,
-                    "feed": repo_config.feed,
-                    "enabled": repo_config.enabled,
-                    "package_count": len(db_repo.packages) if db_repo else 0,
-                    "last_sync": db_repo.last_sync_at.isoformat() if db_repo and db_repo.last_sync_at else None,
-                    "synced": db_repo is not None,
-                })
+                result.append(
+                    {
+                        "repo_id": repo_config.id,
+                        "name": repo_config.name,
+                        "type": repo_config.type,
+                        "feed": repo_config.feed,
+                        "enabled": repo_config.enabled,
+                        "package_count": len(db_repo.packages) if db_repo else 0,
+                        "last_sync": (
+                            db_repo.last_sync_at.isoformat()
+                            if db_repo and db_repo.last_sync_at
+                            else None
+                        ),
+                        "synced": db_repo is not None,
+                    }
+                )
             click.echo(json.dumps(result, indent=2))
         else:
             # Table format
@@ -331,13 +349,15 @@ def repo_list(ctx: click.Context, output_format: str, repo_type: str = None) -> 
                 else:
                     last_sync_str = "Not synced"
 
-                rows.append({
-                    "id": repo_config.id,
-                    "type": repo_config.type,
-                    "enabled": enabled_str,
-                    "packages": str(package_count),
-                    "last_sync": last_sync_str,
-                })
+                rows.append(
+                    {
+                        "id": repo_config.id,
+                        "type": repo_config.type,
+                        "enabled": enabled_str,
+                        "packages": str(package_count),
+                        "last_sync": last_sync_str,
+                    }
+                )
 
             # Calculate column widths (minimum 10 chars, based on longest entry)
             col_widths = {
@@ -355,7 +375,9 @@ def repo_list(ctx: click.Context, output_format: str, repo_type: str = None) -> 
 
             # Rows
             for row in rows:
-                click.echo(f"{row['id']:<{col_widths['id']}} {row['type']:<{col_widths['type']}} {row['enabled']:<{col_widths['enabled']}} {row['packages']:>{col_widths['packages']}} {row['last_sync']:<{col_widths['last_sync']}}")
+                click.echo(
+                    f"{row['id']:<{col_widths['id']}} {row['type']:<{col_widths['type']}} {row['enabled']:<{col_widths['enabled']}} {row['packages']:>{col_widths['packages']}} {row['last_sync']:<{col_widths['last_sync']}}"
+                )
 
             click.echo()
             click.echo(f"Total: {len(config_repos)} repository(ies)")
@@ -366,7 +388,9 @@ def repo_list(ctx: click.Context, output_format: str, repo_type: str = None) -> 
 @click.option("--all", is_flag=True, help="Sync all enabled repositories")
 @click.option("--pattern", help="Sync repositories matching pattern (e.g., 'epel9-*', '*-latest')")
 @click.option("--type", help="Filter by repository type (rpm, apt) when using --all or --pattern")
-@click.option("--workers", type=int, default=1, help="Number of parallel workers for --all or --pattern")
+@click.option(
+    "--workers", type=int, default=1, help="Number of parallel workers for --all or --pattern"
+)
 @click.pass_context
 def repo_sync(
     ctx: click.Context,
@@ -446,8 +470,7 @@ def repo_sync(
 
             # Get all enabled repositories matching pattern
             repos_to_sync = [
-                r for r in config.repositories
-                if r.enabled and fnmatch.fnmatch(r.id, pattern)
+                r for r in config.repositories if r.enabled and fnmatch.fnmatch(r.id, pattern)
             ]
             if type:
                 repos_to_sync = [r for r in repos_to_sync if r.type == type]
@@ -518,12 +541,13 @@ def _sync_single_repository(session, storage, global_config, repo_config):
         stats = helm_syncer.sync_repository(session, repository, repo_config)
 
         # Update last sync timestamp
-        from datetime import datetime, timezone
+        from datetime import datetime
+
         repository.last_sync_at = datetime.now(timezone.utc)
         session.commit()
 
         # Display result
-        click.echo(f"\n✓ Helm sync completed successfully!")
+        click.echo("\n✓ Helm sync completed successfully!")
         click.echo(f"  Charts added: {stats['charts_added']}")
         click.echo(f"  Charts updated: {stats['charts_updated']}")
         click.echo(f"  Charts skipped: {stats['charts_skipped']}")
@@ -539,18 +563,21 @@ def _sync_single_repository(session, storage, global_config, repo_config):
         stats = apk_syncer.sync_repository(session, repository, repo_config)
 
         # Update last sync timestamp
-        from datetime import datetime, timezone
+        from datetime import datetime
+
         repository.last_sync_at = datetime.now(timezone.utc)
         session.commit()
 
         # Display result
-        click.echo(f"\n✓ APK sync completed successfully!")
+        click.echo("\n✓ APK sync completed successfully!")
         click.echo(f"  Packages added: {stats['packages_added']}")
         click.echo(f"  Packages updated: {stats['packages_updated']}")
         click.echo(f"  Packages skipped: {stats['packages_skipped']}")
         click.echo(f"  Data transferred: {stats['bytes_downloaded'] / 1024 / 1024:.2f} MB")
-        if stats['sha1_mismatches'] > 0:
-            click.echo(f"  SHA1 mismatches: {stats['sha1_mismatches']} (stale APKINDEX, integrity verified via SHA256)")
+        if stats["sha1_mismatches"] > 0:
+            click.echo(
+                f"  SHA1 mismatches: {stats['sha1_mismatches']} (stale APKINDEX, integrity verified via SHA256)"
+            )
         return
     else:
         click.echo(f"Error: Unsupported repository type: {repo_config.type}")
@@ -562,11 +589,12 @@ def _sync_single_repository(session, storage, global_config, repo_config):
     # Display result
     if result.success:
         # Update last sync timestamp
-        from datetime import datetime, timezone
+        from datetime import datetime
+
         repository.last_sync_at = datetime.now(timezone.utc)
         session.commit()
 
-        click.echo(f"\n✓ Sync completed successfully!")
+        click.echo("\n✓ Sync completed successfully!")
         click.echo(f"  Total packages: {result.packages_total}")
         click.echo(f"  Downloaded: {result.packages_downloaded}")
         click.echo(f"  Skipped (already in pool): {result.packages_skipped}")
@@ -577,8 +605,13 @@ def _sync_single_repository(session, storage, global_config, repo_config):
 
 @repo.command("show")
 @click.option("--repo-id", required=True, help="Repository ID")
-@click.option("--format", "output_format", type=click.Choice(["table", "json"]),
-              default="table", help="Output format")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "json"]),
+    default="table",
+    help="Output format",
+)
 @click.pass_context
 def repo_show(ctx: click.Context, repo_id: str, output_format: str) -> None:
     """Show detailed repository information.
@@ -619,6 +652,7 @@ def repo_show(ctx: click.Context, repo_id: str, output_format: str) -> None:
 
         if output_format == "json":
             import json
+
             result = {
                 "repo_id": repository.repo_id,
                 "name": repository.name,
@@ -632,11 +666,17 @@ def repo_show(ctx: click.Context, repo_id: str, output_format: str) -> None:
                     "snapshot_count": snapshot_count,
                 },
                 "sync": {
-                    "last_sync": repository.last_sync_at.isoformat() if repository.last_sync_at else None,
+                    "last_sync": (
+                        repository.last_sync_at.isoformat() if repository.last_sync_at else None
+                    ),
                 },
-                "config": {
-                    "has_filters": bool(repo_config.filters) if repo_config else False,
-                } if repo_config else None,
+                "config": (
+                    {
+                        "has_filters": bool(repo_config.filters) if repo_config else False,
+                    }
+                    if repo_config
+                    else None
+                ),
             }
             click.echo(json.dumps(result, indent=2))
         else:
@@ -653,12 +693,15 @@ def repo_show(ctx: click.Context, repo_id: str, output_format: str) -> None:
             click.echo(f"  Enabled:      {'Yes' if repository.enabled else 'No'}")
 
             if repo_config and repo_config.filters:
-                click.echo(f"  Filters:      Active")
-                if hasattr(repo_config.filters, 'post_processing') and repo_config.filters.post_processing:
+                click.echo("  Filters:      Active")
+                if (
+                    hasattr(repo_config.filters, "post_processing")
+                    and repo_config.filters.post_processing
+                ):
                     if repo_config.filters.post_processing.only_latest_version:
-                        click.echo(f"                - Only latest versions")
+                        click.echo("                - Only latest versions")
             else:
-                click.echo(f"  Filters:      None")
+                click.echo("  Filters:      None")
 
             click.echo()
             click.echo("Statistics:")
@@ -672,25 +715,31 @@ def repo_show(ctx: click.Context, repo_id: str, output_format: str) -> None:
                     size_mb = total_size_bytes / (1024**2)
                     click.echo(f"  Total Size:       {size_mb:.1f} MB")
             else:
-                click.echo(f"  Total Size:       0 bytes")
+                click.echo("  Total Size:       0 bytes")
 
             click.echo(f"  Snapshots:        {snapshot_count}")
 
             click.echo()
             click.echo("Sync Information:")
             if repository.last_sync_at:
-                click.echo(f"  Last Sync:    {repository.last_sync_at.strftime('%Y-%m-%d %H:%M:%S')}")
+                click.echo(
+                    f"  Last Sync:    {repository.last_sync_at.strftime('%Y-%m-%d %H:%M:%S')}"
+                )
             else:
-                click.echo(f"  Last Sync:    Never")
+                click.echo("  Last Sync:    Never")
                 click.echo()
-                click.echo(f"  Run 'chantal repo sync --repo-id {repo_id}' to sync this repository.")
+                click.echo(
+                    f"  Run 'chantal repo sync --repo-id {repo_id}' to sync this repository."
+                )
 
             if snapshots:
                 click.echo()
                 click.echo(f"Recent Snapshots (showing {min(5, len(snapshots))}):")
                 for snap in sorted(snapshots, key=lambda s: s.created_at, reverse=True)[:5]:
                     published = " [PUBLISHED]" if snap.is_published else ""
-                    click.echo(f"  - {snap.name:<30} {snap.created_at.strftime('%Y-%m-%d %H:%M')}{published}")
+                    click.echo(
+                        f"  - {snap.name:<30} {snap.created_at.strftime('%Y-%m-%d %H:%M')}{published}"
+                    )
 
             click.echo()
             click.echo("=" * 70)
@@ -701,8 +750,13 @@ def repo_show(ctx: click.Context, repo_id: str, output_format: str) -> None:
 @click.option("--all", is_flag=True, help="Check all enabled repositories")
 @click.option("--pattern", help="Check repositories matching pattern (e.g., 'epel9-*', '*-latest')")
 @click.option("--type", help="Filter by repository type (rpm, apt) when using --all or --pattern")
-@click.option("--format", "output_format", type=click.Choice(["table", "json"]),
-              default="table", help="Output format")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "json"]),
+    default="table",
+    help="Output format",
+)
 @click.pass_context
 def repo_check_updates(
     ctx: click.Context,
@@ -767,9 +821,7 @@ def repo_check_updates(
                 click.echo(f"Filtered by type: {type}")
 
             repos_to_check = [
-                r
-                for r in config.repositories
-                if r.enabled and fnmatch.fnmatch(r.id, pattern)
+                r for r in config.repositories if r.enabled and fnmatch.fnmatch(r.id, pattern)
             ]
 
             if type:
@@ -885,16 +937,22 @@ def _check_updates_single_repository(session, storage, global_config, repo_confi
                     remote_ver = f"{update.remote_epoch}:{remote_ver}"
 
                 size_mb = update.size_bytes / 1024 / 1024
-                size_str = f"{size_mb:.1f} MB" if size_mb >= 1 else f"{update.size_bytes / 1024:.0f} KB"
+                size_str = (
+                    f"{size_mb:.1f} MB" if size_mb >= 1 else f"{update.size_bytes / 1024:.0f} KB"
+                )
 
-                name_display = update.name[:max_name] if len(update.name) > max_name else update.name
+                name_display = (
+                    update.name[:max_name] if len(update.name) > max_name else update.name
+                )
 
                 click.echo(
                     f"{name_display:<{max_name}}  {update.arch:<10}  {local_ver:<20}  {remote_ver:<20}  {size_str:>10}"
                 )
 
             click.echo()
-            click.echo(f"Summary: {len(result.updates_available)} package update(s) available ({result.total_size_bytes / 1024 / 1024:.2f} MB)")
+            click.echo(
+                f"Summary: {len(result.updates_available)} package update(s) available ({result.total_size_bytes / 1024 / 1024:.2f} MB)"
+            )
             click.echo()
             click.echo(f"Run 'chantal repo sync --repo-id {repo_config.id}' to download updates")
 
@@ -907,8 +965,13 @@ def _check_updates_single_repository(session, storage, global_config, repo_confi
 @repo.command("history")
 @click.option("--repo-id", required=True, help="Repository ID")
 @click.option("--limit", type=int, default=10, help="Number of sync entries to show")
-@click.option("--format", "output_format", type=click.Choice(["table", "json"]),
-              default="table", help="Output format")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "json"]),
+    default="table",
+    help="Output format",
+)
 @click.pass_context
 def repo_history(ctx: click.Context, repo_id: str, limit: int, output_format: str) -> None:
     """Show sync history for repository.
@@ -944,6 +1007,7 @@ def repo_history(ctx: click.Context, repo_id: str, limit: int, output_format: st
 
         if output_format == "json":
             import json
+
             result = []
             for sync in history:
                 duration = None
@@ -951,17 +1015,21 @@ def repo_history(ctx: click.Context, repo_id: str, limit: int, output_format: st
                     duration_seconds = (sync.completed_at - sync.started_at).total_seconds()
                     duration = duration_seconds
 
-                result.append({
-                    "started_at": sync.started_at.isoformat(),
-                    "completed_at": sync.completed_at.isoformat() if sync.completed_at else None,
-                    "status": sync.status,
-                    "duration_seconds": duration,
-                    "packages_added": sync.packages_added,
-                    "packages_removed": sync.packages_removed,
-                    "packages_updated": sync.packages_updated,
-                    "bytes_downloaded": sync.bytes_downloaded,
-                    "error_message": sync.error_message,
-                })
+                result.append(
+                    {
+                        "started_at": sync.started_at.isoformat(),
+                        "completed_at": (
+                            sync.completed_at.isoformat() if sync.completed_at else None
+                        ),
+                        "status": sync.status,
+                        "duration_seconds": duration,
+                        "packages_added": sync.packages_added,
+                        "packages_removed": sync.packages_removed,
+                        "packages_updated": sync.packages_updated,
+                        "bytes_downloaded": sync.bytes_downloaded,
+                        "error_message": sync.error_message,
+                    }
+                )
             click.echo(json.dumps(result, indent=2))
         else:
             # Table format
@@ -972,7 +1040,9 @@ def repo_history(ctx: click.Context, repo_id: str, limit: int, output_format: st
             if not history:
                 click.echo("  No sync history found.")
                 click.echo()
-                click.echo(f"  Run 'chantal repo sync --repo-id {repo_id}' to sync this repository.")
+                click.echo(
+                    f"  Run 'chantal repo sync --repo-id {repo_id}' to sync this repository."
+                )
                 return
 
             click.echo(f"{'Date':<20} {'Status':<10} {'Duration':>10} {'Changes':<30}")
@@ -1086,7 +1156,9 @@ def snapshot_list(ctx: click.Context, repo_id: str) -> None:
             # Format created date
             created_str = snapshot.created_at.strftime("%Y-%m-%d %H:%M")
 
-            click.echo(f"{snapshot.name:<30} {repo_name:<20} {snapshot.package_count:>10} {size_str:>12} {created_str:<20}")
+            click.echo(
+                f"{snapshot.name:<30} {repo_name:<20} {snapshot.package_count:>10} {size_str:>12} {created_str:<20}"
+            )
 
         click.echo()
         click.echo(f"Total: {len(snapshots)} snapshot(s)")
@@ -1098,7 +1170,9 @@ def snapshot_list(ctx: click.Context, repo_id: str) -> None:
 @click.option("--name", required=True, help="Snapshot name")
 @click.option("--description", help="Snapshot description")
 @click.pass_context
-def snapshot_create(ctx: click.Context, repo_id: str, view: str, name: str, description: str) -> None:
+def snapshot_create(
+    ctx: click.Context, repo_id: str, view: str, name: str, description: str
+) -> None:
     """Create snapshot of repository or view.
 
     Creates an immutable point-in-time snapshot of the current state.
@@ -1137,7 +1211,7 @@ def _create_repository_snapshot(
     db_manager: DatabaseManager,
     repo_id: str,
     name: str,
-    description: str
+    description: str,
 ) -> None:
     """Create snapshot of a single repository."""
     from chantal.db.models import Repository, Snapshot
@@ -1163,12 +1237,12 @@ def _create_repository_snapshot(
 
         # Check if snapshot with this name already exists
         existing_snapshot = (
-            session.query(Snapshot)
-            .filter_by(repository_id=repository.id, name=name)
-            .first()
+            session.query(Snapshot).filter_by(repository_id=repository.id, name=name).first()
         )
         if existing_snapshot:
-            click.echo(f"Error: Snapshot '{name}' already exists for repository '{repo_id}'.", err=True)
+            click.echo(
+                f"Error: Snapshot '{name}' already exists for repository '{repo_id}'.", err=True
+            )
             click.echo(f"Created: {existing_snapshot.created_at}", err=True)
             click.echo("Use a different name or delete the existing snapshot first.", err=True)
             ctx.exit(1)
@@ -1186,7 +1260,9 @@ def _create_repository_snapshot(
         package_count = len(packages)
         total_size_bytes = sum(pkg.size_bytes for pkg in packages)
 
-        click.echo(f"Repository has {package_count} packages ({total_size_bytes / (1024**3):.2f} GB)")
+        click.echo(
+            f"Repository has {package_count} packages ({total_size_bytes / (1024**3):.2f} GB)"
+        )
 
         # Create snapshot
         snapshot = Snapshot(
@@ -1214,7 +1290,7 @@ def _create_repository_snapshot(
         click.echo(f"  Total size: {total_size_bytes / (1024**3):.2f} GB")
         click.echo(f"  Created: {snapshot.created_at}")
         click.echo()
-        click.echo(f"To publish this snapshot:")
+        click.echo("To publish this snapshot:")
         click.echo(f"  chantal publish snapshot --snapshot {name} --repo-id {repo_id}")
 
 
@@ -1224,10 +1300,10 @@ def _create_view_snapshot(
     db_manager: DatabaseManager,
     view_name: str,
     snapshot_name: str,
-    description: str
+    description: str,
 ) -> None:
     """Create atomic snapshot of ALL repositories in a view."""
-    from chantal.db.models import Repository, Snapshot, View, ViewSnapshot
+    from chantal.db.models import Snapshot, View, ViewSnapshot
 
     click.echo(f"Creating view snapshot '{snapshot_name}' of view '{view_name}'...")
     if description:
@@ -1244,12 +1320,13 @@ def _create_view_snapshot(
 
         # Check if view snapshot with this name already exists
         existing_snapshot = (
-            session.query(ViewSnapshot)
-            .filter_by(view_id=view.id, name=snapshot_name)
-            .first()
+            session.query(ViewSnapshot).filter_by(view_id=view.id, name=snapshot_name).first()
         )
         if existing_snapshot:
-            click.echo(f"Error: View snapshot '{snapshot_name}' already exists for view '{view_name}'.", err=True)
+            click.echo(
+                f"Error: View snapshot '{snapshot_name}' already exists for view '{view_name}'.",
+                err=True,
+            )
             click.echo(f"Created: {existing_snapshot.created_at}", err=True)
             click.echo("Use a different name or delete the existing snapshot first.", err=True)
             ctx.exit(1)
@@ -1332,7 +1409,7 @@ def _create_view_snapshot(
         click.echo(f"  Total size: {total_bytes / (1024**3):.2f} GB")
         click.echo(f"  Created: {view_snapshot.created_at}")
         click.echo()
-        click.echo(f"To publish this view snapshot:")
+        click.echo("To publish this view snapshot:")
         click.echo(f"  chantal publish snapshot --view {view_name} --snapshot {snapshot_name}")
 
 
@@ -1340,10 +1417,17 @@ def _create_view_snapshot(
 @click.option("--repo-id", required=True, help="Repository ID")
 @click.argument("snapshot1")
 @click.argument("snapshot2")
-@click.option("--format", "output_format", type=click.Choice(["table", "json"]),
-              default="table", help="Output format")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "json"]),
+    default="table",
+    help="Output format",
+)
 @click.pass_context
-def snapshot_diff(ctx: click.Context, repo_id: str, snapshot1: str, snapshot2: str, output_format: str) -> None:
+def snapshot_diff(
+    ctx: click.Context, repo_id: str, snapshot1: str, snapshot2: str, output_format: str
+) -> None:
     """Compare two snapshots within a repository, or a snapshot against upstream.
 
     Shows packages that were added, removed, or updated between two snapshots
@@ -1366,9 +1450,7 @@ def snapshot_diff(ctx: click.Context, repo_id: str, snapshot1: str, snapshot2: s
 
         # Get first snapshot
         snap1 = (
-            session.query(Snapshot)
-            .filter_by(repository_id=repository.id, name=snapshot1)
-            .first()
+            session.query(Snapshot).filter_by(repository_id=repository.id, name=snapshot1).first()
         )
 
         if not snap1:
@@ -1402,7 +1484,6 @@ def snapshot_diff(ctx: click.Context, repo_id: str, snapshot1: str, snapshot2: s
         # Calculate differences
         added_sha256s = set(packages2.keys()) - set(packages1.keys())
         removed_sha256s = set(packages1.keys()) - set(packages2.keys())
-        common_sha256s = set(packages1.keys()) & set(packages2.keys())
 
         # Find updated packages (same name, different version)
         # Group packages by name for easier comparison
@@ -1436,6 +1517,7 @@ def snapshot_diff(ctx: click.Context, repo_id: str, snapshot1: str, snapshot2: s
         # Output
         if output_format == "json":
             import json
+
             result = {
                 "repository": repo_id,
                 "snapshot1": snapshot1,
@@ -1506,7 +1588,9 @@ def snapshot_diff(ctx: click.Context, repo_id: str, snapshot1: str, snapshot2: s
                 click.echo("No changes between snapshots.")
                 click.echo()
 
-            click.echo(f"Summary: {len(added)} added, {len(removed)} removed, {len(updated)} updated")
+            click.echo(
+                f"Summary: {len(added)} added, {len(removed)} removed, {len(updated)} updated"
+            )
 
 
 @snapshot.command("delete")
@@ -1522,7 +1606,6 @@ def snapshot_delete(ctx: click.Context, repo_id: str, snapshot_name: str, force:
     """
     config: GlobalConfig = ctx.obj["config"]
     db_manager = DatabaseManager(config.database.url)
-    storage = StorageManager(config.storage)
 
     with db_manager.session() as session:
         # Get repository
@@ -1539,7 +1622,9 @@ def snapshot_delete(ctx: click.Context, repo_id: str, snapshot_name: str, force:
         )
 
         if not snapshot:
-            click.echo(f"Error: Snapshot '{snapshot_name}' not found for repository '{repo_id}'.", err=True)
+            click.echo(
+                f"Error: Snapshot '{snapshot_name}' not found for repository '{repo_id}'.", err=True
+            )
             ctx.exit(1)
 
         # Check if published
@@ -1577,7 +1662,9 @@ def snapshot_delete(ctx: click.Context, repo_id: str, snapshot_name: str, force:
 @click.option("--repo-id", required=True, help="Repository ID")
 @click.option("--description", help="Description for new snapshot")
 @click.pass_context
-def snapshot_copy(ctx: click.Context, source: str, target: str, repo_id: str, description: str) -> None:
+def snapshot_copy(
+    ctx: click.Context, source: str, target: str, repo_id: str, description: str
+) -> None:
     """Copy a snapshot to a new name (enables promotion workflows).
 
     Creates a new snapshot with a different name that references the same packages.
@@ -1603,26 +1690,29 @@ def snapshot_copy(ctx: click.Context, source: str, target: str, repo_id: str, de
 
         # Get source snapshot
         source_snapshot = (
-            session.query(Snapshot)
-            .filter_by(repository_id=repository.id, name=source)
-            .first()
+            session.query(Snapshot).filter_by(repository_id=repository.id, name=source).first()
         )
 
         if not source_snapshot:
-            click.echo(f"Error: Source snapshot '{source}' not found for repository '{repo_id}'.", err=True)
+            click.echo(
+                f"Error: Source snapshot '{source}' not found for repository '{repo_id}'.", err=True
+            )
             ctx.exit(1)
 
         # Check if target already exists
         existing_target = (
-            session.query(Snapshot)
-            .filter_by(repository_id=repository.id, name=target)
-            .first()
+            session.query(Snapshot).filter_by(repository_id=repository.id, name=target).first()
         )
 
         if existing_target:
-            click.echo(f"Error: Target snapshot '{target}' already exists for repository '{repo_id}'.", err=True)
+            click.echo(
+                f"Error: Target snapshot '{target}' already exists for repository '{repo_id}'.",
+                err=True,
+            )
             click.echo(f"Created: {existing_target.created_at}", err=True)
-            click.echo("Use a different target name or delete the existing snapshot first.", err=True)
+            click.echo(
+                "Use a different target name or delete the existing snapshot first.", err=True
+            )
             ctx.exit(1)
 
         click.echo(f"Copying snapshot: {source} → {target}")
@@ -1648,7 +1738,7 @@ def snapshot_copy(ctx: click.Context, source: str, target: str, repo_id: str, de
         session.add(new_snapshot)
         session.commit()
 
-        click.echo(f"✓ Snapshot copied successfully!")
+        click.echo("✓ Snapshot copied successfully!")
         click.echo(f"  Source: {source}")
         click.echo(f"  Target: {target}")
         click.echo(f"  Packages: {new_snapshot.package_count}")
@@ -1656,7 +1746,7 @@ def snapshot_copy(ctx: click.Context, source: str, target: str, repo_id: str, de
         click.echo()
         click.echo("Note: Both snapshots share the same packages in the pool (zero-copy)")
         click.echo()
-        click.echo(f"To publish the new snapshot:")
+        click.echo("To publish the new snapshot:")
         click.echo(f"  chantal publish snapshot --snapshot {target} --repo-id {repo_id}")
 
 
@@ -1664,10 +1754,18 @@ def snapshot_copy(ctx: click.Context, source: str, target: str, repo_id: str, de
 @click.option("--repo-id", help="Repository ID (for repository snapshots)")
 @click.option("--view", help="View name (for view snapshots)")
 @click.option("--snapshot", "snapshot_name", required=True, help="Snapshot name")
-@click.option("--format", "output_format", type=click.Choice(["table", "json", "csv"]), default="table", help="Output format")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "json", "csv"]),
+    default="table",
+    help="Output format",
+)
 @click.option("--limit", type=int, help="Limit number of packages shown (table format only)")
 @click.pass_context
-def snapshot_content(ctx: click.Context, repo_id: str, view: str, snapshot_name: str, output_format: str, limit: int) -> None:
+def snapshot_content(
+    ctx: click.Context, repo_id: str, view: str, snapshot_name: str, output_format: str, limit: int
+) -> None:
     """Show content (package list) of a snapshot.
 
     For repository snapshots: --repo-id <repo> --snapshot <name>
@@ -1692,7 +1790,9 @@ def snapshot_content(ctx: click.Context, repo_id: str, view: str, snapshot_name:
         _show_view_snapshot_content(ctx, db_manager, view, snapshot_name, output_format, limit)
     else:
         # Show repository snapshot content
-        _show_repository_snapshot_content(ctx, db_manager, repo_id, snapshot_name, output_format, limit)
+        _show_repository_snapshot_content(
+            ctx, db_manager, repo_id, snapshot_name, output_format, limit
+        )
 
 
 def _show_repository_snapshot_content(
@@ -1701,7 +1801,7 @@ def _show_repository_snapshot_content(
     repo_id: str,
     snapshot_name: str,
     output_format: str,
-    limit: int
+    limit: int,
 ) -> None:
     """Show repository snapshot content."""
     from chantal.db.models import Repository, Snapshot
@@ -1721,7 +1821,9 @@ def _show_repository_snapshot_content(
         )
 
         if not snapshot:
-            click.echo(f"Error: Snapshot '{snapshot_name}' not found for repository '{repo_id}'.", err=True)
+            click.echo(
+                f"Error: Snapshot '{snapshot_name}' not found for repository '{repo_id}'.", err=True
+            )
             ctx.exit(1)
 
         # Get packages
@@ -1729,6 +1831,7 @@ def _show_repository_snapshot_content(
 
         if output_format == "json":
             import json
+
             output = {
                 "type": "repository_snapshot",
                 "repository": repo_id,
@@ -1750,15 +1853,17 @@ def _show_repository_snapshot_content(
                         "filename": pkg.filename,
                     }
                     for pkg in sorted(packages, key=lambda p: p.name)
-                ]
+                ],
             }
             click.echo(json.dumps(output, indent=2))
 
         elif output_format == "csv":
             click.echo("name,epoch,version,release,arch,nevra,sha256,size_bytes,filename")
             for pkg in sorted(packages, key=lambda p: p.name):
-                click.echo(f"{pkg.name},{pkg.epoch or ''},{pkg.version},{pkg.release},"
-                          f"{pkg.arch},{pkg.nevra},{pkg.sha256},{pkg.size_bytes},{pkg.filename}")
+                click.echo(
+                    f"{pkg.name},{pkg.epoch or ''},{pkg.version},{pkg.release},"
+                    f"{pkg.arch},{pkg.nevra},{pkg.sha256},{pkg.size_bytes},{pkg.filename}"
+                )
 
         else:  # table
             click.echo(f"Repository Snapshot: {repo_id} / {snapshot_name}")
@@ -1791,7 +1896,9 @@ def _show_repository_snapshot_content(
 
             if limit and len(packages) > limit:
                 click.echo()
-                click.echo(f"Showing {limit} of {len(packages)} packages. Use --limit to show more or --format json for full export.")
+                click.echo(
+                    f"Showing {limit} of {len(packages)} packages. Use --limit to show more or --format json for full export."
+                )
 
 
 def _show_view_snapshot_content(
@@ -1800,10 +1907,10 @@ def _show_view_snapshot_content(
     view_name: str,
     snapshot_name: str,
     output_format: str,
-    limit: int
+    limit: int,
 ) -> None:
     """Show view snapshot content."""
-    from chantal.db.models import View, ViewSnapshot, Snapshot
+    from chantal.db.models import Snapshot, View, ViewSnapshot
 
     with db_manager.session() as session:
         # Get view
@@ -1814,13 +1921,14 @@ def _show_view_snapshot_content(
 
         # Get view snapshot
         view_snapshot = (
-            session.query(ViewSnapshot)
-            .filter_by(view_id=view.id, name=snapshot_name)
-            .first()
+            session.query(ViewSnapshot).filter_by(view_id=view.id, name=snapshot_name).first()
         )
 
         if not view_snapshot:
-            click.echo(f"Error: View snapshot '{snapshot_name}' not found for view '{view_name}'.", err=True)
+            click.echo(
+                f"Error: View snapshot '{snapshot_name}' not found for view '{view_name}'.",
+                err=True,
+            )
             ctx.exit(1)
 
         # Collect all packages from all snapshots
@@ -1835,16 +1943,19 @@ def _show_view_snapshot_content(
             repo = snapshot.repository
             packages = list(snapshot.content_items)
 
-            repositories_data.append({
-                "repo_id": repo.repo_id,
-                "snapshot_name": snapshot.name,
-                "package_count": len(packages),
-                "packages": packages,
-            })
+            repositories_data.append(
+                {
+                    "repo_id": repo.repo_id,
+                    "snapshot_name": snapshot.name,
+                    "package_count": len(packages),
+                    "packages": packages,
+                }
+            )
             all_packages.extend(packages)
 
         if output_format == "json":
             import json
+
             output = {
                 "type": "view_snapshot",
                 "view": view_name,
@@ -1871,20 +1982,24 @@ def _show_view_snapshot_content(
                                 "filename": pkg.filename,
                             }
                             for pkg in sorted(repo_data["packages"], key=lambda p: p.name)
-                        ]
+                        ],
                     }
                     for repo_data in repositories_data
-                ]
+                ],
             }
             click.echo(json.dumps(output, indent=2))
 
         elif output_format == "csv":
-            click.echo("view,snapshot,repo_id,name,epoch,version,release,arch,nevra,sha256,size_bytes,filename")
+            click.echo(
+                "view,snapshot,repo_id,name,epoch,version,release,arch,nevra,sha256,size_bytes,filename"
+            )
             for repo_data in repositories_data:
                 for pkg in sorted(repo_data["packages"], key=lambda p: p.name):
-                    click.echo(f"{view_name},{snapshot_name},{repo_data['repo_id']},"
-                              f"{pkg.name},{pkg.epoch or ''},{pkg.version},{pkg.release},"
-                              f"{pkg.arch},{pkg.nevra},{pkg.sha256},{pkg.size_bytes},{pkg.filename}")
+                    click.echo(
+                        f"{view_name},{snapshot_name},{repo_data['repo_id']},"
+                        f"{pkg.name},{pkg.epoch or ''},{pkg.version},{pkg.release},"
+                        f"{pkg.arch},{pkg.nevra},{pkg.sha256},{pkg.size_bytes},{pkg.filename}"
+                    )
 
         else:  # table
             click.echo(f"View Snapshot: {view_name} / {snapshot_name}")
@@ -1898,7 +2013,9 @@ def _show_view_snapshot_content(
 
             # Show packages grouped by repository
             for repo_data in repositories_data:
-                click.echo(f"Repository: {repo_data['repo_id']} ({repo_data['package_count']} packages)")
+                click.echo(
+                    f"Repository: {repo_data['repo_id']} ({repo_data['package_count']} packages)"
+                )
                 click.echo("-" * 100)
                 click.echo(f"{'Name':<40} {'Version-Release':<35} {'Arch':<10} {'Size':<12}")
                 click.echo("-" * 100)
@@ -1926,7 +2043,9 @@ def _show_view_snapshot_content(
                 click.echo()
 
             if limit:
-                click.echo(f"Use --format json or --format csv for full export of all {view_snapshot.package_count} packages.")
+                click.echo(
+                    f"Use --format json or --format csv for full export of all {view_snapshot.package_count} packages."
+                )
 
 
 @cli.group(context_settings=CONTEXT_SETTINGS)
@@ -1960,6 +2079,7 @@ def view_list(ctx, output_format):
 
     if output_format == "json":
         import json
+
         views_data = [
             {
                 "name": v.name,
@@ -2008,19 +2128,21 @@ def view_show(ctx, name, output_format):
     for repo_id in view_config.repos:
         repo_config = config.get_repository(repo_id)
         if not repo_config:
-            repos_info.append({
-                "id": repo_id,
-                "name": f"UNKNOWN ({repo_id})",
-                "type": "?",
-                "enabled": False,
-                "packages": 0,
-                "status": "NOT FOUND",
-            })
+            repos_info.append(
+                {
+                    "id": repo_id,
+                    "name": f"UNKNOWN ({repo_id})",
+                    "type": "?",
+                    "enabled": False,
+                    "packages": 0,
+                    "status": "NOT FOUND",
+                }
+            )
         else:
             # Try to get package count from database
             try:
-                from chantal.db.session import get_session
                 from chantal.db.models import Repository
+                from chantal.db.session import get_session
 
                 session = get_session(config.database.url)
                 db_repo = session.query(Repository).filter_by(repo_id=repo_config.id).first()
@@ -2030,17 +2152,20 @@ def view_show(ctx, name, output_format):
             except Exception:
                 pkg_count = 0
 
-            repos_info.append({
-                "id": repo_config.id,
-                "name": repo_config.display_name,
-                "type": repo_config.type,
-                "enabled": repo_config.enabled,
-                "packages": pkg_count,
-                "status": "OK",
-            })
+            repos_info.append(
+                {
+                    "id": repo_config.id,
+                    "name": repo_config.display_name,
+                    "type": repo_config.type,
+                    "enabled": repo_config.enabled,
+                    "packages": pkg_count,
+                    "status": "OK",
+                }
+            )
 
     if output_format == "json":
         import json
+
         view_data = {
             "name": view_config.name,
             "description": view_config.description,
@@ -2069,12 +2194,16 @@ def view_show(ctx, name, output_format):
 
     for info in repos_info:
         enabled_str = "Yes" if info["enabled"] else "No"
-        click.echo(f"  {info['id']:<30} {info['type']:<6} {enabled_str:<8} {info['packages']:<10} {info['status']}")
+        click.echo(
+            f"  {info['id']:<30} {info['type']:<6} {enabled_str:<8} {info['packages']:<10} {info['status']}"
+        )
 
     click.echo()
     click.echo("Usage:")
     click.echo(f"  Publish view:          chantal publish view --name {view_config.name}")
-    click.echo(f"  Create view snapshot:  chantal snapshot create --view {view_config.name} --name YYYY-MM-DD")
+    click.echo(
+        f"  Create view snapshot:  chantal snapshot create --view {view_config.name} --name YYYY-MM-DD"
+    )
 
 
 @cli.group(context_settings=CONTEXT_SETTINGS)
@@ -2087,11 +2216,20 @@ def content() -> None:
 @click.option("--repo-id", help="Filter by repository ID")
 @click.option("--snapshot-id", help="Filter by snapshot ID")
 @click.option("--view", "view_name", help="Filter by view name")
-@click.option("--type", "content_type", type=click.Choice(["rpm", "helm", "apt"]),
-              help="Filter by content type")
+@click.option(
+    "--type",
+    "content_type",
+    type=click.Choice(["rpm", "helm", "apt"]),
+    help="Filter by content type",
+)
 @click.option("--limit", type=int, default=100, help="Limit number of results")
-@click.option("--format", "output_format", type=click.Choice(["table", "json", "csv"]),
-              default="table", help="Output format")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "json", "csv"]),
+    default="table",
+    help="Output format",
+)
 @click.pass_context
 def content_list(
     ctx: click.Context,
@@ -2100,7 +2238,7 @@ def content_list(
     view_name: str,
     content_type: str,
     limit: int,
-    output_format: str
+    output_format: str,
 ) -> None:
     """List content items.
 
@@ -2113,7 +2251,9 @@ def content_list(
     # Validate scope (only one can be specified)
     scope_count = sum([bool(repo_id), bool(snapshot_id), bool(view_name)])
     if scope_count > 1:
-        click.echo("Error: Only one of --repo-id, --snapshot-id, or --view can be specified.", err=True)
+        click.echo(
+            "Error: Only one of --repo-id, --snapshot-id, or --view can be specified.", err=True
+        )
         ctx.exit(1)
 
     with db_manager.session() as session:
@@ -2162,6 +2302,7 @@ def content_list(
         # Output
         if output_format == "json":
             import json
+
             result = []
             for item in items:
                 data = {
@@ -2184,11 +2325,18 @@ def content_list(
         elif output_format == "csv":
             import csv
             import sys
+
             writer = csv.writer(sys.stdout)
             writer.writerow(["Name", "Version", "Type", "Arch", "Size (bytes)", "SHA256"])
             for item in items:
-                arch = item.content_metadata.get("arch", "-") if item.content_metadata and item.content_type == "rpm" else "-"
-                writer.writerow([item.name, item.version, item.content_type, arch, item.size_bytes, item.sha256])
+                arch = (
+                    item.content_metadata.get("arch", "-")
+                    if item.content_metadata and item.content_type == "rpm"
+                    else "-"
+                )
+                writer.writerow(
+                    [item.name, item.version, item.content_type, arch, item.size_bytes, item.sha256]
+                )
 
         else:
             # Table format
@@ -2203,7 +2351,7 @@ def content_list(
                 return
 
             # Determine if we have mixed types
-            types_present = set(item.content_type for item in items)
+            types_present = {item.content_type for item in items}
             has_arch = "rpm" in types_present
 
             # Dynamic column headers
@@ -2232,9 +2380,13 @@ def content_list(
                 name = item.name[:33] + ".." if len(item.name) > 35 else item.name
 
                 if has_arch:
-                    click.echo(f"{name:<35} {item.version:<20} {item.content_type:<6} {arch:<10} {size_str:>12}")
+                    click.echo(
+                        f"{name:<35} {item.version:<20} {item.content_type:<6} {arch:<10} {size_str:>12}"
+                    )
                 else:
-                    click.echo(f"{name:<35} {item.version:<20} {item.content_type:<6} {size_str:>12}")
+                    click.echo(
+                        f"{name:<35} {item.version:<20} {item.content_type:<6} {size_str:>12}"
+                    )
 
             click.echo()
             click.echo(f"Total: {len(items)} item(s)")
@@ -2245,10 +2397,19 @@ def content_list(
 @click.option("--repo-id", help="Search in specific repository only")
 @click.option("--snapshot-id", help="Search in specific snapshot only")
 @click.option("--view", "view_name", help="Search in specific view only")
-@click.option("--type", "content_type", type=click.Choice(["rpm", "helm", "apt"]),
-              help="Filter by content type")
-@click.option("--format", "output_format", type=click.Choice(["table", "json"]),
-              default="table", help="Output format")
+@click.option(
+    "--type",
+    "content_type",
+    type=click.Choice(["rpm", "helm", "apt"]),
+    help="Filter by content type",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "json"]),
+    default="table",
+    help="Output format",
+)
 @click.pass_context
 def content_search(
     ctx: click.Context,
@@ -2257,7 +2418,7 @@ def content_search(
     snapshot_id: str,
     view_name: str,
     content_type: str,
-    output_format: str
+    output_format: str,
 ) -> None:
     """Search for content by name or version.
 
@@ -2270,7 +2431,9 @@ def content_search(
     # Validate scope (only one can be specified)
     scope_count = sum([bool(repo_id), bool(snapshot_id), bool(view_name)])
     if scope_count > 1:
-        click.echo("Error: Only one of --repo-id, --snapshot-id, or --view can be specified.", err=True)
+        click.echo(
+            "Error: Only one of --repo-id, --snapshot-id, or --view can be specified.", err=True
+        )
         ctx.exit(1)
 
     with db_manager.session() as session:
@@ -2305,14 +2468,16 @@ def content_search(
             repos = session.query(Repository).filter(Repository.repo_id.in_(repo_ids)).all()
             # Filter by any of these repositories
             if repos:
-                items_query = items_query.filter(ContentItem.repositories.any(Repository.repo_id.in_(repo_ids)))
+                items_query = items_query.filter(
+                    ContentItem.repositories.any(Repository.repo_id.in_(repo_ids))
+                )
             scope_desc = f"view '{view_name}'"
 
         # Apply name/version search (case-insensitive)
         search_pattern = query.replace("*", "%")
         items_query = items_query.filter(
-            (ContentItem.name.ilike(f"%{search_pattern}%")) |
-            (ContentItem.version.ilike(f"%{search_pattern}%"))
+            (ContentItem.name.ilike(f"%{search_pattern}%"))
+            | (ContentItem.version.ilike(f"%{search_pattern}%"))
         )
 
         # Filter by content type if specified
@@ -2324,6 +2489,7 @@ def content_search(
 
         if output_format == "json":
             import json
+
             result = []
             for item in items:
                 # Get repository names for this item
@@ -2352,7 +2518,7 @@ def content_search(
 
             if not items:
                 click.echo("  No content found.")
-                click.echo(f"  Try broadening your search query.")
+                click.echo("  Try broadening your search query.")
                 return
 
             click.echo(f"{'Repository':<25} {'Name':<30} {'Version':<15} {'Type':<6} {'Size':>10}")
@@ -2376,7 +2542,9 @@ def content_search(
                     size_kb = item.size_bytes / 1024
                     size_str = f"{size_kb:.0f} KB"
 
-                click.echo(f"{repo_display:<25} {name:<30} {item.version:<15} {item.content_type:<6} {size_str:>10}")
+                click.echo(
+                    f"{repo_display:<25} {name:<30} {item.version:<15} {item.content_type:<6} {size_str:>10}"
+                )
 
             click.echo()
             click.echo(f"Found: {len(items)} item(s)")
@@ -2384,8 +2552,13 @@ def content_search(
 
 @content.command("show")
 @click.argument("identifier")
-@click.option("--format", "output_format", type=click.Choice(["table", "json"]),
-              default="table", help="Output format")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "json"]),
+    default="table",
+    help="Output format",
+)
 @click.pass_context
 def content_show(ctx: click.Context, identifier: str, output_format: str) -> None:
     """Show detailed content information.
@@ -2403,7 +2576,7 @@ def content_show(ctx: click.Context, identifier: str, output_format: str) -> Non
         items = []
 
         # Check if it's a SHA256 (64 hex characters)
-        if len(identifier) == 64 and all(c in '0123456789abcdef' for c in identifier.lower()):
+        if len(identifier) == 64 and all(c in "0123456789abcdef" for c in identifier.lower()):
             item = session.query(ContentItem).filter_by(sha256=identifier).first()
             if item:
                 items = [item]
@@ -2424,6 +2597,7 @@ def content_show(ctx: click.Context, identifier: str, output_format: str) -> Non
 
         if output_format == "json":
             import json
+
             result = []
             for item in items:
                 repo_names = [repo.repo_id for repo in item.repositories]
@@ -2612,25 +2786,41 @@ def pool_stats(ctx: click.Context) -> None:
         click.echo(f"Pool Path: {stats['pool_path']}")
         click.echo()
         click.echo(f"Packages in Database:    {stats['total_packages_db']:,}")
-        click.echo(f"Database Size:           {stats['total_size_db']:,} bytes ({stats['total_size_db'] / (1024**3):.2f} GB)")
+        click.echo(
+            f"Database Size:           {stats['total_size_db']:,} bytes ({stats['total_size_db'] / (1024**3):.2f} GB)"
+        )
         click.echo()
         click.echo(f"Files in Pool:           {stats['total_files_pool']:,}")
-        click.echo(f"Pool Size on Disk:       {stats['total_size_pool']:,} bytes ({stats['total_size_pool'] / (1024**3):.2f} GB)")
+        click.echo(
+            f"Pool Size on Disk:       {stats['total_size_pool']:,} bytes ({stats['total_size_pool'] / (1024**3):.2f} GB)"
+        )
         click.echo()
         click.echo(f"Orphaned Files:          {stats['orphaned_files']:,}")
 
-        if stats['deduplication_savings'] > 0:
-            savings_pct = (stats['deduplication_savings'] / stats['total_size_db']) * 100 if stats['total_size_db'] > 0 else 0
-            click.echo(f"Deduplication Savings:   {stats['deduplication_savings']:,} bytes ({savings_pct:.1f}%)")
+        if stats["deduplication_savings"] > 0:
+            savings_pct = (
+                (stats["deduplication_savings"] / stats["total_size_db"]) * 100
+                if stats["total_size_db"] > 0
+                else 0
+            )
+            click.echo(
+                f"Deduplication Savings:   {stats['deduplication_savings']:,} bytes ({savings_pct:.1f}%)"
+            )
 
     finally:
         session.close()
 
 
 @pool.command("cleanup")
-@click.option("--dry-run", is_flag=True, help="Show what would be deleted without actually deleting")
-@click.option("--orphaned", is_flag=True, help="Only clean orphaned files (in pool but not in database)")
-@click.option("--missing", is_flag=True, help="Only clean missing entries (in database but not in pool)")
+@click.option(
+    "--dry-run", is_flag=True, help="Show what would be deleted without actually deleting"
+)
+@click.option(
+    "--orphaned", is_flag=True, help="Only clean orphaned files (in pool but not in database)"
+)
+@click.option(
+    "--missing", is_flag=True, help="Only clean missing entries (in database but not in pool)"
+)
 @click.pass_context
 def pool_cleanup(ctx: click.Context, dry_run: bool, orphaned: bool, missing: bool) -> None:
     """Clean up pool integrity issues.
@@ -2681,9 +2871,13 @@ def pool_cleanup(ctx: click.Context, dry_run: bool, orphaned: bool, missing: boo
             total_bytes_freed += bytes_freed
 
             if dry_run:
-                click.echo(f"  Would remove {files_removed:,} orphaned files ({bytes_freed / (1024**2):.2f} MB)")
+                click.echo(
+                    f"  Would remove {files_removed:,} orphaned files ({bytes_freed / (1024**2):.2f} MB)"
+                )
             else:
-                click.echo(f"  Removed {files_removed:,} orphaned files ({bytes_freed / (1024**2):.2f} MB)")
+                click.echo(
+                    f"  Removed {files_removed:,} orphaned files ({bytes_freed / (1024**2):.2f} MB)"
+                )
             click.echo()
 
         # Clean up missing entries (in DB but not in pool)
@@ -2723,7 +2917,9 @@ def pool_cleanup(ctx: click.Context, dry_run: bool, orphaned: bool, missing: boo
             click.echo("Summary:")
 
         if cleanup_orphaned:
-            click.echo(f"  Orphaned files: {total_files_removed:,} ({total_bytes_freed / (1024**2):.2f} MB)")
+            click.echo(
+                f"  Orphaned files: {total_files_removed:,} ({total_bytes_freed / (1024**2):.2f} MB)"
+            )
         if cleanup_missing:
             click.echo(f"  Missing entries: {total_db_removed:,}")
 
@@ -2770,7 +2966,9 @@ def pool_orphaned(ctx: click.Context) -> None:
                 click.echo(f"  {rel_path} ({file_size:,} bytes)")
 
             click.echo()
-            click.echo(f"Total: {len(orphaned_files):,} files, {total_size:,} bytes ({total_size / (1024**2):.2f} MB)")
+            click.echo(
+                f"Total: {len(orphaned_files):,} files, {total_size:,} bytes ({total_size / (1024**2):.2f} MB)"
+            )
         else:
             click.echo("No orphaned files found.")
 
@@ -2827,7 +3025,9 @@ def pool_missing(ctx: click.Context) -> None:
                 click.echo(f"    SHA256: {package.sha256[:16]}...")
                 click.echo()
 
-            click.echo(f"Total: {len(missing_packages):,} files, {total_size:,} bytes ({total_size / (1024**2):.2f} MB)")
+            click.echo(
+                f"Total: {len(missing_packages):,} files, {total_size:,} bytes ({total_size / (1024**2):.2f} MB)"
+            )
         else:
             click.echo("No missing files found.")
 
@@ -2916,32 +3116,34 @@ def pool_verify(ctx: click.Context) -> None:
         if total_issues == 0:
             click.echo("✓ Pool verification completed successfully!")
             click.echo(f"  All {len(packages):,} packages verified")
-            click.echo(f"  No orphaned files found")
+            click.echo("  No orphaned files found")
         else:
             click.echo(f"Pool verification found {total_issues:,} issues:")
             click.echo()
 
             if missing_files > 0:
                 click.echo(f"  ✗ Missing files: {missing_files:,}")
-                click.echo(f"    (in database but not in pool)")
-                click.echo(f"    → Run 'chantal pool missing' for details")
+                click.echo("    (in database but not in pool)")
+                click.echo("    → Run 'chantal pool missing' for details")
                 click.echo()
 
             if orphaned_count > 0:
-                click.echo(f"  ✗ Orphaned files: {orphaned_count:,} ({orphaned_size / (1024**2):.2f} MB)")
-                click.echo(f"    (in pool but not in database)")
-                click.echo(f"    → Run 'chantal pool orphaned' for details")
-                click.echo(f"    → Run 'chantal pool cleanup' to remove")
+                click.echo(
+                    f"  ✗ Orphaned files: {orphaned_count:,} ({orphaned_size / (1024**2):.2f} MB)"
+                )
+                click.echo("    (in pool but not in database)")
+                click.echo("    → Run 'chantal pool orphaned' for details")
+                click.echo("    → Run 'chantal pool cleanup' to remove")
                 click.echo()
 
             if sha256_mismatches > 0:
                 click.echo(f"  ✗ SHA256 mismatches: {sha256_mismatches:,}")
-                click.echo(f"    (file content doesn't match expected checksum)")
+                click.echo("    (file content doesn't match expected checksum)")
                 click.echo()
 
             if size_mismatches > 0:
                 click.echo(f"  ⚠ Size mismatches: {size_mismatches:,}")
-                click.echo(f"    (file size doesn't match expected size)")
+                click.echo("    (file size doesn't match expected size)")
                 click.echo()
 
     finally:
@@ -3035,12 +3237,9 @@ def _publish_single_repository(session, storage, global_config, repo_config, cus
         # Publish repository
         try:
             publisher.publish_repository(
-                session=session,
-                repository=repository,
-                config=repo_config,
-                target_path=target_path
+                session=session, repository=repository, config=repo_config, target_path=target_path
             )
-            click.echo(f"\n✓ Repository published successfully!")
+            click.echo("\n✓ Repository published successfully!")
             click.echo(f"  Location: {target_path}")
             click.echo(f"  Packages directory: {target_path}/Packages")
             click.echo(f"  Metadata directory: {target_path}/repodata")
@@ -3052,12 +3251,9 @@ def _publish_single_repository(session, storage, global_config, repo_config, cus
         # Publish repository
         try:
             publisher.publish_repository(
-                session=session,
-                repository=repository,
-                config=repo_config,
-                target_path=target_path
+                session=session, repository=repository, config=repo_config, target_path=target_path
             )
-            click.echo(f"\n✓ Helm repository published successfully!")
+            click.echo("\n✓ Helm repository published successfully!")
             click.echo(f"  Location: {target_path}")
             click.echo(f"  Chart files: {target_path}/*.tgz")
             click.echo(f"  Index file: {target_path}/index.yaml")
@@ -3069,14 +3265,13 @@ def _publish_single_repository(session, storage, global_config, repo_config, cus
         # Publish repository
         try:
             publisher.publish_repository(
-                session=session,
-                repository=repository,
-                config=repo_config,
-                target_path=target_path
+                session=session, repository=repository, config=repo_config, target_path=target_path
             )
             apk_config = repo_config.apk
-            arch_path = target_path / apk_config.branch / apk_config.repository / apk_config.architecture
-            click.echo(f"\n✓ APK repository published successfully!")
+            arch_path = (
+                target_path / apk_config.branch / apk_config.repository / apk_config.architecture
+            )
+            click.echo("\n✓ APK repository published successfully!")
             click.echo(f"  Location: {target_path}")
             click.echo(f"  Package directory: {arch_path}")
             click.echo(f"  Index file: {arch_path}/APKINDEX.tar.gz")
@@ -3094,7 +3289,9 @@ def _publish_single_repository(session, storage, global_config, repo_config, cus
 @click.option("--view", help="View name (for view snapshots)")
 @click.option("--target", help="Custom target directory")
 @click.pass_context
-def publish_snapshot(ctx: click.Context, snapshot: str, repo_id: str, view: str, target: str) -> None:
+def publish_snapshot(
+    ctx: click.Context, snapshot: str, repo_id: str, view: str, target: str
+) -> None:
     """Publish a specific snapshot (repository or view snapshot).
 
     Creates hardlinks from package pool to snapshot directory with RPM metadata.
@@ -3132,7 +3329,7 @@ def _publish_repository_snapshot(
     storage: StorageManager,
     repo_id: str,
     snapshot: str,
-    target: str
+    target: str,
 ) -> None:
     """Publish a repository snapshot."""
     from chantal.db.models import Repository, Snapshot
@@ -3154,10 +3351,15 @@ def _publish_repository_snapshot(
 
         if not snap:
             if repo_id:
-                click.echo(f"Error: Snapshot '{snapshot}' not found for repository '{repo_id}'.", err=True)
+                click.echo(
+                    f"Error: Snapshot '{snapshot}' not found for repository '{repo_id}'.", err=True
+                )
             else:
                 click.echo(f"Error: Snapshot '{snapshot}' not found.", err=True)
-                click.echo("Specify --repo-id if multiple repositories have snapshots with this name.", err=True)
+                click.echo(
+                    "Specify --repo-id if multiple repositories have snapshots with this name.",
+                    err=True,
+                )
             ctx.exit(1)
 
         # Get repository
@@ -3171,7 +3373,10 @@ def _publish_repository_snapshot(
                 break
 
         if not repo_config:
-            click.echo(f"Error: Repository configuration '{repository.repo_id}' not found in config.", err=True)
+            click.echo(
+                f"Error: Repository configuration '{repository.repo_id}' not found in config.",
+                err=True,
+            )
             ctx.exit(1)
 
         # Determine target path
@@ -3179,7 +3384,9 @@ def _publish_repository_snapshot(
             target_path = Path(target)
         else:
             # Default: published_path/snapshots/<repo-id>/<snapshot-name>
-            target_path = Path(config.storage.published_path) / "snapshots" / repository.repo_id / snapshot
+            target_path = (
+                Path(config.storage.published_path) / "snapshots" / repository.repo_id / snapshot
+            )
 
         click.echo(f"Publishing snapshot: {snapshot}")
         click.echo(f"Repository: {repository.repo_id}")
@@ -3201,7 +3408,7 @@ def _publish_repository_snapshot(
                 snapshot=snap,
                 repository=repository,
                 config=repo_config,
-                target_path=target_path
+                target_path=target_path,
             )
 
             # Update snapshot metadata
@@ -3210,17 +3417,17 @@ def _publish_repository_snapshot(
             session.commit()
 
             click.echo()
-            click.echo(f"✓ Snapshot published successfully!")
+            click.echo("✓ Snapshot published successfully!")
             click.echo(f"  Location: {target_path}")
             click.echo(f"  Packages directory: {target_path}/Packages")
             click.echo(f"  Metadata directory: {target_path}/repodata")
             click.echo()
-            click.echo(f"Configure your package manager:")
+            click.echo("Configure your package manager:")
             click.echo(f"  [rhel9-baseos-snapshot-{snapshot}]")
             click.echo(f"  name=RHEL 9 BaseOS Snapshot {snapshot}")
             click.echo(f"  baseurl=file://{target_path}")
-            click.echo(f"  enabled=1")
-            click.echo(f"  gpgcheck=0")
+            click.echo("  enabled=1")
+            click.echo("  gpgcheck=0")
 
         except Exception as e:
             click.echo(f"\n✗ Publishing failed: {e}", err=True)
@@ -3234,7 +3441,7 @@ def _publish_view_snapshot(
     storage: StorageManager,
     view_name: str,
     snapshot_name: str,
-    target: str
+    target: str,
 ) -> None:
     """Publish a view snapshot."""
     from chantal.db.models import View, ViewSnapshot
@@ -3250,14 +3457,15 @@ def _publish_view_snapshot(
 
         # Get view snapshot from database
         view_snapshot = (
-            session.query(ViewSnapshot)
-            .filter_by(view_id=view.id, name=snapshot_name)
-            .first()
+            session.query(ViewSnapshot).filter_by(view_id=view.id, name=snapshot_name).first()
         )
 
         if not view_snapshot:
-            click.echo(f"Error: View snapshot '{snapshot_name}' not found for view '{view_name}'.", err=True)
-            click.echo(f"Run 'chantal snapshot list' to see available snapshots.", err=True)
+            click.echo(
+                f"Error: View snapshot '{snapshot_name}' not found for view '{view_name}'.",
+                err=True,
+            )
+            click.echo("Run 'chantal snapshot list' to see available snapshots.", err=True)
             ctx.exit(1)
 
         # Determine target path
@@ -3265,7 +3473,13 @@ def _publish_view_snapshot(
             target_path = Path(target)
         else:
             # Default: published_path/views/<view-name>/snapshots/<snapshot-name>
-            target_path = Path(config.storage.published_path) / "views" / view_name / "snapshots" / snapshot_name
+            target_path = (
+                Path(config.storage.published_path)
+                / "views"
+                / view_name
+                / "snapshots"
+                / snapshot_name
+            )
 
         click.echo(f"Publishing view snapshot: {snapshot_name}")
         click.echo(f"View: {view_name}")
@@ -3279,9 +3493,7 @@ def _publish_view_snapshot(
         # Publish view snapshot
         try:
             publisher.publish_view_snapshot(
-                session=session,
-                view_snapshot=view_snapshot,
-                target_path=target_path
+                session=session, view_snapshot=view_snapshot, target_path=target_path
             )
 
             # Update view snapshot metadata
@@ -3291,17 +3503,17 @@ def _publish_view_snapshot(
             session.commit()
 
             click.echo()
-            click.echo(f"✓ View snapshot published successfully!")
+            click.echo("✓ View snapshot published successfully!")
             click.echo(f"  Location: {target_path}")
             click.echo(f"  Packages directory: {target_path}/Packages")
             click.echo(f"  Metadata directory: {target_path}/repodata")
             click.echo()
-            click.echo(f"Configure your package manager:")
+            click.echo("Configure your package manager:")
             click.echo(f"  [view-{view_name}-snapshot-{snapshot_name}]")
             click.echo(f"  name=View {view_name} Snapshot {snapshot_name}")
             click.echo(f"  baseurl=file://{target_path}")
-            click.echo(f"  enabled=1")
-            click.echo(f"  gpgcheck=0")
+            click.echo("  enabled=1")
+            click.echo("  gpgcheck=0")
 
         except Exception as e:
             click.echo(f"\n✗ Publishing failed: {e}", err=True)
@@ -3356,31 +3568,30 @@ def publish_view(ctx: click.Context, name: str) -> None:
         with db.session() as session:
             # Initialize publisher
             from chantal.core.storage import StorageManager
+
             storage_manager = StorageManager(config.storage)
             publisher = ViewPublisher(storage_manager)
 
             # Publish view from config (no DB view object needed)
             click.echo(f"Collecting packages from {len(view_config.repos)} repositories...")
             package_count = publisher.publish_view_from_config(
-                session,
-                view_config.repos,
-                target_path
+                session, view_config.repos, target_path
             )
 
             click.echo()
-            click.echo(f"✓ View published successfully!")
+            click.echo("✓ View published successfully!")
             click.echo(f"  Packages: {package_count}")
             click.echo()
             click.echo("Client configuration:")
             click.echo(f"  [view-{name}]")
             click.echo(f"  name=View: {name}")
             click.echo(f"  baseurl=file://{target_path.absolute()}")
-            click.echo(f"  enabled=1")
-            click.echo(f"  gpgcheck=0")
+            click.echo("  enabled=1")
+            click.echo("  gpgcheck=0")
 
     except ValueError as e:
         click.echo(f"\n✗ Publishing view failed: {e}", err=True)
-        click.echo(f"Hint: Make sure all repositories in the view are synced to database first")
+        click.echo("Hint: Make sure all repositories in the view are synced to database first")
         raise
     except Exception as e:
         click.echo(f"\n✗ Publishing view failed: {e}", err=True)
@@ -3388,8 +3599,13 @@ def publish_view(ctx: click.Context, name: str) -> None:
 
 
 @publish.command("list")
-@click.option("--format", "output_format", type=click.Choice(["table", "json"]),
-              default="table", help="Output format")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "json"]),
+    default="table",
+    help="Output format",
+)
 @click.pass_context
 def publish_list(ctx: click.Context, output_format: str) -> None:
     """List currently published repositories and snapshots.
@@ -3410,20 +3626,21 @@ def publish_list(ctx: click.Context, output_format: str) -> None:
 
         if output_format == "json":
             import json
-            result = {
-                "snapshots": []
-            }
+
+            result = {"snapshots": []}
 
             for snapshot in published_snapshots:
                 repo = session.query(Repository).filter_by(id=snapshot.repository_id).first()
-                result["snapshots"].append({
-                    "name": snapshot.name,
-                    "repository": repo.repo_id if repo else "Unknown",
-                    "path": snapshot.published_path,
-                    "packages": snapshot.package_count,
-                    "size_bytes": snapshot.total_size_bytes,
-                    "created": snapshot.created_at.isoformat(),
-                })
+                result["snapshots"].append(
+                    {
+                        "name": snapshot.name,
+                        "repository": repo.repo_id if repo else "Unknown",
+                        "path": snapshot.published_path,
+                        "packages": snapshot.package_count,
+                        "size_bytes": snapshot.total_size_bytes,
+                        "created": snapshot.created_at.isoformat(),
+                    }
+                )
 
             click.echo(json.dumps(result, indent=2))
         else:
@@ -3487,10 +3704,15 @@ def publish_unpublish(ctx: click.Context, snapshot: str, repo_id: str) -> None:
 
         if not snap:
             if repo_id:
-                click.echo(f"Error: Snapshot '{snapshot}' not found for repository '{repo_id}'.", err=True)
+                click.echo(
+                    f"Error: Snapshot '{snapshot}' not found for repository '{repo_id}'.", err=True
+                )
             else:
                 click.echo(f"Error: Snapshot '{snapshot}' not found.", err=True)
-                click.echo("Specify --repo-id if multiple repositories have snapshots with this name.", err=True)
+                click.echo(
+                    "Specify --repo-id if multiple repositories have snapshots with this name.",
+                    err=True,
+                )
             ctx.exit(1)
 
         # Check if published
@@ -3510,10 +3732,11 @@ def publish_unpublish(ctx: click.Context, snapshot: str, repo_id: str) -> None:
         published_path = Path(snap.published_path)
         if published_path.exists():
             import shutil
+
             shutil.rmtree(published_path)
-            click.echo(f"✓ Removed published directory")
+            click.echo("✓ Removed published directory")
         else:
-            click.echo(f"⚠ Published directory not found (already deleted?)")
+            click.echo("⚠ Published directory not found (already deleted?)")
 
         # Update snapshot metadata
         snap.is_published = False

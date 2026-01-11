@@ -1,28 +1,24 @@
+from __future__ import annotations
+
 """
 Alpine APK repository syncer.
 
 This module implements syncing for Alpine APK repositories.
 """
 
-import gzip
 import hashlib
 import logging
-import os
-import shutil
 import tarfile
 import tempfile
-from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
 from urllib.parse import urljoin
 
-import requests
 from sqlalchemy.orm import Session
 
-from chantal.core.config import ProxyConfig, RepositoryConfig
+from chantal.core.config import ProxyConfig, RepositoryConfig, SSLConfig
 from chantal.core.downloader import DownloadManager
 from chantal.core.storage import StorageManager
-from chantal.db.models import ContentItem, Repository, Snapshot
+from chantal.db.models import ContentItem, Repository
 from chantal.plugins.apk.models import ApkMetadata
 
 logger = logging.getLogger(__name__)
@@ -43,8 +39,8 @@ class ApkSyncer:
         self,
         storage: StorageManager,
         config: RepositoryConfig,
-        proxy_config: Optional[ProxyConfig] = None,
-        ssl_config: Optional["SSLConfig"] = None,
+        proxy_config: ProxyConfig | None = None,
+        ssl_config: SSLConfig | None = None,
     ):
         """Initialize APK syncer.
 
@@ -61,9 +57,7 @@ class ApkSyncer:
 
         # Setup download manager with all authentication and SSL/TLS configuration
         self.downloader = DownloadManager(
-            config=config,
-            proxy_config=proxy_config,
-            ssl_config=ssl_config
+            config=config, proxy_config=proxy_config, ssl_config=ssl_config
         )
 
         # Backward compatibility
@@ -94,10 +88,10 @@ class ApkSyncer:
         if not apk_config:
             raise ValueError(f"APK configuration missing for repository {repository.repo_id}")
 
-        feed_url = config.feed if config.feed.endswith('/') else config.feed + '/'
+        feed_url = config.feed if config.feed.endswith("/") else config.feed + "/"
         index_url = urljoin(
             feed_url,
-            f"{apk_config.branch}/{apk_config.repository}/{apk_config.architecture}/APKINDEX.tar.gz"
+            f"{apk_config.branch}/{apk_config.repository}/{apk_config.architecture}/APKINDEX.tar.gz",
         )
 
         # Fetch and parse APKINDEX
@@ -121,8 +115,7 @@ class ApkSyncer:
         }
 
         base_url = urljoin(
-            feed_url,
-            f"{apk_config.branch}/{apk_config.repository}/{apk_config.architecture}/"
+            feed_url, f"{apk_config.branch}/{apk_config.repository}/{apk_config.architecture}/"
         )
 
         for pkg_entry in filtered_packages:
@@ -134,11 +127,15 @@ class ApkSyncer:
                 # Check if package already exists (by SHA256 in our pool)
                 # Note: APK uses SHA1, but we calculate SHA256 for our universal pool
                 # We need to check architecture too, since same name+version for different archs are different binaries
-                candidates = session.query(ContentItem).filter_by(
-                    content_type="apk",
-                    name=metadata.name,
-                    version=metadata.version,
-                ).all()
+                candidates = (
+                    session.query(ContentItem)
+                    .filter_by(
+                        content_type="apk",
+                        name=metadata.name,
+                        version=metadata.version,
+                    )
+                    .all()
+                )
 
                 existing = None
                 for candidate in candidates:
@@ -157,7 +154,9 @@ class ApkSyncer:
 
                 # Download package
                 pkg_url = urljoin(base_url, filename)
-                pool_path, sha256, size, sha1_ok = self._download_package(pkg_url, config, metadata.checksum)
+                pool_path, sha256, size, sha1_ok = self._download_package(
+                    pkg_url, config, metadata.checksum
+                )
                 if not sha1_ok:
                     stats["sha1_mismatches"] += 1
 
@@ -216,14 +215,14 @@ class ApkSyncer:
                     if member.name == "APKINDEX" or member.name.endswith("/APKINDEX"):
                         f = tar.extractfile(member)
                         if f:
-                            content = f.read().decode('utf-8')
+                            content = f.read().decode("utf-8")
                             return content
 
             raise ValueError("APKINDEX file not found in archive")
         finally:
             Path(tmp_path).unlink(missing_ok=True)
 
-    def _parse_apkindex(self, content: str) -> List[dict]:
+    def _parse_apkindex(self, content: str) -> list[dict]:
         """Parse APKINDEX text format.
 
         Args:
@@ -237,54 +236,52 @@ class ApkSyncer:
 
         # Field prefix mapping
         field_map = {
-            'C': 'checksum',
-            'P': 'name',
-            'V': 'version',
-            'A': 'architecture',
-            'S': 'size',
-            'I': 'installed_size',
-            'T': 'description',
-            'U': 'url',
-            'L': 'license',
-            'D': 'dependencies',
-            'p': 'provides',
-            'o': 'origin',
-            'm': 'maintainer',
-            't': 'build_time',
+            "C": "checksum",
+            "P": "name",
+            "V": "version",
+            "A": "architecture",
+            "S": "size",
+            "I": "installed_size",
+            "T": "description",
+            "U": "url",
+            "L": "license",
+            "D": "dependencies",
+            "p": "provides",
+            "o": "origin",
+            "m": "maintainer",
+            "t": "build_time",
         }
 
-        for line in content.split('\n'):
+        for line in content.split("\n"):
             line = line.rstrip()
 
             if not line:
                 # Blank line = end of record
                 if current_pkg:
                     # Validate required fields
-                    required = ['checksum', 'name', 'version', 'architecture', 'size']
+                    required = ["checksum", "name", "version", "architecture", "size"]
                     if all(field in current_pkg for field in required):
                         packages.append(current_pkg)
                     else:
-                        logger.warning(f"Skipping incomplete package entry: {current_pkg.get('name', 'unknown')}")
+                        logger.warning(
+                            f"Skipping incomplete package entry: {current_pkg.get('name', 'unknown')}"
+                        )
                     current_pkg = {}
-            elif ':' in line:
-                prefix, value = line.split(':', 1)
+            elif ":" in line:
+                prefix, value = line.split(":", 1)
                 field = field_map.get(prefix)
                 if field:
                     current_pkg[field] = value.strip()
 
         # Don't forget last package if file doesn't end with blank line
         if current_pkg:
-            required = ['checksum', 'name', 'version', 'architecture', 'size']
+            required = ["checksum", "name", "version", "architecture", "size"]
             if all(field in current_pkg for field in required):
                 packages.append(current_pkg)
 
         return packages
 
-    def _apply_filters(
-        self,
-        packages: List[dict],
-        config: RepositoryConfig
-    ) -> List[dict]:
+    def _apply_filters(self, packages: list[dict], config: RepositoryConfig) -> list[dict]:
         """Apply filters to package list.
 
         Args:
@@ -300,17 +297,21 @@ class ApkSyncer:
         if config.filters and config.filters.patterns:
             if config.filters.patterns.include:
                 import re
+
                 include_patterns = [re.compile(p) for p in config.filters.patterns.include]
                 filtered = [
-                    p for p in filtered
+                    p
+                    for p in filtered
                     if any(pattern.match(p["name"]) for pattern in include_patterns)
                 ]
 
             if config.filters.patterns.exclude:
                 import re
+
                 exclude_patterns = [re.compile(p) for p in config.filters.patterns.exclude]
                 filtered = [
-                    p for p in filtered
+                    p
+                    for p in filtered
                     if not any(pattern.match(p["name"]) for pattern in exclude_patterns)
                 ]
 
@@ -332,15 +333,19 @@ class ApkSyncer:
                     else:
                         # Compare versions (APK uses -rN suffix)
                         try:
-                            current_ver = ver.split('-r')[0]  # Strip -rN for comparison
-                            stored_ver = by_name[name]["version"].split('-r')[0]
+                            current_ver = ver.split("-r")[0]  # Strip -rN for comparison
+                            stored_ver = by_name[name]["version"].split("-r")[0]
 
                             if pkg_version.parse(current_ver) > pkg_version.parse(stored_ver):
                                 by_name[name] = pkg
                             elif pkg_version.parse(current_ver) == pkg_version.parse(stored_ver):
                                 # Same version, check release number
-                                current_rel = int(ver.split('-r')[1]) if '-r' in ver else 0
-                                stored_rel = int(by_name[name]["version"].split('-r')[1]) if '-r' in by_name[name]["version"] else 0
+                                current_rel = int(ver.split("-r")[1]) if "-r" in ver else 0
+                                stored_rel = (
+                                    int(by_name[name]["version"].split("-r")[1])
+                                    if "-r" in by_name[name]["version"]
+                                    else 0
+                                )
                                 if current_rel > stored_rel:
                                     by_name[name] = pkg
                         except Exception as e:
@@ -374,6 +379,7 @@ class ApkSyncer:
 
         # Download to temp file and verify SHA1
         import base64
+
         with tempfile.NamedTemporaryFile(delete=False, suffix=".apk") as tmp:
             sha1_hash = hashlib.sha1()
             for chunk in response.iter_content(chunk_size=8192):
@@ -383,7 +389,7 @@ class ApkSyncer:
 
         # Verify SHA1 (APK uses base64-encoded SHA1 with Q1 prefix)
         # Note: Alpine CDN sometimes has stale APKINDEX, so we track mismatches but don't fail
-        calculated_sha1 = "Q1" + base64.b64encode(sha1_hash.digest()).decode('ascii')
+        calculated_sha1 = "Q1" + base64.b64encode(sha1_hash.digest()).decode("ascii")
         sha1_ok = calculated_sha1 == expected_sha1
 
         if not sha1_ok:

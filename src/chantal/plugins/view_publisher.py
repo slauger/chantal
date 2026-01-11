@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 View publisher plugin for Chantal.
 
@@ -6,7 +8,6 @@ multiple repositories into a single published repository.
 """
 
 from pathlib import Path
-from typing import List
 
 from sqlalchemy.orm import Session
 
@@ -34,7 +35,7 @@ class ViewPublisher(RpmPublisher):
     def publish_view_from_config(
         self,
         session: Session,
-        repo_ids: List[str],
+        repo_ids: list[str],
         target_path: Path,
     ) -> int:
         """Publish view directly from config (no DB view object needed).
@@ -108,10 +109,8 @@ class ViewPublisher(RpmPublisher):
         self._publish_packages(packages, target_path)
 
     def _get_packages_from_repositories(
-        self,
-        session: Session,
-        repositories: List[Repository]
-    ) -> List[ContentItem]:
+        self, session: Session, repositories: list[Repository]
+    ) -> list[ContentItem]:
         """Get all content items from a list of repositories.
 
         IMPORTANT: NO deduplication! All content items from all repos are included.
@@ -136,11 +135,7 @@ class ViewPublisher(RpmPublisher):
 
         return all_packages
 
-    def _get_view_packages(
-        self,
-        session: Session,
-        view: View
-    ) -> List[ContentItem]:
+    def _get_view_packages(self, session: Session, view: View) -> list[ContentItem]:
         """Get all content items from all repositories in view.
 
         IMPORTANT: NO deduplication! All content items from all repos are included.
@@ -159,18 +154,15 @@ class ViewPublisher(RpmPublisher):
 
         # Get repositories from view in order
         repositories = [
-            vr.repository
-            for vr in sorted(view.view_repositories, key=lambda vr: vr.order)
+            vr.repository for vr in sorted(view.view_repositories, key=lambda vr: vr.order)
         ]
 
         # Reuse the helper method
         return self._get_packages_from_repositories(session, repositories)
 
     def _get_view_snapshot_packages(
-        self,
-        session: Session,
-        view_snapshot: ViewSnapshot
-    ) -> List[ContentItem]:
+        self, session: Session, view_snapshot: ViewSnapshot
+    ) -> list[ContentItem]:
         """Get all content items from all snapshots in a view snapshot.
 
         Args:

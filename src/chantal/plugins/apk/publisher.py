@@ -1,29 +1,25 @@
+from __future__ import annotations
+
 """
 Alpine APK repository publisher.
 
 This module implements publishing for Alpine APK repositories.
 """
 
-import gzip
-import hashlib
 import logging
 import os
 import shutil
 import tarfile
 import tempfile
-from datetime import datetime
 from pathlib import Path
-from typing import List, Optional
-from urllib.parse import urljoin
 
-import requests
 from sqlalchemy.orm import Session
 
 from chantal.core.config import RepositoryConfig
 from chantal.core.storage import StorageManager
 from chantal.db.models import ContentItem, Repository, Snapshot
-from chantal.plugins.base import PublisherPlugin
 from chantal.plugins.apk.models import ApkMetadata
+from chantal.plugins.base import PublisherPlugin
 
 logger = logging.getLogger(__name__)
 
@@ -98,10 +94,7 @@ class ApkPublisher(PublisherPlugin):
             shutil.rmtree(target_path)
 
     def _publish_packages(
-        self,
-        packages: List[ContentItem],
-        target_path: Path,
-        config: RepositoryConfig
+        self, packages: list[ContentItem], target_path: Path, config: RepositoryConfig
     ) -> None:
         """Publish packages and generate APKINDEX.tar.gz.
 
@@ -115,7 +108,9 @@ class ApkPublisher(PublisherPlugin):
         if not apk_config:
             raise ValueError("APK configuration missing")
 
-        arch_path = target_path / apk_config.branch / apk_config.repository / apk_config.architecture
+        arch_path = (
+            target_path / apk_config.branch / apk_config.repository / apk_config.architecture
+        )
         arch_path.mkdir(parents=True, exist_ok=True)
 
         # Hardlink package files to target directory
@@ -135,7 +130,7 @@ class ApkPublisher(PublisherPlugin):
 
     def _generate_apkindex(
         self,
-        packages: List[ContentItem],
+        packages: list[ContentItem],
         target_path: Path,
     ) -> None:
         """Generate APKINDEX.tar.gz file.
@@ -159,7 +154,7 @@ class ApkPublisher(PublisherPlugin):
         # Create tar.gz archive with APKINDEX
         index_path = target_path / "APKINDEX.tar.gz"
 
-        with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix=".txt") as tmp:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".txt") as tmp:
             tmp.write(index_content)
             tmp_path = tmp.name
 
@@ -172,10 +167,8 @@ class ApkPublisher(PublisherPlugin):
         logger.debug(f"Generated APKINDEX.tar.gz with {len(packages)} packages")
 
     def _get_repository_packages(
-        self,
-        session: Session,
-        repository: Repository
-    ) -> List[ContentItem]:
+        self, session: Session, repository: Repository
+    ) -> list[ContentItem]:
         """Get all APK packages from repository.
 
         Args:
@@ -185,16 +178,9 @@ class ApkPublisher(PublisherPlugin):
         Returns:
             list: ContentItem instances (type=apk)
         """
-        return [
-            item for item in repository.content_items
-            if item.content_type == "apk"
-        ]
+        return [item for item in repository.content_items if item.content_type == "apk"]
 
-    def _get_snapshot_packages(
-        self,
-        session: Session,
-        snapshot: Snapshot
-    ) -> List[ContentItem]:
+    def _get_snapshot_packages(self, session: Session, snapshot: Snapshot) -> list[ContentItem]:
         """Get all APK packages from snapshot.
 
         Args:
@@ -204,7 +190,4 @@ class ApkPublisher(PublisherPlugin):
         Returns:
             list: ContentItem instances (type=apk)
         """
-        return [
-            item for item in snapshot.content_items
-            if item.content_type == "apk"
-        ]
+        return [item for item in snapshot.content_items if item.content_type == "apk"]

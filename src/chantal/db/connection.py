@@ -1,11 +1,13 @@
+from __future__ import annotations
+
 """
 Database connection management for Chantal.
 
 This module provides utilities for creating and managing database connections.
 """
 
+from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Generator
 
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
@@ -26,9 +28,7 @@ class DatabaseManager:
         """
         self.database_url = database_url
         self.engine: Engine = create_engine(database_url, echo=echo)
-        self.SessionLocal = sessionmaker(
-            autocommit=False, autoflush=False, bind=self.engine
-        )
+        self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
 
     def create_all(self) -> None:
         """Create all database tables.

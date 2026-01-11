@@ -1,11 +1,11 @@
+from __future__ import annotations
+
 """
 Pydantic models for RPM plugin.
 
 These models define the metadata schema for RPM packages stored in the generic
 ContentItem model.
 """
-
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -18,19 +18,19 @@ class RpmMetadata(BaseModel):
     """
 
     # RPM-specific version fields
-    epoch: Optional[str] = Field(None, description="RPM epoch (e.g., '1', '2')")
+    epoch: str | None = Field(None, description="RPM epoch (e.g., '1', '2')")
     release: str = Field(..., description="RPM release (e.g., '1.el9', '2.fc38')")
     arch: str = Field(..., description="Architecture (e.g., 'x86_64', 'noarch', 'aarch64')")
 
     # Metadata
-    summary: Optional[str] = Field(None, description="Short package summary")
-    description: Optional[str] = Field(None, description="Detailed package description")
+    summary: str | None = Field(None, description="Short package summary")
+    description: str | None = Field(None, description="Detailed package description")
 
     # Dependencies (optional for now, can be extended later)
-    provides: Optional[list[str]] = Field(None, description="List of provides")
-    requires: Optional[list[str]] = Field(None, description="List of requires")
-    conflicts: Optional[list[str]] = Field(None, description="List of conflicts")
-    obsoletes: Optional[list[str]] = Field(None, description="List of obsoletes")
+    provides: list[str] | None = Field(None, description="List of provides")
+    requires: list[str] | None = Field(None, description="List of requires")
+    conflicts: list[str] | None = Field(None, description="List of conflicts")
+    obsoletes: list[str] | None = Field(None, description="List of obsoletes")
 
     class Config:
         """Pydantic configuration."""

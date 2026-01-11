@@ -1,13 +1,20 @@
 """Tests for Views functionality."""
 
-import pytest
 from datetime import datetime
-from pathlib import Path
+
+import pytest
 from sqlalchemy import create_engine
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from chantal.db.models import (
-    Base, Repository, ContentItem, View, ViewRepository, ViewSnapshot, Snapshot
+    Base,
+    ContentItem,
+    Repository,
+    Snapshot,
+    View,
+    ViewRepository,
+    ViewSnapshot,
 )
 from chantal.plugins.rpm.models import RpmMetadata
 
@@ -33,21 +40,21 @@ def test_repositories(db_session):
             name="RHEL 9 BaseOS",
             type="rpm",
             feed="https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/os",
-            enabled=True
+            enabled=True,
         ),
         Repository(
             repo_id="rhel9-appstream",
             name="RHEL 9 AppStream",
             type="rpm",
             feed="https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os",
-            enabled=True
+            enabled=True,
         ),
         Repository(
             repo_id="epel9",
             name="EPEL 9",
             type="rpm",
             feed="https://dl.fedoraproject.org/pub/epel/9/Everything/x86_64/",
-            enabled=True
+            enabled=True,
         ),
     ]
 
@@ -70,10 +77,9 @@ def test_packages(db_session, test_repositories):
             size_bytes=2000000,
             pool_path="aa/aa/aaa_vim.rpm",
             filename="vim-enhanced-8.2.2637-20.el9.x86_64.rpm",
-            content_metadata=RpmMetadata(
-                release="20.el9",
-                arch="x86_64"
-            ).model_dump(exclude_none=False)
+            content_metadata=RpmMetadata(release="20.el9", arch="x86_64").model_dump(
+                exclude_none=False
+            ),
         ),
         ContentItem(
             content_type="rpm",
@@ -83,10 +89,9 @@ def test_packages(db_session, test_repositories):
             size_bytes=1500000,
             pool_path="bb/bb/bbb_bash.rpm",
             filename="bash-5.1.8-6.el9.x86_64.rpm",
-            content_metadata=RpmMetadata(
-                release="6.el9",
-                arch="x86_64"
-            ).model_dump(exclude_none=False)
+            content_metadata=RpmMetadata(release="6.el9", arch="x86_64").model_dump(
+                exclude_none=False
+            ),
         ),
         # AppStream packages
         ContentItem(
@@ -97,10 +102,9 @@ def test_packages(db_session, test_repositories):
             size_bytes=1800000,
             pool_path="cc/cc/ccc_nginx.rpm",
             filename="nginx-1.20.1-10.el9.x86_64.rpm",
-            content_metadata=RpmMetadata(
-                release="10.el9",
-                arch="x86_64"
-            ).model_dump(exclude_none=False)
+            content_metadata=RpmMetadata(release="10.el9", arch="x86_64").model_dump(
+                exclude_none=False
+            ),
         ),
         ContentItem(
             content_type="rpm",
@@ -110,10 +114,9 @@ def test_packages(db_session, test_repositories):
             size_bytes=2200000,
             pool_path="dd/dd/ddd_httpd.rpm",
             filename="httpd-2.4.51-7.el9.x86_64.rpm",
-            content_metadata=RpmMetadata(
-                release="7.el9",
-                arch="x86_64"
-            ).model_dump(exclude_none=False)
+            content_metadata=RpmMetadata(release="7.el9", arch="x86_64").model_dump(
+                exclude_none=False
+            ),
         ),
         # EPEL packages
         ContentItem(
@@ -124,10 +127,9 @@ def test_packages(db_session, test_repositories):
             size_bytes=120000,
             pool_path="ee/ee/eee_htop.rpm",
             filename="htop-3.2.1-1.el9.x86_64.rpm",
-            content_metadata=RpmMetadata(
-                release="1.el9",
-                arch="x86_64"
-            ).model_dump(exclude_none=False)
+            content_metadata=RpmMetadata(release="1.el9", arch="x86_64").model_dump(
+                exclude_none=False
+            ),
         ),
     ]
 
@@ -146,11 +148,7 @@ def test_packages(db_session, test_repositories):
 
 def test_create_view(db_session):
     """Test creating a view."""
-    view = View(
-        name="rhel9-complete",
-        description="Complete RHEL 9 stack",
-        repo_type="rpm"
-    )
+    view = View(name="rhel9-complete", description="Complete RHEL 9 stack", repo_type="rpm")
 
     db_session.add(view)
     db_session.commit()
@@ -174,7 +172,7 @@ def test_view_unique_name(db_session):
     view2 = View(name="test-view", repo_type="rpm")
     db_session.add(view2)
 
-    with pytest.raises(Exception):  # IntegrityError
+    with pytest.raises(IntegrityError):
         db_session.commit()
 
 
@@ -185,15 +183,9 @@ def test_view_repository_relationship(db_session, test_repositories):
     db_session.commit()
 
     # Add repositories to view with order
-    vr1 = ViewRepository(
-        view_id=view.id,
-        repository_id=test_repositories[0].id,  # BaseOS
-        order=0
-    )
+    vr1 = ViewRepository(view_id=view.id, repository_id=test_repositories[0].id, order=0)  # BaseOS
     vr2 = ViewRepository(
-        view_id=view.id,
-        repository_id=test_repositories[1].id,  # AppStream
-        order=1
+        view_id=view.id, repository_id=test_repositories[1].id, order=1  # AppStream
     )
 
     db_session.add_all([vr1, vr2])
@@ -216,23 +208,15 @@ def test_view_repository_unique_constraint(db_session, test_repositories):
     db_session.commit()
 
     # Add repository once
-    vr1 = ViewRepository(
-        view_id=view.id,
-        repository_id=test_repositories[0].id,
-        order=0
-    )
+    vr1 = ViewRepository(view_id=view.id, repository_id=test_repositories[0].id, order=0)
     db_session.add(vr1)
     db_session.commit()
 
     # Try to add same repository again
-    vr2 = ViewRepository(
-        view_id=view.id,
-        repository_id=test_repositories[0].id,
-        order=1
-    )
+    vr2 = ViewRepository(view_id=view.id, repository_id=test_repositories[0].id, order=1)
     db_session.add(vr2)
 
-    with pytest.raises(Exception):  # IntegrityError
+    with pytest.raises(IntegrityError):
         db_session.commit()
 
 
@@ -248,13 +232,13 @@ def test_create_view_snapshot(db_session, test_repositories):
         repository_id=test_repositories[0].id,
         name="2025-01-10",
         package_count=10,
-        total_size_bytes=10000000
+        total_size_bytes=10000000,
     )
     snap2 = Snapshot(
         repository_id=test_repositories[1].id,
         name="2025-01-10",
         package_count=20,
-        total_size_bytes=20000000
+        total_size_bytes=20000000,
     )
 
     db_session.add_all([snap1, snap2])
@@ -267,7 +251,7 @@ def test_create_view_snapshot(db_session, test_repositories):
         description="Complete snapshot",
         snapshot_ids=[snap1.id, snap2.id],
         package_count=30,
-        total_size_bytes=30000000
+        total_size_bytes=30000000,
     )
 
     db_session.add(view_snapshot)
@@ -295,11 +279,7 @@ def test_view_snapshot_unique_name_per_view(db_session, test_repositories):
 
     # Create snapshot for view1
     vs1 = ViewSnapshot(
-        view_id=view1.id,
-        name="snapshot-1",
-        snapshot_ids=[],
-        package_count=0,
-        total_size_bytes=0
+        view_id=view1.id, name="snapshot-1", snapshot_ids=[], package_count=0, total_size_bytes=0
     )
     db_session.add(vs1)
     db_session.commit()
@@ -310,7 +290,7 @@ def test_view_snapshot_unique_name_per_view(db_session, test_repositories):
         name="snapshot-1",  # Same name, different view
         snapshot_ids=[],
         package_count=0,
-        total_size_bytes=0
+        total_size_bytes=0,
     )
     db_session.add(vs2)
     db_session.commit()  # Should succeed
@@ -321,11 +301,11 @@ def test_view_snapshot_unique_name_per_view(db_session, test_repositories):
         name="snapshot-1",  # Duplicate
         snapshot_ids=[],
         package_count=0,
-        total_size_bytes=0
+        total_size_bytes=0,
     )
     db_session.add(vs3)
 
-    with pytest.raises(Exception):  # IntegrityError
+    with pytest.raises(IntegrityError):
         db_session.commit()
 
 
@@ -337,16 +317,8 @@ def test_view_get_all_packages(db_session, test_repositories, test_packages):
     db_session.commit()
 
     # Add repositories (BaseOS + AppStream)
-    vr1 = ViewRepository(
-        view_id=view.id,
-        repository_id=test_repositories[0].id,
-        order=0
-    )
-    vr2 = ViewRepository(
-        view_id=view.id,
-        repository_id=test_repositories[1].id,
-        order=1
-    )
+    vr1 = ViewRepository(view_id=view.id, repository_id=test_repositories[0].id, order=0)
+    vr2 = ViewRepository(view_id=view.id, repository_id=test_repositories[1].id, order=1)
     db_session.add_all([vr1, vr2])
     db_session.commit()
 
@@ -377,7 +349,7 @@ def test_view_snapshot_retrieves_packages(db_session, test_repositories, test_pa
         repository_id=test_repositories[0].id,
         name="snap-1",
         package_count=2,
-        total_size_bytes=3500000
+        total_size_bytes=3500000,
     )
     snap1.content_items = [test_packages[0], test_packages[1]]  # vim, bash
 
@@ -385,7 +357,7 @@ def test_view_snapshot_retrieves_packages(db_session, test_repositories, test_pa
         repository_id=test_repositories[1].id,
         name="snap-2",
         package_count=2,
-        total_size_bytes=4000000
+        total_size_bytes=4000000,
     )
     snap2.content_items = [test_packages[2], test_packages[3]]  # nginx, httpd
 
@@ -398,7 +370,7 @@ def test_view_snapshot_retrieves_packages(db_session, test_repositories, test_pa
         name="combined-snapshot",
         snapshot_ids=[snap1.id, snap2.id],
         package_count=4,
-        total_size_bytes=7500000
+        total_size_bytes=7500000,
     )
     db_session.add(view_snapshot)
     db_session.commit()
@@ -447,11 +419,7 @@ def test_view_snapshot_publish_state(db_session):
     db_session.commit()
 
     view_snapshot = ViewSnapshot(
-        view_id=view.id,
-        name="snapshot-1",
-        snapshot_ids=[],
-        package_count=0,
-        total_size_bytes=0
+        view_id=view.id, name="snapshot-1", snapshot_ids=[], package_count=0, total_size_bytes=0
     )
     db_session.add(view_snapshot)
     db_session.commit()

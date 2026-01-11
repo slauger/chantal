@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Update information (errata) handling for RPM repositories.
 
@@ -11,7 +13,6 @@ import lzma
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional, Set
 
 
 @dataclass
@@ -35,19 +36,19 @@ class Update:
     update_type: str  # "security", "bugfix", "enhancement"
     status: str
     issued_date: str
-    updated_date: Optional[str]
-    severity: Optional[str]
-    summary: Optional[str]
-    description: Optional[str]
-    packages: List[UpdatePackage]
+    updated_date: str | None
+    severity: str | None
+    summary: str | None
+    description: str | None
+    packages: list[UpdatePackage]
     # Store original XML element for regeneration
-    _xml_element: Optional[ET.Element] = None
+    _xml_element: ET.Element | None = None
 
 
 class UpdateInfoParser:
     """Parser for updateinfo.xml files."""
 
-    def parse_file(self, file_path: Path) -> List[Update]:
+    def parse_file(self, file_path: Path) -> list[Update]:
         """Parse updateinfo.xml file.
 
         Supports .xml, .xml.gz, .xml.bz2, and .xml.xz compression.
@@ -69,7 +70,7 @@ class UpdateInfoParser:
             with lzma.open(file_path, "rt", encoding="utf-8") as f:
                 xml_content = f.read()
         else:
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(file_path, encoding="utf-8") as f:
                 xml_content = f.read()
 
         # Parse XML
@@ -77,7 +78,7 @@ class UpdateInfoParser:
 
         return self._parse_updates(root)
 
-    def _parse_updates(self, root: ET.Element) -> List[Update]:
+    def _parse_updates(self, root: ET.Element) -> list[Update]:
         """Parse <updates> root element.
 
         Args:
@@ -102,7 +103,7 @@ class UpdateInfoParser:
 
         return updates
 
-    def _parse_update(self, update_elem: ET.Element) -> Optional[Update]:
+    def _parse_update(self, update_elem: ET.Element) -> Update | None:
         """Parse single <update> element.
 
         Args:
@@ -144,7 +145,7 @@ class UpdateInfoParser:
             _xml_element=update_elem,  # Store for regeneration
         )
 
-    def _parse_pkglist(self, update_elem: ET.Element) -> List[UpdatePackage]:
+    def _parse_pkglist(self, update_elem: ET.Element) -> list[UpdatePackage]:
         """Parse <pkglist> from update element.
 
         Args:
@@ -192,9 +193,7 @@ class UpdateInfoParser:
 class UpdateInfoFilter:
     """Filter updateinfo based on available packages."""
 
-    def filter_updates(
-        self, updates: List[Update], available_packages: Set[str]
-    ) -> List[Update]:
+    def filter_updates(self, updates: list[Update], available_packages: set[str]) -> list[Update]:
         """Filter updates to only include those with available packages.
 
         Args:
@@ -228,7 +227,7 @@ class UpdateInfoFilter:
 class UpdateInfoGenerator:
     """Generate updateinfo.xml from Update objects."""
 
-    def generate_xml(self, updates: List[Update]) -> bytes:
+    def generate_xml(self, updates: list[Update]) -> bytes:
         """Generate updateinfo.xml content.
 
         Args:

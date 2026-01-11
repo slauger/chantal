@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 Universal content-addressed storage manager for Chantal.
 
@@ -9,7 +11,6 @@ import hashlib
 import os
 import shutil
 from pathlib import Path
-from typing import Dict, Optional, Tuple
 
 from sqlalchemy.orm import Session
 
@@ -37,7 +38,7 @@ class StorageManager:
         self.config = config
         self.pool_path = config.get_pool_path()
         self.content_pool = self.pool_path / "content"  # ContentItem (packages)
-        self.file_pool = self.pool_path / "files"       # RepositoryFile (metadata/installer)
+        self.file_pool = self.pool_path / "files"  # RepositoryFile (metadata/installer)
         self.temp_path = config.get_temp_path()
         self.published_path = Path(config.published_path)
 
@@ -88,7 +89,9 @@ class StorageManager:
 
         return f"{pool_type}/{level1}/{level2}/{pool_filename}"
 
-    def get_absolute_pool_path(self, sha256: str, filename: str, pool_type: str = "content") -> Path:
+    def get_absolute_pool_path(
+        self, sha256: str, filename: str, pool_type: str = "content"
+    ) -> Path:
         """Get absolute pool path for a file.
 
         Args:
@@ -116,11 +119,8 @@ class StorageManager:
         return pool_file.exists()
 
     def add_package(
-        self,
-        source_path: Path,
-        filename: str,
-        verify_checksum: bool = True
-    ) -> Tuple[str, str, int]:
+        self, source_path: Path, filename: str, verify_checksum: bool = True
+    ) -> tuple[str, str, int]:
         """Add package to content-addressed pool.
 
         If package with same SHA256 already exists, it won't be copied again
@@ -156,9 +156,7 @@ class StorageManager:
             # Already in pool, verify checksum matches
             existing_sha256 = self.calculate_sha256(pool_path_abs)
             if existing_sha256 != sha256:
-                raise ValueError(
-                    f"Pool file exists but checksum mismatch: {pool_path_abs}"
-                )
+                raise ValueError(f"Pool file exists but checksum mismatch: {pool_path_abs}")
             return sha256, pool_path_rel, size_bytes
 
         # Create directory structure
@@ -181,11 +179,8 @@ class StorageManager:
         return sha256, pool_path_rel, size_bytes
 
     def add_repository_file(
-        self,
-        source_path: Path,
-        filename: str,
-        verify_checksum: bool = True
-    ) -> Tuple[str, str, int]:
+        self, source_path: Path, filename: str, verify_checksum: bool = True
+    ) -> tuple[str, str, int]:
         """Add repository file (metadata/installer) to content-addressed pool.
 
         Similar to add_package() but stores files in pool/files/ subdirectory.
@@ -222,9 +217,7 @@ class StorageManager:
             # Already in pool, verify checksum matches
             existing_sha256 = self.calculate_sha256(pool_path_abs)
             if existing_sha256 != sha256:
-                raise ValueError(
-                    f"Pool file exists but checksum mismatch: {pool_path_abs}"
-                )
+                raise ValueError(f"Pool file exists but checksum mismatch: {pool_path_abs}")
             return sha256, pool_path_rel, size_bytes
 
         # Create directory structure
@@ -246,12 +239,7 @@ class StorageManager:
 
         return sha256, pool_path_rel, size_bytes
 
-    def create_hardlink(
-        self,
-        sha256: str,
-        filename: str,
-        target_path: Path
-    ) -> None:
+    def create_hardlink(self, sha256: str, filename: str, target_path: Path) -> None:
         """Create hardlink from pool to target location.
 
         This is used for publishing - creates zero-copy references to pool files.
@@ -313,11 +301,7 @@ class StorageManager:
 
         return orphaned
 
-    def cleanup_orphaned_files(
-        self,
-        session: Session,
-        dry_run: bool = True
-    ) -> Tuple[int, int]:
+    def cleanup_orphaned_files(self, session: Session, dry_run: bool = True) -> tuple[int, int]:
         """Remove files from pool that are not referenced in database.
 
         Args:
@@ -343,7 +327,7 @@ class StorageManager:
 
         return files_removed, bytes_freed
 
-    def get_pool_statistics(self, session: Session) -> Dict[str, any]:
+    def get_pool_statistics(self, session: Session) -> dict[str, any]:
         """Get storage pool statistics.
 
         Args:
@@ -382,7 +366,7 @@ class StorageManager:
         # If we have more packages in DB than files in pool, we saved space
         if stats["total_files_pool"] > 0:
             potential_size = stats["total_size_db"]  # Size if no dedup
-            actual_size = stats["total_size_pool"]    # Actual pool size
+            actual_size = stats["total_size_pool"]  # Actual pool size
             stats["deduplication_savings"] = potential_size - actual_size
 
         return stats
@@ -391,6 +375,6 @@ class StorageManager:
         """Ensure all required storage directories exist."""
         self.pool_path.mkdir(parents=True, exist_ok=True)
         self.content_pool.mkdir(parents=True, exist_ok=True)  # pool/content/
-        self.file_pool.mkdir(parents=True, exist_ok=True)     # pool/files/
+        self.file_pool.mkdir(parents=True, exist_ok=True)  # pool/files/
         self.temp_path.mkdir(parents=True, exist_ok=True)
         self.published_path.mkdir(parents=True, exist_ok=True)

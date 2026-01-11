@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 """
 SQLAlchemy database models for Chantal.
 
@@ -10,6 +12,7 @@ from datetime import datetime
 from typing import Optional
 
 from sqlalchemy import (
+    JSON,
     Boolean,
     Column,
     DateTime,
@@ -17,7 +20,6 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
-    JSON,
     String,
     Table,
     Text,
@@ -33,6 +35,7 @@ class RepositoryMode(str, enum.Enum):
     - FILTERED: Filtered packages with customized metadata (include/exclude, retention, etc.)
     - HOSTED: Self-hosted packages (for future use)
     """
+
     MIRROR = "mirror"
     FILTERED = "filtered"
     HOSTED = "hosted"
@@ -95,26 +98,22 @@ class Repository(Base):
     feed: Mapped[str] = mapped_column(Text, nullable=False)  # upstream URL (Pulp terminology)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     mode: Mapped[str] = mapped_column(
-        Enum(RepositoryMode),
-        default=RepositoryMode.FILTERED,
-        nullable=False
+        Enum(RepositoryMode), default=RepositoryMode.FILTERED, nullable=False
     )
 
     # Paths
-    latest_path: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    snapshots_path: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    latest_path: Mapped[str | None] = mapped_column(Text, nullable=True)
+    snapshots_path: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Metadata
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
     )
 
     # Sync state
-    last_sync_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    last_sync_status: Mapped[Optional[str]] = mapped_column(
+    last_sync_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    last_sync_status: Mapped[str | None] = mapped_column(
         String(50), nullable=True
     )  # success, failed, running
 
@@ -175,9 +174,7 @@ class ContentItem(Base):
     content_metadata: Mapped[dict] = mapped_column(JSON, nullable=False)
 
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
 
     # Reference counting (for garbage collection)
     reference_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
@@ -200,7 +197,7 @@ class ContentItem(Base):
         return f"<ContentItem(type='{self.content_type}', name='{self.name}', version='{self.version}', sha256='{self.sha256[:8]}...')>"
 
     @property
-    def nevra(self) -> Optional[str]:
+    def nevra(self) -> str | None:
         """Get NEVRA string for RPM packages (Name-Epoch:Version-Release.Arch).
 
         Returns None for non-RPM content types.
@@ -233,14 +230,12 @@ class Snapshot(Base):
 
     # Snapshot identification
     name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # State
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     is_published: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    published_path: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    published_path: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Statistics (cached for performance)
     package_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
@@ -274,11 +269,11 @@ class SyncHistory(Base):
 
     # Sync timing
     started_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     # Sync result
     status: Mapped[str] = mapped_column(String(50), nullable=False)  # running, success, failed
-    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Statistics
     packages_added: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
@@ -287,7 +282,7 @@ class SyncHistory(Base):
     bytes_downloaded: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
     # Snapshot created during this sync
-    snapshot_id: Mapped[Optional[int]] = mapped_column(
+    snapshot_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("snapshots.id"), nullable=True
     )
 
@@ -299,7 +294,7 @@ class SyncHistory(Base):
         return f"<SyncHistory(repository_id={self.repository_id}, status='{self.status}', started_at='{self.started_at}')>"
 
     @property
-    def duration_seconds(self) -> Optional[float]:
+    def duration_seconds(self) -> float | None:
         """Calculate sync duration in seconds."""
         if self.started_at and self.completed_at:
             delta = self.completed_at - self.started_at
@@ -320,23 +315,21 @@ class View(Base):
 
     # View identification
     name: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Repository type (all repos in view must have same type)
     repo_type: Mapped[str] = mapped_column(String(50), nullable=False)  # rpm, apt
 
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
     )
 
     # Publishing status (for "latest" publish)
     is_published: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    published_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    published_path: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    published_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    published_path: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Relationships
     view_repositories: Mapped[list["ViewRepository"]] = relationship(
@@ -368,18 +361,14 @@ class ViewRepository(Base):
     order: Mapped[int] = mapped_column(Integer, nullable=False)
 
     # Timestamps
-    added_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False
-    )
+    added_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
 
     # Relationships
     view: Mapped["View"] = relationship("View", back_populates="view_repositories")
     repository: Mapped["Repository"] = relationship("Repository")
 
     # Unique constraint: repository can only be in view once
-    __table_args__ = (
-        UniqueConstraint("view_id", "repository_id", name="uq_view_repository"),
-    )
+    __table_args__ = (UniqueConstraint("view_id", "repository_id", name="uq_view_repository"),)
 
     def __repr__(self) -> str:
         return f"<ViewRepository(view_id={self.view_id}, repository_id={self.repository_id}, order={self.order})>"
@@ -399,12 +388,10 @@ class ViewSnapshot(Base):
 
     # Snapshot identification
     name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
-    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # State
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
 
     # Which repository snapshots are included (JSON array of snapshot IDs)
     # Example: [12, 45, 67] - references Snapshot.id
@@ -412,8 +399,8 @@ class ViewSnapshot(Base):
 
     # Publishing status
     is_published: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    published_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    published_path: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    published_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    published_path: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Statistics (cached for performance)
     package_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
@@ -472,15 +459,13 @@ class RepositoryFile(Base):
 
     # Flexible metadata (type-specific info stored as JSON)
     # Note: Named 'file_metadata' because 'metadata' is reserved by SQLAlchemy
-    file_metadata: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    file_metadata: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     # Examples:
     #   {"checksum_type": "sha256", "open_checksum": "xyz", "timestamp": 123456}
     #   {"kernel_version": "5.14.0-362.8.1.el9_3"}
 
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
     )
