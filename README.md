@@ -21,7 +21,7 @@ A Python-based CLI tool for offline repository mirroring, inspired by pulp-admin
 
 ## Features
 
-- 🔄 **Unified Mirroring** - Multiple repository types in one tool (RPM, APT, PyPI, Helm, and more)
+- 🔄 **Unified Mirroring** - Multiple repository types in one tool (RPM, Helm, Alpine APK, and more)
 - 📦 **Deduplication** - Content-addressed storage (SHA256), packages stored once
 - 📸 **Snapshots** - Immutable point-in-time repository states for patch management
 - 🔍 **Views** - Virtual repositories combining multiple repos (e.g., BaseOS + AppStream + EPEL)
@@ -34,8 +34,10 @@ A Python-based CLI tool for offline repository mirroring, inspired by pulp-admin
 
 **Supported Repository Types:**
 - ✅ **RPM/DNF/YUM** (RHEL, CentOS, Fedora, Rocky, AlmaLinux, EPEL) - Available
+- ✅ **Helm Charts** (Kubernetes, Bitnami, AWS EKS, Prometheus, GitLab) - Available
+- ✅ **Alpine APK** (Alpine Linux, container base images) - Available
 - 🚧 **DEB/APT** (Debian, Ubuntu) - Planned
-- 🚧 **PyPI**, **Alpine APK**, **Helm**, **npm**, **Go Modules** - Planned
+- 🚧 **PyPI**, **npm**, **Go Modules** - Planned
 
 ---
 
@@ -76,7 +78,7 @@ chantal init
 # 2. Configure repositories (see docs for examples)
 vim /etc/chantal/config.yaml
 
-# 3. Sync repository
+# 3. Sync repository (RPM, Helm, or APK)
 chantal repo sync --repo-id epel9-latest
 
 # 4. Create snapshot
@@ -145,7 +147,7 @@ filters:
 ```
 
 **Database:** PostgreSQL or SQLite (SQLAlchemy models)
-**Plugins:** Extensible architecture for repository types (RPM, DEB, PyPI, etc.)
+**Plugins:** Extensible architecture for repository types (RPM, Helm, APK, APT, PyPI)
 
 ---
 
@@ -205,20 +207,22 @@ See [Workflows Documentation](https://slauger.github.io/chantal/user-guide/workf
 
 ### Current Release: v0.1.0-dev
 
-**✅ RPM MVP Complete:**
+**✅ Multi-Ecosystem Support:**
 - Content-addressed storage (SHA256 deduplication)
-- RPM repository sync (RHEL, CentOS, Fedora, EPEL)
-- Immutable snapshots
+- **RPM** repository sync (RHEL, CentOS, Fedora, EPEL, Rocky, AlmaLinux)
+- **Helm** chart repositories (Kubernetes, Bitnami, AWS EKS, Prometheus, GitLab)
+- **Alpine APK** repositories (Alpine Linux, container images)
+- Immutable snapshots (all repository types)
 - Views (virtual repositories combining multiple repos)
 - RHEL CDN support (client certificates)
-- Generic content model (extensible for APT, PyPI, Helm, etc.)
-- 74 tests passing
+- Pool management commands (verify, cleanup, orphaned detection)
+- 74+ tests passing
 
 **🔄 Next Up:**
-- Database management commands
-- Errata/advisory support (updateinfo.xml)
-- APT/DEB repository support
-- Helm chart repository support
+- APT/DEB repository support (Debian, Ubuntu)
+- Errata/advisory support (updateinfo.xml for RPM)
+- Database management and migration tools
+- Web UI for repository management
 
 **📋 Full Roadmap:** See [ROADMAP.md](ROADMAP.md) for detailed milestone plan and [GitHub Issues](https://github.com/slauger/chantal/issues)
 
