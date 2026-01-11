@@ -2514,15 +2514,75 @@ def pool_orphaned(ctx: click.Context) -> None:
         session.close()
 
 
+@pool.command("missing")
+@click.pass_context
+def pool_missing(ctx: click.Context) -> None:
+    """List packages in database with missing pool files.
+
+    Missing files are packages referenced in the database but whose
+    files are not present in the storage pool. This indicates data loss
+    or corruption.
+    """
+    from chantal.core.storage import StorageManager
+    from chantal.db.connection import DatabaseManager
+    from chantal.db.models import ContentItem
+
+    config: GlobalConfig = ctx.obj["config"]
+
+    # Initialize storage manager
+    storage = StorageManager(config.storage)
+
+    # Initialize database connection
+    db_manager = DatabaseManager(config.database.url)
+    session = db_manager.get_session()
+
+    try:
+        click.echo("Finding missing pool files...")
+        click.echo()
+
+        missing_packages = []
+        total_size = 0
+
+        # Get all packages from database
+        packages = session.query(ContentItem).all()
+
+        for package in packages:
+            pool_file = storage.pool_path / package.pool_path
+
+            if not pool_file.exists():
+                missing_packages.append(package)
+                total_size += package.size_bytes
+
+        if missing_packages:
+            click.echo(f"Found {len(missing_packages):,} missing files:")
+            click.echo()
+
+            for package in missing_packages:
+                click.echo(f"  {package.pool_path} ({package.size_bytes:,} bytes)")
+                click.echo(f"    Package: {package.name}-{package.version}")
+                click.echo(f"    SHA256: {package.sha256[:16]}...")
+                click.echo()
+
+            click.echo(f"Total: {len(missing_packages):,} files, {total_size:,} bytes ({total_size / (1024**2):.2f} MB)")
+        else:
+            click.echo("No missing files found.")
+
+    finally:
+        session.close()
+
+
 @pool.command("verify")
 @click.pass_context
 def pool_verify(ctx: click.Context) -> None:
     """Verify storage pool integrity.
 
-    Checks:
-    - All packages in database have corresponding files in pool
-    - All pool files match their recorded SHA256 checksums
-    - Pool directory structure is correct
+    Comprehensive integrity check:
+    - Orphaned files (in pool but not in database)
+    - Missing files (in database but not in pool)
+    - SHA256 checksum verification
+    - File size verification
+
+    For detailed file lists, use 'pool orphaned' or 'pool missing'.
     """
     from chantal.core.storage import StorageManager
     from chantal.db.connection import DatabaseManager
@@ -2542,54 +2602,83 @@ def pool_verify(ctx: click.Context) -> None:
         click.echo("=" * 60)
         click.echo()
 
-        errors = 0
-        warnings = 0
+        # Counters
+        missing_files = 0
+        sha256_mismatches = 0
+        size_mismatches = 0
+        orphaned_count = 0
 
         # Get all packages from database
         packages = session.query(ContentItem).all()
-        click.echo(f"Checking {len(packages):,} packages...")
+        click.echo(f"Checking {len(packages):,} packages from database...")
 
         for i, package in enumerate(packages, 1):
             if i % 100 == 0:
-                click.echo(f"  Checked {i:,}/{len(packages):,} packages...", nl=False)
+                click.echo(f"  Progress: {i:,}/{len(packages):,} packages...", nl=False)
                 click.echo("\r", nl=False)
 
             # Check if file exists
             pool_file = storage.pool_path / package.pool_path
 
             if not pool_file.exists():
-                click.echo(f"ERROR: Missing pool file for {package.filename} (SHA256: {package.sha256[:8]}...)")
-                errors += 1
+                missing_files += 1
                 continue
 
             # Verify SHA256
             actual_sha256 = storage.calculate_sha256(pool_file)
             if actual_sha256 != package.sha256:
-                click.echo(f"ERROR: SHA256 mismatch for {package.filename}")
-                click.echo(f"  Expected: {package.sha256}")
-                click.echo(f"  Actual:   {actual_sha256}")
-                errors += 1
+                sha256_mismatches += 1
 
             # Verify file size
             actual_size = pool_file.stat().st_size
             if actual_size != package.size_bytes:
-                click.echo(f"WARNING: Size mismatch for {package.filename}")
-                click.echo(f"  Expected: {package.size_bytes:,} bytes")
-                click.echo(f"  Actual:   {actual_size:,} bytes")
-                warnings += 1
+                size_mismatches += 1
+
+        click.echo()
+
+        # Check for orphaned files
+        click.echo("Checking for orphaned files in pool...")
+        orphaned_files = storage.get_orphaned_files(session)
+        orphaned_count = len(orphaned_files)
+        orphaned_size = sum(f.stat().st_size for f in orphaned_files)
 
         click.echo()
         click.echo("=" * 60)
+        click.echo("Verification Results:")
+        click.echo("=" * 60)
 
-        if errors == 0 and warnings == 0:
+        total_issues = missing_files + sha256_mismatches + size_mismatches + orphaned_count
+
+        if total_issues == 0:
             click.echo("✓ Pool verification completed successfully!")
             click.echo(f"  All {len(packages):,} packages verified")
+            click.echo(f"  No orphaned files found")
         else:
-            click.echo(f"Pool verification completed with issues:")
-            if errors > 0:
-                click.echo(f"  Errors: {errors}")
-            if warnings > 0:
-                click.echo(f"  Warnings: {warnings}")
+            click.echo(f"Pool verification found {total_issues:,} issues:")
+            click.echo()
+
+            if missing_files > 0:
+                click.echo(f"  ✗ Missing files: {missing_files:,}")
+                click.echo(f"    (in database but not in pool)")
+                click.echo(f"    → Run 'chantal pool missing' for details")
+                click.echo()
+
+            if orphaned_count > 0:
+                click.echo(f"  ✗ Orphaned files: {orphaned_count:,} ({orphaned_size / (1024**2):.2f} MB)")
+                click.echo(f"    (in pool but not in database)")
+                click.echo(f"    → Run 'chantal pool orphaned' for details")
+                click.echo(f"    → Run 'chantal pool cleanup' to remove")
+                click.echo()
+
+            if sha256_mismatches > 0:
+                click.echo(f"  ✗ SHA256 mismatches: {sha256_mismatches:,}")
+                click.echo(f"    (file content doesn't match expected checksum)")
+                click.echo()
+
+            if size_mismatches > 0:
+                click.echo(f"  ⚠ Size mismatches: {size_mismatches:,}")
+                click.echo(f"    (file size doesn't match expected size)")
+                click.echo()
 
     finally:
         session.close()
