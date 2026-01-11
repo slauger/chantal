@@ -326,6 +326,7 @@ def _sync_single_repository(session, storage, global_config, repo_config):
             type=repo_config.type,
             feed=repo_config.feed,
             enabled=repo_config.enabled,
+            mode=repo_config.mode.upper(),  # Convert to uppercase for enum (MIRROR, FILTERED, HOSTED)
         )
         session.add(repository)
         session.commit()

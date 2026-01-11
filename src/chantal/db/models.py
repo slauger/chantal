@@ -30,7 +30,7 @@ class RepositoryMode(str, enum.Enum):
     """Repository operation modes.
 
     - MIRROR: Full mirror, no filtering, metadata unchanged
-    - FILTERED: Selective packages (max_packages, include_pattern), metadata filtered
+    - FILTERED: Filtered packages with customized metadata (include/exclude, retention, etc.)
     - HOSTED: Self-hosted packages (for future use)
     """
     MIRROR = "mirror"
@@ -96,7 +96,7 @@ class Repository(Base):
     enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     mode: Mapped[str] = mapped_column(
         Enum(RepositoryMode),
-        default=RepositoryMode.MIRROR,
+        default=RepositoryMode.FILTERED,
         nullable=False
     )
 

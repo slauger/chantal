@@ -6,10 +6,10 @@ YAML-based configuration loading with include support.
 """
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 import yaml
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class ProxyConfig(BaseModel):
@@ -257,6 +257,9 @@ class RepositoryConfig(BaseModel):
     feed: str  # upstream URL
     enabled: bool = True
 
+    # Repository mode (mirror, filtered, hosted)
+    mode: Literal["mirror", "filtered", "hosted"] = "filtered"
+
     # Tags for grouping/filtering (e.g., ["production", "web", "rhel"])
     tags: Optional[List[str]] = Field(default_factory=list)
 
@@ -293,6 +296,16 @@ class RepositoryConfig(BaseModel):
         if v not in valid_types:
             raise ValueError(f"Invalid repository type: {v}. Must be one of {valid_types}")
         return v
+
+    @model_validator(mode="after")
+    def validate_mode_and_filters(self) -> "RepositoryConfig":
+        """Validate that mirror mode is not used with filters."""
+        if self.mode == "mirror" and self.filters is not None:
+            raise ValueError(
+                f"Repository '{self.id}': mode='mirror' cannot be used with filters. "
+                "Use mode='filtered' to apply filters, or remove filters for true mirror mode."
+            )
+        return self
 
     @property
     def display_name(self) -> str:
