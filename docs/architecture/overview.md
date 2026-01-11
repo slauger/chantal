@@ -53,10 +53,14 @@ Chantal follows a clean, modular architecture designed for simplicity and extens
 - Format output
 
 **Key Files:**
-- `src/chantal/cli/` - All CLI commands
-- `src/chantal/cli/repo.py` - Repository management commands
-- `src/chantal/cli/snapshot.py` - Snapshot commands
-- `src/chantal/cli/publish.py` - Publishing commands
+- `src/chantal/cli/main.py` - CLI entry point and command registration
+- `src/chantal/cli/repo_commands.py` - Repository management commands
+- `src/chantal/cli/snapshot_commands.py` - Snapshot management commands
+- `src/chantal/cli/publish_commands.py` - Publishing commands
+- `src/chantal/cli/view_commands.py` - View management commands
+- `src/chantal/cli/content_commands.py` - Content search and listing
+- `src/chantal/cli/db_commands.py` - Database management commands
+- `src/chantal/cli/pool_commands.py` - Storage pool management commands
 
 ### Core Layer
 
