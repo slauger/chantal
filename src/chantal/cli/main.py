@@ -509,7 +509,12 @@ def _sync_single_repository(session, storage, global_config, repo_config):
             ssl_config=effective_ssl,
         )
     elif repo_config.type == "helm":
-        helm_syncer = HelmSyncer(storage=storage)
+        helm_syncer = HelmSyncer(
+            storage=storage,
+            config=repo_config,
+            proxy_config=effective_proxy,
+            ssl_config=effective_ssl,
+        )
         stats = helm_syncer.sync_repository(session, repository, repo_config)
 
         # Update last sync timestamp
@@ -525,7 +530,12 @@ def _sync_single_repository(session, storage, global_config, repo_config):
         click.echo(f"  Data transferred: {stats['bytes_downloaded'] / 1024 / 1024:.2f} MB")
         return
     elif repo_config.type == "apk":
-        apk_syncer = ApkSyncer(storage=storage)
+        apk_syncer = ApkSyncer(
+            storage=storage,
+            config=repo_config,
+            proxy_config=effective_proxy,
+            ssl_config=effective_ssl,
+        )
         stats = apk_syncer.sync_repository(session, repository, repo_config)
 
         # Update last sync timestamp

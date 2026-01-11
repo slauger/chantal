@@ -20,6 +20,7 @@ from chantal.core.config import (
     ProxyConfig,
     RepositoryConfig,
 )
+from chantal.core.downloader import DownloadManager
 from chantal.core.storage import StorageManager
 from chantal.db.models import ContentItem, Repository, RepositoryFile
 from chantal.plugins.rpm.models import RpmMetadata
@@ -146,96 +147,15 @@ class RpmSyncPlugin:
         self.proxy_config = proxy_config
         self.ssl_config = ssl_config
 
-        # Setup HTTP session with proxy
-        self.session = requests.Session()
-        if proxy_config:
-            proxies = {}
-            if proxy_config.http_proxy:
-                proxies["http"] = proxy_config.http_proxy
-            if proxy_config.https_proxy:
-                proxies["https"] = proxy_config.https_proxy
-            self.session.proxies.update(proxies)
+        # Setup download manager with all authentication and SSL/TLS configuration
+        self.downloader = DownloadManager(
+            config=config,
+            proxy_config=proxy_config,
+            ssl_config=ssl_config
+        )
 
-            # Basic auth for proxy if needed
-            if proxy_config.username and proxy_config.password:
-                self.session.auth = (proxy_config.username, proxy_config.password)
-
-        # Setup SSL/TLS verification
-        if ssl_config:
-            if not ssl_config.verify:
-                # Disable SSL verification (not recommended)
-                self.session.verify = False
-            elif ssl_config.ca_cert:
-                # Use inline CA certificate - write to temp file
-                import tempfile
-                ca_file = tempfile.NamedTemporaryFile(mode='w', suffix='.pem', delete=False)
-                ca_file.write(ssl_config.ca_cert)
-                ca_file.flush()
-                ca_file.close()
-                self.session.verify = ca_file.name
-                self._temp_ca_file = ca_file.name  # Store for cleanup
-            elif ssl_config.ca_bundle:
-                # Use CA bundle file path
-                self.session.verify = ssl_config.ca_bundle
-
-            # Setup client certificate for mTLS if configured
-            if ssl_config.client_cert:
-                if ssl_config.client_key:
-                    self.session.cert = (ssl_config.client_cert, ssl_config.client_key)
-                else:
-                    self.session.cert = ssl_config.client_cert
-
-        # Setup repository authentication
-        if config.auth:
-            if config.auth.type == "client_cert":
-                # Client certificate authentication (RHEL CDN)
-                if config.auth.cert_file and config.auth.key_file:
-                    # Specific cert/key files provided
-                    self.session.cert = (config.auth.cert_file, config.auth.key_file)
-                    print(f"Using client certificate authentication")
-                elif config.auth.cert_dir:
-                    # Find cert/key in directory (RHEL entitlement pattern)
-                    cert_dir = Path(config.auth.cert_dir)
-                    if cert_dir.exists():
-                        # Find first .pem certificate (not -key.pem)
-                        certs = [f for f in cert_dir.glob("*.pem") if not f.name.endswith("-key.pem")]
-                        if certs:
-                            cert_file = certs[0]
-                            # Look for corresponding key file
-                            key_file = cert_dir / cert_file.name.replace(".pem", "-key.pem")
-                            if key_file.exists():
-                                self.session.cert = (str(cert_file), str(key_file))
-                                print(f"Using client certificate: {cert_file.name}")
-                            else:
-                                print(f"Warning: Key file not found for {cert_file.name}")
-
-            elif config.auth.type == "basic":
-                # HTTP Basic authentication
-                if config.auth.username and config.auth.password:
-                    self.session.auth = (config.auth.username, config.auth.password)
-                    print(f"Using HTTP Basic authentication (user: {config.auth.username})")
-
-            elif config.auth.type == "bearer":
-                # Bearer token authentication
-                if config.auth.token:
-                    self.session.headers.update({
-                        "Authorization": f"Bearer {config.auth.token}"
-                    })
-                    print(f"Using Bearer token authentication")
-
-            elif config.auth.type == "custom":
-                # Custom HTTP headers
-                if config.auth.headers:
-                    self.session.headers.update(config.auth.headers)
-                    print(f"Using custom headers: {list(config.auth.headers.keys())}")
-
-            # SSL/TLS verification settings
-            if not config.auth.verify_ssl:
-                self.session.verify = False
-                print("Warning: SSL certificate verification disabled")
-            elif config.auth.ca_bundle:
-                self.session.verify = config.auth.ca_bundle
-                print(f"Using custom CA bundle: {config.auth.ca_bundle}")
+        # Backward compatibility for parsers module
+        self.session = self.downloader.session
 
     def sync_repository(
         self, session: Session, repository: Repository

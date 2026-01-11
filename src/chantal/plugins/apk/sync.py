@@ -19,7 +19,8 @@ from urllib.parse import urljoin
 import requests
 from sqlalchemy.orm import Session
 
-from chantal.core.config import RepositoryConfig
+from chantal.core.config import ProxyConfig, RepositoryConfig
+from chantal.core.downloader import DownloadManager
 from chantal.core.storage import StorageManager
 from chantal.db.models import ContentItem, Repository, Snapshot
 from chantal.plugins.apk.models import ApkMetadata
@@ -38,13 +39,35 @@ class ApkSyncer:
     5. Storing metadata in database as ContentItems
     """
 
-    def __init__(self, storage: StorageManager):
+    def __init__(
+        self,
+        storage: StorageManager,
+        config: RepositoryConfig,
+        proxy_config: Optional[ProxyConfig] = None,
+        ssl_config: Optional["SSLConfig"] = None,
+    ):
         """Initialize APK syncer.
 
         Args:
             storage: Storage manager instance
+            config: Repository configuration
+            proxy_config: Optional proxy configuration
+            ssl_config: Optional SSL/TLS configuration
         """
         self.storage = storage
+        self.config = config
+        self.proxy_config = proxy_config
+        self.ssl_config = ssl_config
+
+        # Setup download manager with all authentication and SSL/TLS configuration
+        self.downloader = DownloadManager(
+            config=config,
+            proxy_config=proxy_config,
+            ssl_config=ssl_config
+        )
+
+        # Backward compatibility
+        self.session = self.downloader.session
 
     def sync_repository(
         self,
@@ -178,14 +201,7 @@ class ApkSyncer:
         """
         logger.info(f"Fetching APKINDEX from {url}")
 
-        # Build request kwargs
-        kwargs = {}
-        if config.ssl and config.ssl.client_cert:
-            kwargs["cert"] = (config.ssl.client_cert, config.ssl.client_key)
-        if config.ssl and config.ssl.ca_cert:
-            kwargs["verify"] = config.ssl.ca_cert
-
-        response = requests.get(url, **kwargs, timeout=30)
+        response = self.session.get(url, timeout=30)
         response.raise_for_status()
 
         # Extract APKINDEX from tar.gz
@@ -353,14 +369,7 @@ class ApkSyncer:
         """
         logger.debug(f"Downloading package from {url}")
 
-        # Build request kwargs
-        kwargs = {}
-        if config.ssl and config.ssl.client_cert:
-            kwargs["cert"] = (config.ssl.client_cert, config.ssl.client_key)
-        if config.ssl and config.ssl.ca_cert:
-            kwargs["verify"] = config.ssl.ca_cert
-
-        response = requests.get(url, **kwargs, timeout=300, stream=True)
+        response = self.session.get(url, timeout=300, stream=True)
         response.raise_for_status()
 
         # Download to temp file and verify SHA1

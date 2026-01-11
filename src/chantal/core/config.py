@@ -382,6 +382,53 @@ class ViewConfig(BaseModel):
             )
 
 
+class DownloadConfig(BaseModel):
+    """Download configuration for file downloads."""
+
+    backend: str = "requests"  # requests, aria2c (future)
+    parallel: int = 1  # Parallel downloads (backend-dependent)
+    timeout: int = 300  # Download timeout in seconds
+    retry_attempts: int = 3  # Number of retry attempts on failure
+    verify_checksum: bool = True  # Verify checksums after download
+
+    @field_validator("backend")
+    @classmethod
+    def validate_backend(cls, v: str) -> str:
+        """Validate download backend."""
+        valid_backends = ["requests", "aria2c"]
+        if v not in valid_backends:
+            raise ValueError(f"Invalid download backend: {v}. Must be one of {valid_backends}")
+        return v
+
+    @field_validator("parallel")
+    @classmethod
+    def validate_parallel(cls, v: int) -> int:
+        """Validate parallel download count."""
+        if v < 1:
+            raise ValueError("parallel must be at least 1")
+        if v > 100:
+            raise ValueError("parallel cannot exceed 100")
+        return v
+
+    @field_validator("timeout")
+    @classmethod
+    def validate_timeout(cls, v: int) -> int:
+        """Validate timeout value."""
+        if v < 1:
+            raise ValueError("timeout must be at least 1 second")
+        return v
+
+    @field_validator("retry_attempts")
+    @classmethod
+    def validate_retry_attempts(cls, v: int) -> int:
+        """Validate retry attempts."""
+        if v < 0:
+            raise ValueError("retry_attempts cannot be negative")
+        if v > 10:
+            raise ValueError("retry_attempts cannot exceed 10")
+        return v
+
+
 class GlobalConfig(BaseModel):
     """Global Chantal configuration."""
 
@@ -389,6 +436,7 @@ class GlobalConfig(BaseModel):
     storage: StorageConfig = Field(default_factory=StorageConfig)
     proxy: Optional[ProxyConfig] = None
     ssl: Optional[SSLConfig] = None
+    download: Optional[DownloadConfig] = Field(default_factory=DownloadConfig)
     repositories: List[RepositoryConfig] = Field(default_factory=list)
     views: List[ViewConfig] = Field(default_factory=list)
 
