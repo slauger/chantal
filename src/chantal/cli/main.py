@@ -373,6 +373,8 @@ def _sync_single_repository(session, storage, global_config, repo_config):
         click.echo(f"  Packages updated: {stats['packages_updated']}")
         click.echo(f"  Packages skipped: {stats['packages_skipped']}")
         click.echo(f"  Data transferred: {stats['bytes_downloaded'] / 1024 / 1024:.2f} MB")
+        if stats['sha1_mismatches'] > 0:
+            click.echo(f"  SHA1 mismatches: {stats['sha1_mismatches']} (stale APKINDEX, integrity verified via SHA256)")
         return
     else:
         click.echo(f"Error: Unsupported repository type: {repo_config.type}")

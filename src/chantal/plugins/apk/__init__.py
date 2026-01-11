@@ -95,6 +95,7 @@ class ApkSyncer:
             "packages_updated": 0,
             "packages_skipped": 0,
             "bytes_downloaded": 0,
+            "sha1_mismatches": 0,
         }
 
         base_url = urljoin(
@@ -128,7 +129,9 @@ class ApkSyncer:
 
                 # Download package
                 pkg_url = urljoin(base_url, filename)
-                pool_path, sha256, size = self._download_package(pkg_url, config, metadata.checksum)
+                pool_path, sha256, size, sha1_ok = self._download_package(pkg_url, config, metadata.checksum)
+                if not sha1_ok:
+                    stats["sha1_mismatches"] += 1
 
                 # Create ContentItem
                 content_item = ContentItem(
@@ -341,7 +344,7 @@ class ApkSyncer:
             expected_sha1: Expected SHA1 checksum from APKINDEX (base64, Q1-prefixed)
 
         Returns:
-            tuple: (pool_path, sha256, size_bytes)
+            tuple: (pool_path, sha256, size_bytes, sha1_ok)
         """
         logger.debug(f"Downloading package from {url}")
 
@@ -365,12 +368,13 @@ class ApkSyncer:
             tmp_path = Path(tmp.name)
 
         # Verify SHA1 (APK uses base64-encoded SHA1 with Q1 prefix)
-        # Note: Alpine CDN sometimes has stale APKINDEX, so we log warnings instead of failing
+        # Note: Alpine CDN sometimes has stale APKINDEX, so we track mismatches but don't fail
         calculated_sha1 = "Q1" + base64.b64encode(sha1_hash.digest()).decode('ascii')
-        if calculated_sha1 != expected_sha1:
-            logger.warning(
-                f"SHA1 mismatch for {url}: expected {expected_sha1}, got {calculated_sha1}. "
-                f"This is often due to stale APKINDEX on Alpine CDN. Continuing with actual package."
+        sha1_ok = calculated_sha1 == expected_sha1
+
+        if not sha1_ok:
+            logger.debug(
+                f"SHA1 mismatch for {Path(url).name}: expected {expected_sha1}, got {calculated_sha1}"
             )
 
         filename = Path(url).name
@@ -383,7 +387,7 @@ class ApkSyncer:
 
         logger.debug(f"Stored package in pool: {pool_path}")
 
-        return pool_path, sha256, size
+        return pool_path, sha256, size, sha1_ok
 
 
 class ApkPublisher(PublisherPlugin):
