@@ -155,6 +155,15 @@ class RpmPublisher(PublisherPlugin):
             published_metadata
         )
 
+        # Publish kickstart/installer files
+        kickstart_files = [
+            rf for rf in repository_files
+            if rf.file_category == "kickstart"
+        ]
+
+        if kickstart_files:
+            self._publish_kickstart_files(kickstart_files, target_path)
+
     def _generate_primary_xml(
         self,
         packages: List[ContentItem],
@@ -294,6 +303,45 @@ class RpmPublisher(PublisherPlugin):
             published.append((repo_file.file_type, target_path))
 
         return published
+
+    def _publish_kickstart_files(
+        self,
+        kickstart_files: List[RepositoryFile],
+        target_path: Path
+    ) -> None:
+        """Publish kickstart/installer files to images/ directory.
+
+        Args:
+            kickstart_files: List of RepositoryFile with file_category="kickstart"
+            target_path: Target directory for publishing
+        """
+        import os
+
+        for repo_file in kickstart_files:
+            pool_file_path = self.storage.pool_path / repo_file.pool_path
+
+            if not pool_file_path.exists():
+                print(f"Warning: Pool file not found: {pool_file_path}")
+                continue
+
+            # Determine target path based on original path
+            # .treeinfo goes to root, others to images/
+            if repo_file.file_type == "treeinfo":
+                target_file_path = target_path / ".treeinfo"
+            else:
+                # original_path like "images/boot.iso" or "images/pxeboot/vmlinuz"
+                target_file_path = target_path / repo_file.original_path
+
+            # Create parent directories
+            target_file_path.parent.mkdir(parents=True, exist_ok=True)
+
+            # Create hardlink
+            if target_file_path.exists():
+                target_file_path.unlink()
+
+            os.link(pool_file_path, target_file_path)
+
+            print(f"  ✓ Published {repo_file.file_type}: {repo_file.original_path}")
 
     def _generate_repomd_xml(
         self,

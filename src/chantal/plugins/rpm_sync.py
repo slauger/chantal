@@ -4,9 +4,11 @@ RPM repository sync plugin.
 This module implements syncing RPM repositories from upstream sources.
 """
 
+import configparser
 import gzip
 import hashlib
 import lzma
+import os
 import re
 import tempfile
 import xml.etree.ElementTree as ET
@@ -344,6 +346,46 @@ class RpmSyncPlugin:
                 except Exception as e:
                     print(f"  → Warning: Failed to download {metadata_info.file_type}: {e}")
                     # Continue with next metadata file
+
+            # Step 8: Check for .treeinfo and download installer files
+            print(f"\nChecking for installer files (.treeinfo)...")
+            treeinfo_url = urljoin(self.config.feed, ".treeinfo")
+            try:
+                response = self.session.get(treeinfo_url, timeout=30)
+                response.raise_for_status()
+
+                treeinfo_content = response.text
+                installer_files = self._parse_treeinfo(treeinfo_content)
+
+                if installer_files:
+                    print(f"Found {len(installer_files)} installer files")
+                    installer_downloaded = 0
+
+                    for file_info in installer_files:
+                        try:
+                            self._download_installer_file(
+                                session=session,
+                                repository=repository,
+                                base_url=self.config.feed,
+                                file_info=file_info
+                            )
+                            installer_downloaded += 1
+                        except Exception as e:
+                            print(f"  → Warning: Failed to download {file_info['file_type']}: {e}")
+                            # Continue with next installer file
+
+                    # Store .treeinfo itself
+                    self._store_treeinfo(session, repository, treeinfo_content)
+
+                    print(f"Installer files downloaded: {installer_downloaded}/{len(installer_files)}")
+
+            except requests.exceptions.HTTPError as e:
+                if e.response.status_code == 404:
+                    print("  No .treeinfo found (not an installer repository)")
+                else:
+                    print(f"  → Warning: Failed to fetch .treeinfo: {e}")
+            except Exception as e:
+                print(f"  → Warning: Failed to process .treeinfo: {e}")
 
             print(f"\nSync complete!")
             print(f"  Packages downloaded: {packages_downloaded}")
@@ -1228,3 +1270,193 @@ class RpmSyncPlugin:
                 # Clean up temp file
                 if tmp_path.exists():
                     tmp_path.unlink()
+
+    def _parse_treeinfo(self, content: str) -> List[Dict[str, str]]:
+        """Parse .treeinfo and extract installer file metadata.
+
+        Args:
+            content: .treeinfo file content (INI format)
+
+        Returns:
+            List of dicts with keys: path, file_type, sha256
+        """
+        parser = configparser.ConfigParser()
+        parser.read_string(content)
+
+        installer_files = []
+
+        # Parse checksums section
+        checksums = {}
+        if parser.has_section('checksums'):
+            for key, value in parser.items('checksums'):
+                # Format: "images/boot.iso = sha256:abc123..."
+                if 'sha256:' in value:
+                    checksum = value.split('sha256:')[1].strip()
+                    checksums[key] = checksum
+
+        # Parse images section for current arch
+        arch = parser.get('general', 'arch', fallback='x86_64')
+        images_section = f'images-{arch}'
+
+        if parser.has_section(images_section):
+            for file_type, file_path in parser.items(images_section):
+                # file_type: boot.iso, kernel, initrd, etc.
+                # file_path: images/boot.iso, images/pxeboot/vmlinuz
+
+                sha256 = checksums.get(file_path)
+
+                installer_files.append({
+                    'path': file_path,
+                    'file_type': file_type,
+                    'sha256': sha256
+                })
+
+        return installer_files
+
+    def _download_installer_file(
+        self,
+        session: Session,
+        repository: Repository,
+        base_url: str,
+        file_info: Dict[str, str]
+    ) -> None:
+        """Download and store installer file.
+
+        Args:
+            session: Database session
+            repository: Repository instance
+            base_url: Repository base URL
+            file_info: Dict with path, file_type, sha256
+        """
+        file_path = file_info['path']
+        file_type = file_info['file_type']
+        expected_sha256 = file_info.get('sha256')
+
+        file_url = urljoin(base_url, file_path)
+
+        print(f"  → Downloading {file_type}: {file_path}")
+
+        # Download to temp file
+        tmp_file = tempfile.NamedTemporaryFile(delete=False)
+        try:
+            response = self.session.get(file_url, stream=True, timeout=300)
+            response.raise_for_status()
+
+            # Download with progress for large files
+            total_size = int(response.headers.get('content-length', 0))
+            downloaded = 0
+
+            for chunk in response.iter_content(chunk_size=8192):
+                tmp_file.write(chunk)
+                downloaded += len(chunk)
+
+                # Show progress for large files (> 10MB)
+                if total_size > 10 * 1024 * 1024:
+                    mb_downloaded = downloaded / 1024 / 1024
+                    mb_total = total_size / 1024 / 1024
+                    print(f"\r    {mb_downloaded:.1f} MB / {mb_total:.1f} MB ({mb_downloaded/mb_total*100:.0f}%)", end='', flush=True)
+
+            if total_size > 10 * 1024 * 1024:
+                print()  # Newline after progress
+
+            tmp_file.close()
+            tmp_file_path = tmp_file.name
+
+            # Calculate SHA256
+            sha256_hash = hashlib.sha256()
+            with open(tmp_file_path, 'rb') as f:
+                for chunk in iter(lambda: f.read(8192), b''):
+                    sha256_hash.update(chunk)
+
+            actual_sha256 = sha256_hash.hexdigest()
+
+            # Verify checksum if provided
+            if expected_sha256 and actual_sha256 != expected_sha256:
+                os.unlink(tmp_file_path)
+                raise ValueError(
+                    f"Checksum mismatch for {file_path}: "
+                    f"expected {expected_sha256}, got {actual_sha256}"
+                )
+
+            # Store in pool via StorageManager
+            pool_path = self.storage.add_repository_file(
+                Path(tmp_file_path),
+                filename=Path(file_path).name,
+                sha256=actual_sha256
+            )
+
+            # Create RepositoryFile record
+            repo_file = RepositoryFile(
+                file_category="kickstart",
+                file_type=file_type,
+                original_path=file_path,
+                pool_path=pool_path,
+                sha256=actual_sha256,
+                size_bytes=os.path.getsize(tmp_file_path)
+            )
+
+            session.add(repo_file)
+            repository.repository_files.append(repo_file)
+            session.commit()
+
+            # Clean up temp file
+            os.unlink(tmp_file_path)
+
+            print(f"    ✓ Stored {file_type} ({actual_sha256[:8]}...)")
+
+        except Exception as e:
+            # Clean up on error
+            if os.path.exists(tmp_file.name):
+                os.unlink(tmp_file.name)
+            raise
+
+    def _store_treeinfo(
+        self,
+        session: Session,
+        repository: Repository,
+        treeinfo_content: str
+    ) -> None:
+        """Store .treeinfo file itself as RepositoryFile.
+
+        Args:
+            session: Database session
+            repository: Repository instance
+            treeinfo_content: .treeinfo file content
+        """
+        # Write to temp file
+        tmp_file = tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.treeinfo')
+        tmp_file.write(treeinfo_content)
+        tmp_file.close()
+        tmp_path = tmp_file.name
+
+        try:
+            # Calculate SHA256
+            sha256_hash = hashlib.sha256(treeinfo_content.encode()).hexdigest()
+
+            # Store in pool
+            pool_path = self.storage.add_repository_file(
+                Path(tmp_path),
+                filename=".treeinfo",
+                sha256=sha256_hash
+            )
+
+            # Create RepositoryFile record
+            repo_file = RepositoryFile(
+                file_category="kickstart",
+                file_type="treeinfo",
+                original_path=".treeinfo",
+                pool_path=pool_path,
+                sha256=sha256_hash,
+                size_bytes=len(treeinfo_content)
+            )
+
+            session.add(repo_file)
+            repository.repository_files.append(repo_file)
+            session.commit()
+
+            print("  ✓ Stored .treeinfo")
+
+        finally:
+            # Clean up temp file
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)

@@ -583,3 +583,158 @@ def test_rpm_publisher_metadata_xml_well_formed(
     with gzip.open(target_path / "repodata" / "primary.xml.gz", "rb") as f:
         primary_content = f.read()
     assert b'<?xml version' in primary_content
+
+
+# Kickstart/Installer File Tests
+
+
+def test_rpm_publisher_publish_kickstart_files(
+    rpm_publisher, db_session, test_repository, tmp_path, temp_storage
+):
+    """Test publishing kickstart/installer files."""
+    from chantal.db.models import RepositoryFile
+    import os
+
+    # Create test installer files in pool
+    treeinfo_content = b"[general]\narch = x86_64\n"
+    treeinfo_file = tmp_path / ".treeinfo"
+    treeinfo_file.write_bytes(treeinfo_content)
+
+    boot_iso_content = b"fake boot ISO content" * 1000
+    boot_iso_file = tmp_path / "boot.iso"
+    boot_iso_file.write_bytes(boot_iso_content)
+
+    vmlinuz_content = b"fake vmlinuz content" * 100
+    vmlinuz_file = tmp_path / "vmlinuz"
+    vmlinuz_file.write_bytes(vmlinuz_content)
+
+    # Add files to storage pool
+    import hashlib
+    treeinfo_sha256 = hashlib.sha256(treeinfo_content).hexdigest()
+    boot_iso_sha256 = hashlib.sha256(boot_iso_content).hexdigest()
+    vmlinuz_sha256 = hashlib.sha256(vmlinuz_content).hexdigest()
+
+    _, treeinfo_pool_path, _ = temp_storage.add_repository_file(
+        treeinfo_file, ".treeinfo"
+    )
+    _, boot_iso_pool_path, _ = temp_storage.add_repository_file(
+        boot_iso_file, "boot.iso"
+    )
+    _, vmlinuz_pool_path, _ = temp_storage.add_repository_file(
+        vmlinuz_file, "vmlinuz"
+    )
+
+    # Create RepositoryFile records
+    kickstart_files = [
+        RepositoryFile(
+            file_category="kickstart",
+            file_type="treeinfo",
+            original_path=".treeinfo",
+            pool_path=treeinfo_pool_path,
+            sha256=treeinfo_sha256,
+            size_bytes=len(treeinfo_content),
+        ),
+        RepositoryFile(
+            file_category="kickstart",
+            file_type="boot.iso",
+            original_path="images/boot.iso",
+            pool_path=boot_iso_pool_path,
+            sha256=boot_iso_sha256,
+            size_bytes=len(boot_iso_content),
+        ),
+        RepositoryFile(
+            file_category="kickstart",
+            file_type="kernel",
+            original_path="images/pxeboot/vmlinuz",
+            pool_path=vmlinuz_pool_path,
+            sha256=vmlinuz_sha256,
+            size_bytes=len(vmlinuz_content),
+        ),
+    ]
+
+    # Add to repository
+    for rf in kickstart_files:
+        db_session.add(rf)
+        test_repository.repository_files.append(rf)
+    db_session.commit()
+
+    # Publish kickstart files
+    target_path = tmp_path / "published"
+    target_path.mkdir()
+
+    rpm_publisher._publish_kickstart_files(kickstart_files, target_path)
+
+    # Verify .treeinfo was published to root
+    assert (target_path / ".treeinfo").exists()
+    assert (target_path / ".treeinfo").read_bytes() == treeinfo_content
+
+    # Verify boot.iso was published to images/
+    assert (target_path / "images" / "boot.iso").exists()
+    assert (target_path / "images" / "boot.iso").read_bytes() == boot_iso_content
+
+    # Verify vmlinuz was published to images/pxeboot/
+    assert (target_path / "images" / "pxeboot" / "vmlinuz").exists()
+    assert (target_path / "images" / "pxeboot" / "vmlinuz").read_bytes() == vmlinuz_content
+
+    # Verify they are hardlinks (same inode as pool files)
+    treeinfo_pool = temp_storage.pool_path / treeinfo_pool_path
+    boot_iso_pool = temp_storage.pool_path / boot_iso_pool_path
+    vmlinuz_pool = temp_storage.pool_path / vmlinuz_pool_path
+
+    assert (target_path / ".treeinfo").stat().st_ino == treeinfo_pool.stat().st_ino
+    assert (target_path / "images" / "boot.iso").stat().st_ino == boot_iso_pool.stat().st_ino
+    assert (target_path / "images" / "pxeboot" / "vmlinuz").stat().st_ino == vmlinuz_pool.stat().st_ino
+
+
+def test_rpm_publisher_publish_with_kickstart_integration(
+    rpm_publisher, db_session, test_repository, test_package, repo_config, tmp_path, temp_storage
+):
+    """Test full publish workflow with both packages and kickstart files."""
+    from chantal.db.models import RepositoryFile
+    import hashlib
+
+    # Create kickstart file
+    treeinfo_content = b"[general]\narch = x86_64\n"
+    treeinfo_file = tmp_path / ".treeinfo"
+    treeinfo_file.write_bytes(treeinfo_content)
+
+    treeinfo_sha256 = hashlib.sha256(treeinfo_content).hexdigest()
+    _, treeinfo_pool_path, _ = temp_storage.add_repository_file(
+        treeinfo_file, ".treeinfo"
+    )
+
+    # Create RepositoryFile record
+    kickstart_file = RepositoryFile(
+        file_category="kickstart",
+        file_type="treeinfo",
+        original_path=".treeinfo",
+        pool_path=treeinfo_pool_path,
+        sha256=treeinfo_sha256,
+        size_bytes=len(treeinfo_content),
+    )
+
+    db_session.add(kickstart_file)
+    test_repository.repository_files.append(kickstart_file)
+    db_session.commit()
+
+    # Publish repository
+    target_path = tmp_path / "published" / "repo-with-kickstart"
+
+    with patch.object(
+        rpm_publisher, "_get_repository_packages", return_value=[test_package]
+    ):
+        rpm_publisher.publish_repository(
+            db_session, test_repository, repo_config, target_path
+        )
+
+    # Verify packages were published
+    assert (target_path / "Packages").exists()
+    assert (target_path / "Packages" / test_package.filename).exists()
+
+    # Verify metadata was published
+    assert (target_path / "repodata" / "repomd.xml").exists()
+    assert (target_path / "repodata" / "primary.xml.gz").exists()
+
+    # Verify kickstart file was published
+    assert (target_path / ".treeinfo").exists()
+    assert (target_path / ".treeinfo").read_bytes() == treeinfo_content
