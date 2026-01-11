@@ -136,10 +136,16 @@ class RpmPublisher(PublisherPlugin):
         # Create hardlinks for metadata files
         published_metadata = self._publish_metadata_files(repository_files, repodata_path)
 
-        # Filter and regenerate updateinfo ONLY in filtered mode
+        # Filter and regenerate metadata ONLY in filtered mode
         # In mirror mode, all metadata is published as-is
         if mode == RepositoryMode.FILTERED:
             published_metadata = self._filter_and_regenerate_updateinfo(
+                packages, repodata_path, published_metadata
+            )
+            published_metadata = self._filter_and_regenerate_filelists(
+                packages, repodata_path, published_metadata
+            )
+            published_metadata = self._filter_and_regenerate_other(
                 packages, repodata_path, published_metadata
             )
 
@@ -541,3 +547,248 @@ class RpmPublisher(PublisherPlugin):
                 nvras.add(nvra)
 
         return nvras
+
+    def _build_package_pkgid_set(self, packages: List[ContentItem]) -> Set[str]:
+        """Build set of package IDs (SHA256) for filtering.
+
+        Args:
+            packages: List of ContentItem packages
+
+        Returns:
+            Set of pkgid strings (SHA256 checksums)
+        """
+        return {pkg.sha256 for pkg in packages}
+
+    def _filter_and_regenerate_filelists(
+        self,
+        packages: List[ContentItem],
+        repodata_path: Path,
+        published_metadata: List[Tuple[str, Path]]
+    ) -> List[Tuple[str, Path]]:
+        """Filter and regenerate filelists.xml based on available packages.
+
+        Args:
+            packages: List of available ContentItem packages
+            repodata_path: Path to repodata directory
+            published_metadata: List of (file_type, file_path) tuples
+
+        Returns:
+            Updated list of (file_type, file_path) tuples with filtered filelists
+        """
+        # Find filelists in published metadata
+        filelists_entry = None
+        filelists_index = None
+
+        for i, (file_type, file_path) in enumerate(published_metadata):
+            if file_type == "filelists":
+                filelists_entry = (file_type, file_path)
+                filelists_index = i
+                break
+
+        if not filelists_entry:
+            # No filelists to filter
+            return published_metadata
+
+        filelists_path = filelists_entry[1]
+
+        try:
+            # Build set of available package IDs
+            available_pkgids = self._build_package_pkgid_set(packages)
+
+            # Parse and filter filelists.xml
+            import lzma
+            import xml.etree.ElementTree as ET
+
+            # Decompress based on extension
+            if filelists_path.suffix == ".xz":
+                with lzma.open(filelists_path, "rb") as f:
+                    tree = ET.parse(f)
+            elif filelists_path.suffix == ".bz2":
+                with bz2.open(filelists_path, "rb") as f:
+                    tree = ET.parse(f)
+            elif filelists_path.suffix == ".gz":
+                with gzip.open(filelists_path, "rb") as f:
+                    tree = ET.parse(f)
+            else:
+                tree = ET.parse(filelists_path)
+
+            root = tree.getroot()
+            original_count = int(root.get("packages", "0"))
+
+            # Filter packages by pkgid
+            packages_to_remove = []
+            for package_elem in root.findall("{http://linux.duke.edu/metadata/filelists}package"):
+                pkgid = package_elem.get("pkgid")
+                if pkgid not in available_pkgids:
+                    packages_to_remove.append(package_elem)
+
+            for package_elem in packages_to_remove:
+                root.remove(package_elem)
+
+            # Update package count
+            filtered_count = len(root.findall("{http://linux.duke.edu/metadata/filelists}package"))
+            root.set("packages", str(filtered_count))
+
+            print(
+                f"Filtered filelists: {original_count} → {filtered_count} packages "
+                f"(removed {original_count - filtered_count} unavailable)"
+            )
+
+            # Write filtered XML to temp file
+            import tempfile
+            with tempfile.NamedTemporaryFile(
+                mode="wb", delete=False, suffix=".xml"
+            ) as tmp_f:
+                tree.write(tmp_f, encoding="UTF-8", xml_declaration=True)
+                tmp_xml_path = Path(tmp_f.name)
+
+            # Compress it
+            filtered_filelists_path = repodata_path / filelists_path.name
+
+            # Determine compression based on extension
+            if filelists_path.suffix == ".xz":
+                with open(tmp_xml_path, "rb") as f_in:
+                    with lzma.open(filtered_filelists_path, "wb") as f_out:
+                        shutil.copyfileobj(f_in, f_out)
+            elif filelists_path.suffix == ".bz2":
+                with open(tmp_xml_path, "rb") as f_in:
+                    with bz2.open(filtered_filelists_path, "wb") as f_out:
+                        shutil.copyfileobj(f_in, f_out)
+            elif filelists_path.suffix == ".gz":
+                with open(tmp_xml_path, "rb") as f_in:
+                    with gzip.open(filtered_filelists_path, "wb") as f_out:
+                        shutil.copyfileobj(f_in, f_out)
+            else:
+                # No compression
+                shutil.copy(tmp_xml_path, filtered_filelists_path)
+
+            # Clean up temp file
+            tmp_xml_path.unlink()
+
+            # Replace in published_metadata list
+            updated_metadata = published_metadata.copy()
+            updated_metadata[filelists_index] = ("filelists", filtered_filelists_path)
+
+            return updated_metadata
+
+        except Exception as e:
+            print(f"Warning: Failed to filter filelists: {e}")
+            # Return original metadata if filtering fails
+            return published_metadata
+
+    def _filter_and_regenerate_other(
+        self,
+        packages: List[ContentItem],
+        repodata_path: Path,
+        published_metadata: List[Tuple[str, Path]]
+    ) -> List[Tuple[str, Path]]:
+        """Filter and regenerate other.xml based on available packages.
+
+        Args:
+            packages: List of available ContentItem packages
+            repodata_path: Path to repodata directory
+            published_metadata: List of (file_type, file_path) tuples
+
+        Returns:
+            Updated list of (file_type, file_path) tuples with filtered other
+        """
+        # Find other in published metadata
+        other_entry = None
+        other_index = None
+
+        for i, (file_type, file_path) in enumerate(published_metadata):
+            if file_type == "other":
+                other_entry = (file_type, file_path)
+                other_index = i
+                break
+
+        if not other_entry:
+            # No other to filter
+            return published_metadata
+
+        other_path = other_entry[1]
+
+        try:
+            # Build set of available package IDs
+            available_pkgids = self._build_package_pkgid_set(packages)
+
+            # Parse and filter other.xml
+            import lzma
+            import xml.etree.ElementTree as ET
+
+            # Decompress based on extension
+            if other_path.suffix == ".xz":
+                with lzma.open(other_path, "rb") as f:
+                    tree = ET.parse(f)
+            elif other_path.suffix == ".bz2":
+                with bz2.open(other_path, "rb") as f:
+                    tree = ET.parse(f)
+            elif other_path.suffix == ".gz":
+                with gzip.open(other_path, "rb") as f:
+                    tree = ET.parse(f)
+            else:
+                tree = ET.parse(other_path)
+
+            root = tree.getroot()
+            original_count = int(root.get("packages", "0"))
+
+            # Filter packages by pkgid
+            packages_to_remove = []
+            for package_elem in root.findall("{http://linux.duke.edu/metadata/other}package"):
+                pkgid = package_elem.get("pkgid")
+                if pkgid not in available_pkgids:
+                    packages_to_remove.append(package_elem)
+
+            for package_elem in packages_to_remove:
+                root.remove(package_elem)
+
+            # Update package count
+            filtered_count = len(root.findall("{http://linux.duke.edu/metadata/other}package"))
+            root.set("packages", str(filtered_count))
+
+            print(
+                f"Filtered other: {original_count} → {filtered_count} packages "
+                f"(removed {original_count - filtered_count} unavailable)"
+            )
+
+            # Write filtered XML to temp file
+            import tempfile
+            with tempfile.NamedTemporaryFile(
+                mode="wb", delete=False, suffix=".xml"
+            ) as tmp_f:
+                tree.write(tmp_f, encoding="UTF-8", xml_declaration=True)
+                tmp_xml_path = Path(tmp_f.name)
+
+            # Compress it
+            filtered_other_path = repodata_path / other_path.name
+
+            # Determine compression based on extension
+            if other_path.suffix == ".xz":
+                with open(tmp_xml_path, "rb") as f_in:
+                    with lzma.open(filtered_other_path, "wb") as f_out:
+                        shutil.copyfileobj(f_in, f_out)
+            elif other_path.suffix == ".bz2":
+                with open(tmp_xml_path, "rb") as f_in:
+                    with bz2.open(filtered_other_path, "wb") as f_out:
+                        shutil.copyfileobj(f_in, f_out)
+            elif other_path.suffix == ".gz":
+                with open(tmp_xml_path, "rb") as f_in:
+                    with gzip.open(filtered_other_path, "wb") as f_out:
+                        shutil.copyfileobj(f_in, f_out)
+            else:
+                # No compression
+                shutil.copy(tmp_xml_path, filtered_other_path)
+
+            # Clean up temp file
+            tmp_xml_path.unlink()
+
+            # Replace in published_metadata list
+            updated_metadata = published_metadata.copy()
+            updated_metadata[other_index] = ("other", filtered_other_path)
+
+            return updated_metadata
+
+        except Exception as e:
+            print(f"Warning: Failed to filter other: {e}")
+            # Return original metadata if filtering fails
+            return published_metadata
