@@ -1021,6 +1021,10 @@ def _create_repository_snapshot(
         # Link packages to snapshot
         snapshot.content_items = packages
 
+        # Link repository files (metadata) to snapshot
+        session.refresh(repository)
+        snapshot.repository_files = list(repository.repository_files)
+
         session.add(snapshot)
         session.commit()
 
@@ -1110,6 +1114,11 @@ def _create_view_snapshot(
                 total_size_bytes=size_bytes,
             )
             snapshot.content_items = packages
+
+            # Link repository files (metadata) to snapshot
+            session.refresh(repo)
+            snapshot.repository_files = list(repo.repository_files)
+
             session.add(snapshot)
             session.flush()  # Get snapshot ID
 
@@ -1453,6 +1462,9 @@ def snapshot_copy(ctx: click.Context, source: str, target: str, repo_id: str, de
 
         # Copy content item relationships (NOT the files - they stay in pool)
         new_snapshot.content_items = list(source_snapshot.content_items)
+
+        # Copy repository file relationships (metadata)
+        new_snapshot.repository_files = list(source_snapshot.repository_files)
 
         session.add(new_snapshot)
         session.commit()

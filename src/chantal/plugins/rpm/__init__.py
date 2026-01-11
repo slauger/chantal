@@ -4,20 +4,26 @@ RPM/DNF repository publisher plugin.
 This module implements publishing for RPM repositories with yum/dnf metadata.
 """
 
+import bz2
 import gzip
 import hashlib
 import shutil
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Set, Tuple
 
 from sqlalchemy.orm import Session
 
 from chantal.core.config import RepositoryConfig
 from chantal.core.storage import StorageManager
-from chantal.db.models import ContentItem, Repository, RepositoryFile, Snapshot
+from chantal.db.models import ContentItem, Repository, RepositoryFile, RepositoryMode, Snapshot
 from chantal.plugins.base import PublisherPlugin
+from chantal.plugins.rpm.updateinfo import (
+    UpdateInfoFilter,
+    UpdateInfoGenerator,
+    UpdateInfoParser,
+)
 
 
 class RpmPublisher(PublisherPlugin):
@@ -63,7 +69,7 @@ class RpmPublisher(PublisherPlugin):
         repository_files = repository.repository_files
 
         # Publish packages and metadata
-        self._publish_packages(packages, target_path, repository_files)
+        self._publish_packages(packages, target_path, repository_files, repository.mode)
 
     def publish_snapshot(
         self,
@@ -90,7 +96,7 @@ class RpmPublisher(PublisherPlugin):
         repository_files = snapshot.repository_files
 
         # Publish packages and metadata
-        self._publish_packages(packages, target_path, repository_files)
+        self._publish_packages(packages, target_path, repository_files, repository.mode)
 
     def unpublish(self, target_path: Path) -> None:
         """Remove published RPM repository.
@@ -105,7 +111,8 @@ class RpmPublisher(PublisherPlugin):
         self,
         packages: List[ContentItem],
         target_path: Path,
-        repository_files: List[RepositoryFile] = None
+        repository_files: List[RepositoryFile] = None,
+        mode: str = RepositoryMode.MIRROR
     ) -> None:
         """Publish content items and generate metadata.
 
@@ -113,6 +120,7 @@ class RpmPublisher(PublisherPlugin):
             packages: List of content items to publish
             target_path: Target directory
             repository_files: List of repository files (metadata) to publish
+            mode: Repository mode (mirror/filtered/hosted)
         """
         if repository_files is None:
             repository_files = []
@@ -127,6 +135,13 @@ class RpmPublisher(PublisherPlugin):
 
         # Create hardlinks for metadata files
         published_metadata = self._publish_metadata_files(repository_files, repodata_path)
+
+        # Filter and regenerate updateinfo ONLY in filtered mode
+        # In mirror mode, all metadata is published as-is
+        if mode == RepositoryMode.FILTERED:
+            published_metadata = self._filter_and_regenerate_updateinfo(
+                packages, repodata_path, published_metadata
+            )
 
         # Generate primary.xml (always generated)
         primary_xml_path = self._generate_primary_xml(packages, repodata_path)
@@ -364,3 +379,117 @@ class RpmPublisher(PublisherPlugin):
         )
 
         return repomd_xml_path
+
+    def _filter_and_regenerate_updateinfo(
+        self,
+        packages: List[ContentItem],
+        repodata_path: Path,
+        published_metadata: List[Tuple[str, Path]]
+    ) -> List[Tuple[str, Path]]:
+        """Filter and regenerate updateinfo.xml based on available packages.
+
+        Args:
+            packages: List of available ContentItem packages
+            repodata_path: Path to repodata directory
+            published_metadata: List of (file_type, file_path) tuples
+
+        Returns:
+            Updated list of (file_type, file_path) tuples with filtered updateinfo
+        """
+        # Find updateinfo in published metadata
+        updateinfo_entry = None
+        updateinfo_index = None
+
+        for i, (file_type, file_path) in enumerate(published_metadata):
+            if file_type == "updateinfo":
+                updateinfo_entry = (file_type, file_path)
+                updateinfo_index = i
+                break
+
+        if not updateinfo_entry:
+            # No updateinfo to filter
+            return published_metadata
+
+        updateinfo_path = updateinfo_entry[1]
+
+        try:
+            # Parse updateinfo
+            parser = UpdateInfoParser()
+            updates = parser.parse_file(updateinfo_path)
+
+            # Build set of available package NVRAs
+            available_nvras = self._build_package_nvra_set(packages)
+
+            # Filter updates
+            filter_obj = UpdateInfoFilter()
+            filtered_updates = filter_obj.filter_updates(updates, available_nvras)
+
+            print(
+                f"Filtered updateinfo: {len(updates)} → {len(filtered_updates)} updates "
+                f"(removed {len(updates) - len(filtered_updates)} unavailable)"
+            )
+
+            # Generate new updateinfo.xml
+            generator = UpdateInfoGenerator()
+            filtered_xml = generator.generate_xml(filtered_updates)
+
+            # Write filtered XML to temp file
+            import tempfile
+            with tempfile.NamedTemporaryFile(
+                mode="wb", delete=False, suffix=".xml"
+            ) as tmp_f:
+                tmp_f.write(filtered_xml)
+                tmp_xml_path = Path(tmp_f.name)
+
+            # Compress it
+            filtered_updateinfo_path = repodata_path / updateinfo_path.name
+
+            # Determine compression based on extension
+            if updateinfo_path.suffix == ".bz2":
+                with open(tmp_xml_path, "rb") as f_in:
+                    with bz2.open(filtered_updateinfo_path, "wb") as f_out:
+                        shutil.copyfileobj(f_in, f_out)
+            elif updateinfo_path.suffix == ".gz":
+                with open(tmp_xml_path, "rb") as f_in:
+                    with gzip.open(filtered_updateinfo_path, "wb") as f_out:
+                        shutil.copyfileobj(f_in, f_out)
+            else:
+                # No compression
+                shutil.copy(tmp_xml_path, filtered_updateinfo_path)
+
+            # Clean up temp file
+            tmp_xml_path.unlink()
+
+            # Replace in published_metadata list
+            updated_metadata = published_metadata.copy()
+            updated_metadata[updateinfo_index] = ("updateinfo", filtered_updateinfo_path)
+
+            return updated_metadata
+
+        except Exception as e:
+            print(f"Warning: Failed to filter updateinfo: {e}")
+            # Return original metadata if filtering fails
+            return published_metadata
+
+    def _build_package_nvra_set(self, packages: List[ContentItem]) -> Set[str]:
+        """Build set of package NVRAs for filtering.
+
+        Args:
+            packages: List of ContentItem packages
+
+        Returns:
+            Set of NVRA strings (name-version-release.arch)
+        """
+        nvras = set()
+
+        for pkg in packages:
+            name = pkg.name
+            version = pkg.version
+            release = pkg.content_metadata.get("release", "")
+            arch = pkg.content_metadata.get("arch", "")
+
+            if name and version and release and arch:
+                nvra = f"{name}-{version}-{release}.{arch}"
+                nvras.add(nvra)
+
+        return nvras

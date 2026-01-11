@@ -5,6 +5,7 @@ This module defines the database schema for packages, repositories,
 snapshots, and their relationships.
 """
 
+import enum
 from datetime import datetime
 from typing import Optional
 
@@ -12,6 +13,7 @@ from sqlalchemy import (
     Boolean,
     Column,
     DateTime,
+    Enum,
     ForeignKey,
     Index,
     Integer,
@@ -22,6 +24,18 @@ from sqlalchemy import (
     UniqueConstraint,
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+
+
+class RepositoryMode(str, enum.Enum):
+    """Repository operation modes.
+
+    - MIRROR: Full mirror, no filtering, metadata unchanged
+    - FILTERED: Selective packages (max_packages, include_pattern), metadata filtered
+    - HOSTED: Self-hosted packages (for future use)
+    """
+    MIRROR = "mirror"
+    FILTERED = "filtered"
+    HOSTED = "hosted"
 
 
 class Base(DeclarativeBase):
@@ -80,6 +94,11 @@ class Repository(Base):
     type: Mapped[str] = mapped_column(String(50), nullable=False)  # rpm, apt
     feed: Mapped[str] = mapped_column(Text, nullable=False)  # upstream URL (Pulp terminology)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    mode: Mapped[str] = mapped_column(
+        Enum(RepositoryMode),
+        default=RepositoryMode.MIRROR,
+        nullable=False
+    )
 
     # Paths
     latest_path: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
