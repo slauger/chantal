@@ -56,8 +56,7 @@ jobs:
         run: |
           echo "Running mypy type checker..."
           mypy src/chantal/ --ignore-missing-imports
-        continue-on-error: true
-        # TODO: Set to false once type errors are fixed
+        continue-on-error: false
         # Note: Using strict type checking as configured in pyproject.toml
         #       (disallow_untyped_defs, disallow_incomplete_defs, etc.)
 
