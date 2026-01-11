@@ -111,12 +111,18 @@ class ApkSyncer:
 
                 # Check if package already exists (by SHA256 in our pool)
                 # Note: APK uses SHA1, but we calculate SHA256 for our universal pool
-                # We'll check by name+version first, then download and calculate SHA256
-                existing = session.query(ContentItem).filter_by(
+                # We need to check architecture too, since same name+version for different archs are different binaries
+                candidates = session.query(ContentItem).filter_by(
                     content_type="apk",
                     name=metadata.name,
                     version=metadata.version,
-                ).first()
+                ).all()
+
+                existing = None
+                for candidate in candidates:
+                    if candidate.content_metadata.get("architecture") == metadata.architecture:
+                        existing = candidate
+                        break
 
                 if existing:
                     # Package already exists - link to repository if not already linked
