@@ -18,7 +18,7 @@ from chantal.core.storage import StorageManager
 from chantal.db.models import Base, ContentItem, Repository, Snapshot
 from chantal.plugins.rpm.models import RpmMetadata
 from chantal.plugins.base import PublisherPlugin
-from chantal.plugins.rpm import RpmPublisher
+from chantal.plugins.rpm.publisher import RpmPublisher
 
 
 # Test fixtures

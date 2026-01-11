@@ -7,21 +7,14 @@ This module tests the RpmSyncPlugin implementation, focusing on kickstart suppor
 import pytest
 from unittest.mock import MagicMock
 
-from chantal.plugins.rpm_sync import RpmSyncPlugin
+from chantal.plugins.rpm.sync import RpmSyncPlugin
+from chantal.plugins.rpm import parsers
 
 
 class TestTreeInfoParsing:
     """Tests for .treeinfo parsing."""
 
-    @pytest.fixture
-    def rpm_sync_plugin(self):
-        """Create RpmSyncPlugin instance for testing."""
-        config = MagicMock()
-        config.feed = "https://example.com/repo"
-        storage = MagicMock()
-        return RpmSyncPlugin(config, storage)
-
-    def test_parse_treeinfo_basic(self, rpm_sync_plugin):
+    def test_parse_treeinfo_basic(self):
         """Test parsing basic .treeinfo file."""
         treeinfo_content = """
 [general]
@@ -40,7 +33,7 @@ kernel = images/pxeboot/vmlinuz
 initrd = images/pxeboot/initrd.img
 """
 
-        installer_files = rpm_sync_plugin._parse_treeinfo(treeinfo_content)
+        installer_files = parsers.parse_treeinfo(treeinfo_content)
 
         # Verify we got 3 files
         assert len(installer_files) == 3
@@ -60,7 +53,7 @@ initrd = images/pxeboot/initrd.img
         assert initrd['path'] == 'images/pxeboot/initrd.img'
         assert initrd['sha256'] == '95b778a741fd237d7daf982989ceaafa4496c3ed23376e734f0410c78b09781b'
 
-    def test_parse_treeinfo_no_checksums(self, rpm_sync_plugin):
+    def test_parse_treeinfo_no_checksums(self):
         """Test parsing .treeinfo without checksums section."""
         treeinfo_content = """
 [general]
@@ -71,7 +64,7 @@ boot.iso = images/boot.iso
 kernel = images/pxeboot/vmlinuz
 """
 
-        installer_files = rpm_sync_plugin._parse_treeinfo(treeinfo_content)
+        installer_files = parsers.parse_treeinfo(treeinfo_content)
 
         # Verify we got 2 files
         assert len(installer_files) == 2
@@ -80,7 +73,7 @@ kernel = images/pxeboot/vmlinuz
         for file_info in installer_files:
             assert file_info['sha256'] is None
 
-    def test_parse_treeinfo_different_arch(self, rpm_sync_plugin):
+    def test_parse_treeinfo_different_arch(self):
         """Test parsing .treeinfo with different architecture."""
         treeinfo_content = """
 [general]
@@ -97,7 +90,7 @@ kernel = images/pxeboot/vmlinuz
 boot.iso = images/boot-x86.iso
 """
 
-        installer_files = rpm_sync_plugin._parse_treeinfo(treeinfo_content)
+        installer_files = parsers.parse_treeinfo(treeinfo_content)
 
         # Should only parse images-aarch64 section
         assert len(installer_files) == 2
@@ -108,16 +101,16 @@ boot.iso = images/boot-x86.iso
         assert 'images/pxeboot/vmlinuz' in paths
         assert 'images/boot-x86.iso' not in paths
 
-    def test_parse_treeinfo_empty(self, rpm_sync_plugin):
+    def test_parse_treeinfo_empty(self):
         """Test parsing empty .treeinfo file."""
         treeinfo_content = "[general]\narch = x86_64\n"
 
-        installer_files = rpm_sync_plugin._parse_treeinfo(treeinfo_content)
+        installer_files = parsers.parse_treeinfo(treeinfo_content)
 
         # Should return empty list
         assert installer_files == []
 
-    def test_parse_treeinfo_no_arch(self, rpm_sync_plugin):
+    def test_parse_treeinfo_no_arch(self):
         """Test parsing .treeinfo without arch specification (defaults to x86_64)."""
         treeinfo_content = """
 [general]
@@ -130,13 +123,13 @@ images/boot.iso = sha256:abc123
 boot.iso = images/boot.iso
 """
 
-        installer_files = rpm_sync_plugin._parse_treeinfo(treeinfo_content)
+        installer_files = parsers.parse_treeinfo(treeinfo_content)
 
         # Should default to x86_64
         assert len(installer_files) == 1
         assert installer_files[0]['path'] == 'images/boot.iso'
 
-    def test_parse_treeinfo_real_centos_stream(self, rpm_sync_plugin):
+    def test_parse_treeinfo_real_centos_stream(self):
         """Test parsing real CentOS Stream .treeinfo format."""
         treeinfo_content = """
 [checksums]
@@ -171,7 +164,7 @@ instimage = images/install.img
 mainimage = images/install.img
 """
 
-        installer_files = rpm_sync_plugin._parse_treeinfo(treeinfo_content)
+        installer_files = parsers.parse_treeinfo(treeinfo_content)
 
         # Verify we got all 4 files from images-x86_64 section
         assert len(installer_files) == 4

@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from chantal.core.storage import StorageManager
 from chantal.db.models import ContentItem, Repository, View, ViewSnapshot
-from chantal.plugins.rpm import RpmPublisher
+from chantal.plugins.rpm.publisher import RpmPublisher
 
 
 class ViewPublisher(RpmPublisher):

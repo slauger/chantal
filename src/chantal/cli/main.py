@@ -17,10 +17,12 @@ from chantal.core.storage import StorageManager
 from chantal.db.connection import DatabaseManager
 from chantal.db.models import Repository, Snapshot, SyncHistory, ContentItem
 from chantal.db import migrations
-from chantal.plugins.rpm_sync import RpmSyncPlugin, CheckUpdatesResult, PackageUpdate
-from chantal.plugins.rpm import RpmPublisher
-from chantal.plugins.helm import HelmSyncer, HelmPublisher
-from chantal.plugins.apk import ApkSyncer, ApkPublisher
+from chantal.plugins.rpm.sync import RpmSyncPlugin, CheckUpdatesResult, PackageUpdate
+from chantal.plugins.rpm.publisher import RpmPublisher
+from chantal.plugins.helm.sync import HelmSyncer
+from chantal.plugins.helm.publisher import HelmPublisher
+from chantal.plugins.apk.sync import ApkSyncer
+from chantal.plugins.apk.publisher import ApkPublisher
 
 # Click context settings to enable -h as alias for --help
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
@@ -3124,7 +3126,7 @@ def _publish_repository_snapshot(
 ) -> None:
     """Publish a repository snapshot."""
     from chantal.db.models import Repository, Snapshot
-    from chantal.plugins.rpm import RpmPublisher
+    from chantal.plugins.rpm.publisher import RpmPublisher
 
     with db_manager.session() as session:
         # Get snapshot from database

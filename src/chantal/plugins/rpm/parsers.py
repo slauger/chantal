@@ -1,0 +1,340 @@
+"""
+RPM repository metadata parsers.
+
+This module provides functions for parsing RPM repository metadata files.
+"""
+
+import configparser
+import gzip
+import lzma
+import xml.etree.ElementTree as ET
+from pathlib import Path
+from typing import Dict, List, Optional
+from urllib.parse import urljoin
+
+import requests
+
+
+def fetch_repomd_xml(session: requests.Session, base_url: str) -> ET.Element:
+    """Fetch and parse repomd.xml.
+
+    Args:
+        session: Requests session (with auth/SSL configured)
+        base_url: Base URL of repository
+
+    Returns:
+        XML root element
+
+    Raises:
+        requests.RequestException: On HTTP errors
+        ET.ParseError: On XML parse errors
+    """
+    repomd_url = urljoin(base_url + "/", "repodata/repomd.xml")
+    response = session.get(repomd_url, timeout=30)
+    response.raise_for_status()
+    return ET.fromstring(response.content)
+
+
+def extract_primary_location(repomd_root: ET.Element) -> str:
+    """Extract primary.xml.gz location from repomd.xml.
+
+    Args:
+        repomd_root: Parsed repomd.xml root element
+
+    Returns:
+        Relative path to primary.xml.gz
+
+    Raises:
+        ValueError: If primary location not found
+    """
+    # Handle XML namespaces
+    ns = {"repo": "http://linux.duke.edu/metadata/repo"}
+
+    # Find data element with type="primary"
+    data_elem = repomd_root.find("repo:data[@type='primary']", ns)
+    if data_elem is None:
+        # Try without namespace
+        data_elem = repomd_root.find("data[@type='primary']")
+        if data_elem is None:
+            raise ValueError("Primary metadata location not found in repomd.xml")
+
+    location_elem = data_elem.find("repo:location", ns)
+    if location_elem is None:
+        location_elem = data_elem.find("location")
+        if location_elem is None:
+            raise ValueError("Primary location element not found")
+
+    location = location_elem.get("href")
+    if not location:
+        raise ValueError("Primary location href attribute missing")
+
+    return location
+
+
+def extract_all_metadata(repomd_root: ET.Element) -> List[Dict]:
+    """Extract all metadata file information from repomd.xml.
+
+    Args:
+        repomd_root: Parsed repomd.xml root element
+
+    Returns:
+        List of dicts with metadata file information
+        Each dict contains: file_type, location, checksum, size, open_checksum, open_size
+
+    Raises:
+        ValueError: If metadata parsing fails
+    """
+    # Handle XML namespaces
+    ns = {"repo": "http://linux.duke.edu/metadata/repo"}
+
+    metadata_files = []
+
+    # Find all data elements
+    data_elems = repomd_root.findall("repo:data", ns)
+    if not data_elems:
+        # Try without namespace
+        data_elems = repomd_root.findall("data")
+
+    for data_elem in data_elems:
+        try:
+            # Get type attribute
+            file_type = data_elem.get("type")
+            if not file_type:
+                continue
+
+            # Find location element
+            location_elem = data_elem.find("repo:location", ns)
+            if location_elem is None:
+                location_elem = data_elem.find("location")
+            if location_elem is None:
+                continue
+
+            location = location_elem.get("href")
+            if not location:
+                continue
+
+            # Find checksum element
+            checksum_elem = data_elem.find("repo:checksum", ns)
+            if checksum_elem is None:
+                checksum_elem = data_elem.find("checksum")
+            if checksum_elem is None or not checksum_elem.text:
+                continue
+
+            # Find size element
+            size_elem = data_elem.find("repo:size", ns)
+            if size_elem is None:
+                size_elem = data_elem.find("size")
+            size = int(size_elem.text) if size_elem is not None and size_elem.text else 0
+
+            # Optional: open-checksum and open-size
+            open_checksum_elem = data_elem.find("repo:open-checksum", ns)
+            if open_checksum_elem is None:
+                open_checksum_elem = data_elem.find("open-checksum")
+            open_checksum = open_checksum_elem.text if open_checksum_elem is not None else None
+
+            open_size_elem = data_elem.find("repo:open-size", ns)
+            if open_size_elem is None:
+                open_size_elem = data_elem.find("open-size")
+            open_size = int(open_size_elem.text) if open_size_elem is not None and open_size_elem.text else None
+
+            # Create metadata file info dict
+            metadata_info = {
+                "file_type": file_type,
+                "location": location,
+                "checksum": checksum_elem.text,
+                "size": size,
+                "open_checksum": open_checksum,
+                "open_size": open_size,
+            }
+            metadata_files.append(metadata_info)
+
+        except Exception as e:
+            # Skip malformed entries
+            print(f"Warning: Failed to parse metadata entry: {e}")
+            continue
+
+    return metadata_files
+
+
+def fetch_primary_xml(
+    session: requests.Session,
+    base_url: str,
+    primary_location: str
+) -> bytes:
+    """Download and decompress primary.xml.gz or primary.xml.xz.
+
+    Args:
+        session: Requests session (with auth/SSL configured)
+        base_url: Base URL of repository
+        primary_location: Relative path to primary.xml.gz or primary.xml.xz
+
+    Returns:
+        Decompressed XML content as bytes
+
+    Raises:
+        requests.RequestException: On HTTP errors
+        ValueError: If compression format is unknown
+    """
+    primary_url = urljoin(base_url + "/", primary_location)
+    response = session.get(primary_url, timeout=60)
+    response.raise_for_status()
+
+    # Decompress based on file extension
+    if primary_location.endswith('.xz'):
+        xml_content = lzma.decompress(response.content)
+    elif primary_location.endswith('.gz'):
+        xml_content = gzip.decompress(response.content)
+    else:
+        # Try to auto-detect based on magic bytes
+        if response.content[:2] == b'\x1f\x8b':  # gzip magic
+            xml_content = gzip.decompress(response.content)
+        elif response.content[:6] == b'\xfd7zXZ\x00':  # xz magic
+            xml_content = lzma.decompress(response.content)
+        else:
+            raise ValueError(f"Unknown compression format for {primary_location}")
+
+    return xml_content
+
+
+def parse_primary_xml(xml_content: bytes) -> List[Dict]:
+    """Parse primary.xml content and extract package metadata.
+
+    Args:
+        xml_content: Decompressed primary.xml content
+
+    Returns:
+        List of dicts with package metadata
+        Each dict contains: name, version, release, epoch, arch, sha256, size_bytes,
+        location, summary, description, build_time, file_time, group, license,
+        vendor, sourcerpm
+    """
+    root = ET.fromstring(xml_content)
+    packages = []
+
+    # Handle namespace
+    ns = {"common": "http://linux.duke.edu/metadata/common"}
+
+    # Find all package elements
+    package_elems = root.findall("common:package", ns)
+    if not package_elems:
+        # Try without namespace
+        package_elems = root.findall("package")
+
+    for pkg_elem in package_elems:
+        try:
+            # Namespace URI for common elements
+            ns_uri = "{http://linux.duke.edu/metadata/common}"
+            rpm_ns = "{http://linux.duke.edu/metadata/rpm}"
+
+            # Extract basic info
+            name_elem = pkg_elem.find(f"{ns_uri}name")
+            arch_elem = pkg_elem.find(f"{ns_uri}arch")
+            version_elem = pkg_elem.find(f"{ns_uri}version")
+            checksum_elem = pkg_elem.find(f"{ns_uri}checksum")
+            size_elem = pkg_elem.find(f"{ns_uri}size")
+            location_elem = pkg_elem.find(f"{ns_uri}location")
+            summary_elem = pkg_elem.find(f"{ns_uri}summary")
+            desc_elem = pkg_elem.find(f"{ns_uri}description")
+
+            # Extract extended metadata
+            time_elem = pkg_elem.find(f"{ns_uri}time")
+            format_elem = pkg_elem.find(f"{ns_uri}format")
+
+            # Extract RPM-specific metadata from <format> element
+            group = None
+            license_str = None
+            vendor = None
+            sourcerpm = None
+            if format_elem is not None:
+                group_elem = format_elem.find(f"{rpm_ns}group")
+                license_elem = format_elem.find(f"{rpm_ns}license")
+                vendor_elem = format_elem.find(f"{rpm_ns}vendor")
+                sourcerpm_elem = format_elem.find(f"{rpm_ns}sourcerpm")
+
+                group = group_elem.text if group_elem is not None else None
+                license_str = license_elem.text if license_elem is not None else None
+                vendor = vendor_elem.text if vendor_elem is not None else None
+                sourcerpm = sourcerpm_elem.text if sourcerpm_elem is not None else None
+
+            # Extract time metadata
+            build_time = None
+            file_time = None
+            if time_elem is not None:
+                build_time_str = time_elem.get("build")
+                file_time_str = time_elem.get("file")
+                build_time = int(build_time_str) if build_time_str else None
+                file_time = int(file_time_str) if file_time_str else None
+
+            # ElementTree elements can be falsy even if not None, so check explicitly
+            if name_elem is None or arch_elem is None or version_elem is None or checksum_elem is None or location_elem is None:
+                continue  # Skip incomplete packages
+
+            pkg_meta = {
+                "name": name_elem.text,
+                "version": version_elem.get("ver"),
+                "release": version_elem.get("rel") or "",
+                "epoch": version_elem.get("epoch"),
+                "arch": arch_elem.text,
+                "sha256": checksum_elem.text,
+                "size_bytes": int(size_elem.get("package")) if size_elem is not None else 0,
+                "location": location_elem.get("href"),
+                "summary": summary_elem.text if summary_elem is not None else None,
+                "description": desc_elem.text if desc_elem is not None else None,
+                "build_time": build_time,
+                "file_time": file_time,
+                "group": group,
+                "license": license_str,
+                "vendor": vendor,
+                "sourcerpm": sourcerpm,
+            }
+            packages.append(pkg_meta)
+
+        except Exception as e:
+            # Skip packages with parsing errors
+            print(f"Warning: Failed to parse package: {e}")
+            continue
+
+    return packages
+
+
+def parse_treeinfo(content: str) -> List[Dict[str, str]]:
+    """Parse .treeinfo and extract installer file metadata.
+
+    Args:
+        content: .treeinfo file content (INI format)
+
+    Returns:
+        List of dicts with keys: path, file_type, sha256
+    """
+    parser = configparser.ConfigParser()
+    parser.read_string(content)
+
+    installer_files = []
+
+    # Parse checksums section
+    checksums = {}
+    if parser.has_section('checksums'):
+        for key, value in parser.items('checksums'):
+            # Format: "images/boot.iso = sha256:abc123..."
+            if 'sha256:' in value:
+                checksum = value.split('sha256:')[1].strip()
+                checksums[key] = checksum
+
+    # Parse images section for current arch
+    arch = parser.get('general', 'arch', fallback='x86_64')
+    images_section = f'images-{arch}'
+
+    if parser.has_section(images_section):
+        for file_type, file_path in parser.items(images_section):
+            # file_type: boot.iso, kernel, initrd, etc.
+            # file_path: images/boot.iso, images/pxeboot/vmlinuz
+
+            sha256 = checksums.get(file_path)
+
+            installer_files.append({
+                'path': file_path,
+                'file_type': file_type,
+                'sha256': sha256
+            })
+
+    return installer_files
