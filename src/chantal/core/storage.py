@@ -36,6 +36,8 @@ class StorageManager:
         """
         self.config = config
         self.pool_path = config.get_pool_path()
+        self.content_pool = self.pool_path / "content"  # ContentItem (packages)
+        self.file_pool = self.pool_path / "files"       # RepositoryFile (metadata/installer)
         self.temp_path = config.get_temp_path()
         self.published_path = Path(config.published_path)
 
@@ -57,40 +59,44 @@ class StorageManager:
 
         return sha256_hash.hexdigest()
 
-    def get_pool_path(self, sha256: str, filename: str) -> str:
-        """Get relative pool path for a package.
+    def get_pool_path(self, sha256: str, filename: str, pool_type: str = "content") -> str:
+        """Get relative pool path for a file.
 
         Uses 2-level directory structure for better filesystem performance:
+        - Pool type subdirectory (content/ or files/)
         - First 2 chars of SHA256
         - Next 2 chars of SHA256
         - Full SHA256 + filename
 
-        Example: ab/cd/abc123...def456_nginx-1.20.1.rpm
+        Example: content/ab/cd/abc123...def456_nginx-1.20.1.rpm
+        Example: files/56/78/5678abc_updateinfo.xml.gz
 
         Args:
             sha256: SHA256 hash (64 hex chars)
             filename: Original filename
+            pool_type: Pool type - "content" for packages, "files" for metadata/installer
 
         Returns:
-            Relative pool path (e.g., "ab/cd/abc123_file.rpm")
+            Relative pool path (e.g., "content/ab/cd/abc123_file.rpm")
         """
         level1 = sha256[:2]
         level2 = sha256[2:4]
         pool_filename = f"{sha256}_{filename}"
 
-        return f"{level1}/{level2}/{pool_filename}"
+        return f"{pool_type}/{level1}/{level2}/{pool_filename}"
 
-    def get_absolute_pool_path(self, sha256: str, filename: str) -> Path:
-        """Get absolute pool path for a package.
+    def get_absolute_pool_path(self, sha256: str, filename: str, pool_type: str = "content") -> Path:
+        """Get absolute pool path for a file.
 
         Args:
             sha256: SHA256 hash
             filename: Original filename
+            pool_type: Pool type - "content" for packages, "files" for metadata/installer
 
         Returns:
             Absolute path in pool
         """
-        relative_path = self.get_pool_path(sha256, filename)
+        relative_path = self.get_pool_path(sha256, filename, pool_type)
         return self.pool_path / relative_path
 
     def package_exists(self, sha256: str, filename: str) -> bool:
@@ -171,6 +177,72 @@ class StorageManager:
 
         return sha256, pool_path_rel, size_bytes
 
+    def add_repository_file(
+        self,
+        source_path: Path,
+        filename: str,
+        verify_checksum: bool = True
+    ) -> Tuple[str, str, int]:
+        """Add repository file (metadata/installer) to content-addressed pool.
+
+        Similar to add_package() but stores files in pool/files/ subdirectory.
+        If file with same SHA256 already exists, it won't be copied again
+        (instant deduplication).
+
+        Args:
+            source_path: Path to source file
+            filename: Original filename (without path)
+            verify_checksum: If True, verify SHA256 matches after copy
+
+        Returns:
+            Tuple of (sha256, pool_path, size_bytes)
+
+        Raises:
+            ValueError: If checksum verification fails
+            FileNotFoundError: If source file doesn't exist
+        """
+        if not source_path.exists():
+            raise FileNotFoundError(f"Source file not found: {source_path}")
+
+        # Calculate SHA256
+        sha256 = self.calculate_sha256(source_path)
+
+        # Get pool path (in files/ subdirectory)
+        pool_path_rel = self.get_pool_path(sha256, filename, pool_type="files")
+        pool_path_abs = self.pool_path / pool_path_rel
+
+        # Get file size
+        size_bytes = source_path.stat().st_size
+
+        # Check if already exists (deduplication)
+        if pool_path_abs.exists():
+            # Already in pool, verify checksum matches
+            existing_sha256 = self.calculate_sha256(pool_path_abs)
+            if existing_sha256 != sha256:
+                raise ValueError(
+                    f"Pool file exists but checksum mismatch: {pool_path_abs}"
+                )
+            return sha256, pool_path_rel, size_bytes
+
+        # Create directory structure
+        pool_path_abs.parent.mkdir(parents=True, exist_ok=True)
+
+        # Copy file to pool
+        shutil.copy2(source_path, pool_path_abs)
+
+        # Verify checksum if requested
+        if verify_checksum:
+            copied_sha256 = self.calculate_sha256(pool_path_abs)
+            if copied_sha256 != sha256:
+                # Checksum mismatch, remove bad file
+                pool_path_abs.unlink()
+                raise ValueError(
+                    f"Checksum verification failed after copy: "
+                    f"expected {sha256}, got {copied_sha256}"
+                )
+
+        return sha256, pool_path_rel, size_bytes
+
     def create_hardlink(
         self,
         sha256: str,
@@ -207,18 +279,25 @@ class StorageManager:
     def get_orphaned_files(self, session: Session) -> list[Path]:
         """Find files in pool that are not referenced in database.
 
+        Checks both ContentItem (packages) and RepositoryFile (metadata/installer)
+        tables to find orphaned files in both pool subdirectories.
+
         Args:
             session: Database session
 
         Returns:
             List of orphaned file paths
         """
+        from chantal.db.models import RepositoryFile
+
         orphaned = []
 
-        # Get all SHA256s from database
-        db_sha256s = {item.sha256 for item in session.query(ContentItem.sha256).all()}
+        # Get all SHA256s from BOTH tables
+        content_sha256s = {item.sha256 for item in session.query(ContentItem.sha256).all()}
+        file_sha256s = {item.sha256 for item in session.query(RepositoryFile.sha256).all()}
+        db_sha256s = content_sha256s | file_sha256s  # Union
 
-        # Scan pool directory
+        # Scan pool directory (both content/ and files/ subdirectories)
         if self.pool_path.exists():
             for pool_file in self.pool_path.rglob("*"):
                 if pool_file.is_file():
@@ -308,5 +387,7 @@ class StorageManager:
     def ensure_directories(self) -> None:
         """Ensure all required storage directories exist."""
         self.pool_path.mkdir(parents=True, exist_ok=True)
+        self.content_pool.mkdir(parents=True, exist_ok=True)  # pool/content/
+        self.file_pool.mkdir(parents=True, exist_ok=True)     # pool/files/
         self.temp_path.mkdir(parents=True, exist_ok=True)
         self.published_path.mkdir(parents=True, exist_ok=True)

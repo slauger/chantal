@@ -49,6 +49,25 @@ snapshot_content_items = Table(
     Column("content_item_id", Integer, ForeignKey("content_items.id"), primary_key=True),
 )
 
+# Association table for many-to-many relationship between repositories and repository files
+# This tracks which metadata/installer files are currently in a repository (the "latest" state)
+repository_repository_files = Table(
+    "repository_repository_files",
+    Base.metadata,
+    Column("repository_id", Integer, ForeignKey("repositories.id"), primary_key=True),
+    Column("repository_file_id", Integer, ForeignKey("repository_files.id"), primary_key=True),
+    Column("added_at", DateTime, default=datetime.utcnow, nullable=False),
+)
+
+# Association table for many-to-many relationship between snapshots and repository files
+# This tracks immutable point-in-time copies of repository metadata/installer files
+snapshot_repository_files = Table(
+    "snapshot_repository_files",
+    Base.metadata,
+    Column("snapshot_id", Integer, ForeignKey("snapshots.id"), primary_key=True),
+    Column("repository_file_id", Integer, ForeignKey("repository_files.id"), primary_key=True),
+)
+
 
 class Repository(Base):
     """Repository model - represents a configured RPM/APT repository."""
@@ -89,6 +108,9 @@ class Repository(Base):
     )
     content_items: Mapped[list["ContentItem"]] = relationship(
         "ContentItem", secondary=repository_content_items, back_populates="repositories"
+    )
+    repository_files: Mapped[list["RepositoryFile"]] = relationship(
+        "RepositoryFile", secondary=repository_repository_files, back_populates="repositories"
     )
 
     def __repr__(self) -> str:
@@ -209,6 +231,9 @@ class Snapshot(Base):
     repository: Mapped["Repository"] = relationship("Repository", back_populates="snapshots")
     content_items: Mapped[list["ContentItem"]] = relationship(
         "ContentItem", secondary=snapshot_content_items, back_populates="snapshots"
+    )
+    repository_files: Mapped[list["RepositoryFile"]] = relationship(
+        "RepositoryFile", secondary=snapshot_repository_files, back_populates="snapshots"
     )
 
     # Unique constraint: snapshot name must be unique per repository
@@ -383,3 +408,78 @@ class ViewSnapshot(Base):
 
     def __repr__(self) -> str:
         return f"<ViewSnapshot(name='{self.name}', view_id={self.view_id}, snapshots={len(self.snapshot_ids)})>"
+
+
+class RepositoryFile(Base):
+    """Repository metadata and installer files.
+
+    Stores non-package files like:
+    - Metadata: updateinfo.xml, filelists.xml, comps.xml, modules.yaml, etc.
+    - Signatures: repomd.xml.asc, Release.gpg
+    - Kickstart: vmlinuz, initrd.img, .treeinfo
+    - Debian installer: debian-installer/
+    - SUSE specific: susedata.xml, patterns.xml, products.xml
+
+    Uses content-addressed storage like ContentItem - files can be shared
+    across multiple repositories and snapshots.
+    """
+
+    __tablename__ = "repository_files"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+
+    # Classification (NO ENUM - flexible for future SUSE/other formats!)
+    file_category: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
+    # Values: "metadata", "signature", "kickstart", "debian-installer"
+
+    file_type: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    # Values: "updateinfo", "filelists", "comps", "modules",
+    #         "vmlinuz", "initrd", ".treeinfo",
+    #         "susedata", "suseinfo", "patterns", "products" (SUSE future)
+
+    # Content-addressed storage (in pool/files/ subdirectory)
+    sha256: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    pool_path: Mapped[str] = mapped_column(Text, nullable=False)
+    # Format: "files/ab/cd/abc123_updateinfo.xml.gz"
+    size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    # Publishing path (preserve exact upstream structure)
+    original_path: Mapped[str] = mapped_column(Text, nullable=False)
+    # Examples:
+    #   "repodata/abc123-updateinfo.xml.gz"
+    #   "images/pxeboot/vmlinuz"
+    #   ".treeinfo"
+    #   "v3.19/main/x86_64/APKINDEX.tar.gz"
+
+    # Flexible metadata (type-specific info stored as JSON)
+    # Note: Named 'file_metadata' because 'metadata' is reserved by SQLAlchemy
+    file_metadata: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    # Examples:
+    #   {"checksum_type": "sha256", "open_checksum": "xyz", "timestamp": 123456}
+    #   {"kernel_version": "5.14.0-362.8.1.el9_3"}
+
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
+
+    # Relationships (many-to-many like ContentItem)
+    repositories: Mapped[list["Repository"]] = relationship(
+        "Repository", secondary=repository_repository_files, back_populates="repository_files"
+    )
+    snapshots: Mapped[list["Snapshot"]] = relationship(
+        "Snapshot", secondary=snapshot_repository_files, back_populates="repository_files"
+    )
+
+    # Indexes for common queries
+    __table_args__ = (
+        # Composite index for common query: "get all updateinfo files for repo X"
+        Index("idx_repo_file_category", "file_category"),
+        Index("idx_repo_file_type", "file_type"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<RepositoryFile(category='{self.file_category}', type='{self.file_type}', path='{self.original_path}', sha256='{self.sha256[:8]}...')>"

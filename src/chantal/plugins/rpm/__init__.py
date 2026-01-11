@@ -10,13 +10,13 @@ import shutil
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from pathlib import Path
-from typing import List
+from typing import List, Tuple
 
 from sqlalchemy.orm import Session
 
 from chantal.core.config import RepositoryConfig
 from chantal.core.storage import StorageManager
-from chantal.db.models import ContentItem, Repository, Snapshot
+from chantal.db.models import ContentItem, Repository, RepositoryFile, Snapshot
 from chantal.plugins.base import PublisherPlugin
 
 
@@ -58,8 +58,12 @@ class RpmPublisher(PublisherPlugin):
         # Get packages
         packages = self._get_repository_packages(session, repository)
 
+        # Get repository files (metadata)
+        session.refresh(repository)
+        repository_files = repository.repository_files
+
         # Publish packages and metadata
-        self._publish_packages(packages, target_path)
+        self._publish_packages(packages, target_path, repository_files)
 
     def publish_snapshot(
         self,
@@ -81,8 +85,12 @@ class RpmPublisher(PublisherPlugin):
         # Get packages from snapshot
         packages = self._get_snapshot_packages(session, snapshot)
 
+        # Get repository files (metadata) from snapshot
+        session.refresh(snapshot)
+        repository_files = snapshot.repository_files
+
         # Publish packages and metadata
-        self._publish_packages(packages, target_path)
+        self._publish_packages(packages, target_path, repository_files)
 
     def unpublish(self, target_path: Path) -> None:
         """Remove published RPM repository.
@@ -96,14 +104,19 @@ class RpmPublisher(PublisherPlugin):
     def _publish_packages(
         self,
         packages: List[ContentItem],
-        target_path: Path
+        target_path: Path,
+        repository_files: List[RepositoryFile] = None
     ) -> None:
         """Publish content items and generate metadata.
 
         Args:
             packages: List of content items to publish
             target_path: Target directory
+            repository_files: List of repository files (metadata) to publish
         """
+        if repository_files is None:
+            repository_files = []
+
         # Create directory structure
         target_path.mkdir(parents=True, exist_ok=True)
         repodata_path = target_path / "repodata"
@@ -112,11 +125,19 @@ class RpmPublisher(PublisherPlugin):
         # Create hardlinks for packages
         self._create_hardlinks(packages, target_path, subdir="Packages")
 
-        # Generate metadata
+        # Create hardlinks for metadata files
+        published_metadata = self._publish_metadata_files(repository_files, repodata_path)
+
+        # Generate primary.xml (always generated)
         primary_xml_path = self._generate_primary_xml(packages, repodata_path)
+
+        # Add primary to published metadata list
+        published_metadata.append(("primary", primary_xml_path))
+
+        # Generate repomd.xml with all metadata entries
         repomd_xml_path = self._generate_repomd_xml(
             repodata_path,
-            primary_xml_path
+            published_metadata
         )
 
     def _generate_primary_xml(
@@ -213,32 +234,66 @@ class RpmPublisher(PublisherPlugin):
 
         return primary_xml_gz_path
 
+    def _publish_metadata_files(
+        self,
+        repository_files: List[RepositoryFile],
+        repodata_path: Path
+    ) -> List[Tuple[str, Path]]:
+        """Create hardlinks for repository metadata files.
+
+        Args:
+            repository_files: List of RepositoryFile instances
+            repodata_path: Path to repodata directory
+
+        Returns:
+            List of tuples (file_type, published_path) for each published file
+        """
+        published = []
+
+        for repo_file in repository_files:
+            # Only publish metadata files (not kickstart, etc.)
+            if repo_file.file_category != "metadata":
+                continue
+
+            # Get pool path
+            pool_file_path = self.storage.pool_path / repo_file.pool_path
+
+            if not pool_file_path.exists():
+                print(f"Warning: Pool file not found: {pool_file_path}")
+                continue
+
+            # Extract filename
+            filename = Path(repo_file.original_path).name
+
+            # Target path in repodata/
+            target_path = repodata_path / filename
+
+            # Create hardlink
+            if target_path.exists():
+                target_path.unlink()
+
+            import os
+            os.link(pool_file_path, target_path)
+
+            # Add to published list
+            published.append((repo_file.file_type, target_path))
+
+        return published
+
     def _generate_repomd_xml(
         self,
         repodata_path: Path,
-        primary_xml_path: Path
+        metadata_files: List[Tuple[str, Path]]
     ) -> Path:
         """Generate repomd.xml root metadata file.
 
         Args:
             repodata_path: Path to repodata directory
-            primary_xml_path: Path to primary.xml.gz
+            metadata_files: List of (file_type, file_path) tuples for all metadata
 
         Returns:
             Path to generated repomd.xml
         """
-        # Calculate checksum and size of primary.xml.gz
-        with open(primary_xml_path, "rb") as f:
-            primary_data = f.read()
-            primary_sha256 = hashlib.sha256(primary_data).hexdigest()
-            primary_size = len(primary_data)
-
-        # Calculate checksum of uncompressed primary.xml
-        with gzip.open(primary_xml_path, "rb") as f:
-            primary_open_data = f.read()
-            primary_open_sha256 = hashlib.sha256(primary_open_data).hexdigest()
-            primary_open_size = len(primary_open_data)
-
         # Create repomd.xml
         repomd = ET.Element("repomd")
         repomd.set("xmlns", "http://linux.duke.edu/metadata/repo")
@@ -248,29 +303,53 @@ class RpmPublisher(PublisherPlugin):
         revision = ET.SubElement(repomd, "revision")
         revision.text = str(int(datetime.utcnow().timestamp()))
 
-        # Primary data entry
-        data = ET.SubElement(repomd, "data")
-        data.set("type", "primary")
+        # Add data entry for each metadata file
+        for file_type, file_path in metadata_files:
+            # Calculate checksum and size of compressed file
+            with open(file_path, "rb") as f:
+                file_data = f.read()
+                file_sha256 = hashlib.sha256(file_data).hexdigest()
+                file_size = len(file_data)
 
-        checksum = ET.SubElement(data, "checksum")
-        checksum.set("type", "sha256")
-        checksum.text = primary_sha256
+            # Calculate checksum of uncompressed file (if gzipped)
+            try:
+                if file_path.suffix == ".gz":
+                    with gzip.open(file_path, "rb") as f:
+                        open_data = f.read()
+                        open_sha256 = hashlib.sha256(open_data).hexdigest()
+                        open_size = len(open_data)
+                else:
+                    # Not compressed
+                    open_sha256 = file_sha256
+                    open_size = file_size
+            except Exception:
+                # If decompression fails, use compressed values
+                open_sha256 = file_sha256
+                open_size = file_size
 
-        open_checksum = ET.SubElement(data, "open-checksum")
-        open_checksum.set("type", "sha256")
-        open_checksum.text = primary_open_sha256
+            # Create data entry
+            data = ET.SubElement(repomd, "data")
+            data.set("type", file_type)
 
-        location = ET.SubElement(data, "location")
-        location.set("href", f"repodata/{primary_xml_path.name}")
+            checksum = ET.SubElement(data, "checksum")
+            checksum.set("type", "sha256")
+            checksum.text = file_sha256
 
-        timestamp = ET.SubElement(data, "timestamp")
-        timestamp.text = str(int(datetime.utcnow().timestamp()))
+            open_checksum = ET.SubElement(data, "open-checksum")
+            open_checksum.set("type", "sha256")
+            open_checksum.text = open_sha256
 
-        size = ET.SubElement(data, "size")
-        size.text = str(primary_size)
+            location = ET.SubElement(data, "location")
+            location.set("href", f"repodata/{file_path.name}")
 
-        open_size = ET.SubElement(data, "open-size")
-        open_size.text = str(primary_open_size)
+            timestamp = ET.SubElement(data, "timestamp")
+            timestamp.text = str(int(datetime.utcnow().timestamp()))
+
+            size = ET.SubElement(data, "size")
+            size.text = str(file_size)
+
+            open_size_elem = ET.SubElement(data, "open-size")
+            open_size_elem.text = str(open_size)
 
         # Write repomd.xml
         tree = ET.ElementTree(repomd)

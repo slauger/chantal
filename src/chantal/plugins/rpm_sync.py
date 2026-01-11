@@ -32,7 +32,7 @@ from chantal.core.config import (
     TimeFilterConfig,
 )
 from chantal.core.storage import StorageManager
-from chantal.db.models import ContentItem, Repository
+from chantal.db.models import ContentItem, Repository, RepositoryFile
 from chantal.plugins.rpm.models import RpmMetadata
 
 
@@ -64,6 +64,18 @@ class PackageMetadata:
 
 
 @dataclass
+class MetadataFileInfo:
+    """Information about a metadata file from repomd.xml."""
+
+    file_type: str  # e.g., "primary", "updateinfo", "filelists", "other", "comps", "modules"
+    location: str  # Relative path (e.g., "repodata/abc123-updateinfo.xml.gz")
+    checksum: str  # SHA256 checksum
+    size: int  # File size in bytes
+    open_checksum: Optional[str] = None  # Checksum of uncompressed file
+    open_size: Optional[int] = None  # Size of uncompressed file
+
+
+@dataclass
 class SyncResult:
     """Result of a repository sync operation."""
 
@@ -71,6 +83,7 @@ class SyncResult:
     packages_skipped: int  # Already in pool
     packages_total: int
     bytes_downloaded: int
+    metadata_files_downloaded: int  # Number of metadata files downloaded
     success: bool
     error_message: Optional[str] = None
 
@@ -312,9 +325,30 @@ class RpmSyncPlugin:
                     print(f"  → ERROR: Failed to download: {e}")
                     # Continue with next package
 
+            # Step 7: Download metadata files
+            print(f"\nDownloading metadata files...")
+            metadata_files = self._extract_all_metadata(repomd_root)
+            metadata_downloaded = 0
+
+            for metadata_info in metadata_files:
+                # Skip primary (already used for package sync)
+                if metadata_info.file_type == "primary":
+                    continue
+
+                try:
+                    self._download_metadata_file(
+                        metadata_info, session, repository, self.config.feed
+                    )
+                    metadata_downloaded += 1
+                    print(f"  → Downloaded {metadata_info.file_type}.xml.gz")
+                except Exception as e:
+                    print(f"  → Warning: Failed to download {metadata_info.file_type}: {e}")
+                    # Continue with next metadata file
+
             print(f"\nSync complete!")
-            print(f"  Downloaded: {packages_downloaded}")
-            print(f"  Skipped: {packages_skipped}")
+            print(f"  Packages downloaded: {packages_downloaded}")
+            print(f"  Packages skipped: {packages_skipped}")
+            print(f"  Metadata files downloaded: {metadata_downloaded}")
             print(f"  Total size: {bytes_downloaded / 1024 / 1024:.2f} MB")
 
             return SyncResult(
@@ -322,6 +356,7 @@ class RpmSyncPlugin:
                 packages_skipped=packages_skipped,
                 packages_total=len(packages),
                 bytes_downloaded=bytes_downloaded,
+                metadata_files_downloaded=metadata_downloaded,
                 success=True,
             )
 
@@ -332,6 +367,7 @@ class RpmSyncPlugin:
                 packages_skipped=0,
                 packages_total=0,
                 bytes_downloaded=0,
+                metadata_files_downloaded=0,
                 success=False,
                 error_message=str(e),
             )
@@ -528,6 +564,173 @@ class RpmSyncPlugin:
             raise ValueError("Primary location href attribute missing")
 
         return location
+
+    def _extract_all_metadata(self, repomd_root: ET.Element) -> List[MetadataFileInfo]:
+        """Extract all metadata file information from repomd.xml.
+
+        Args:
+            repomd_root: Parsed repomd.xml root element
+
+        Returns:
+            List of metadata file information
+
+        Raises:
+            ValueError: If metadata parsing fails
+        """
+        # Handle XML namespaces
+        ns = {"repo": "http://linux.duke.edu/metadata/repo"}
+
+        metadata_files = []
+
+        # Find all data elements
+        data_elems = repomd_root.findall("repo:data", ns)
+        if not data_elems:
+            # Try without namespace
+            data_elems = repomd_root.findall("data")
+
+        for data_elem in data_elems:
+            try:
+                # Get type attribute
+                file_type = data_elem.get("type")
+                if not file_type:
+                    continue
+
+                # Find location element
+                location_elem = data_elem.find("repo:location", ns)
+                if location_elem is None:
+                    location_elem = data_elem.find("location")
+                if location_elem is None:
+                    continue
+
+                location = location_elem.get("href")
+                if not location:
+                    continue
+
+                # Find checksum element
+                checksum_elem = data_elem.find("repo:checksum", ns)
+                if checksum_elem is None:
+                    checksum_elem = data_elem.find("checksum")
+                if checksum_elem is None or not checksum_elem.text:
+                    continue
+
+                # Find size element
+                size_elem = data_elem.find("repo:size", ns)
+                if size_elem is None:
+                    size_elem = data_elem.find("size")
+                size = int(size_elem.text) if size_elem is not None and size_elem.text else 0
+
+                # Optional: open-checksum and open-size
+                open_checksum_elem = data_elem.find("repo:open-checksum", ns)
+                if open_checksum_elem is None:
+                    open_checksum_elem = data_elem.find("open-checksum")
+                open_checksum = open_checksum_elem.text if open_checksum_elem is not None else None
+
+                open_size_elem = data_elem.find("repo:open-size", ns)
+                if open_size_elem is None:
+                    open_size_elem = data_elem.find("open-size")
+                open_size = int(open_size_elem.text) if open_size_elem is not None and open_size_elem.text else None
+
+                # Create metadata file info
+                metadata_info = MetadataFileInfo(
+                    file_type=file_type,
+                    location=location,
+                    checksum=checksum_elem.text,
+                    size=size,
+                    open_checksum=open_checksum,
+                    open_size=open_size,
+                )
+                metadata_files.append(metadata_info)
+
+            except Exception as e:
+                # Skip malformed entries
+                print(f"Warning: Failed to parse metadata entry: {e}")
+                continue
+
+        return metadata_files
+
+    def _download_metadata_file(
+        self,
+        metadata_info: MetadataFileInfo,
+        session: Session,
+        repository: Repository,
+        base_url: str,
+    ) -> None:
+        """Download metadata file and store as RepositoryFile.
+
+        Args:
+            metadata_info: Metadata file information
+            session: Database session
+            repository: Repository model instance
+            base_url: Base URL of repository
+
+        Raises:
+            requests.RequestException: On HTTP errors
+            ValueError: On checksum mismatch
+        """
+        # Download metadata file to temporary location
+        metadata_url = urljoin(base_url + "/", metadata_info.location)
+
+        with tempfile.NamedTemporaryFile(delete=False, suffix=f".{metadata_info.file_type}") as tmp_file:
+            tmp_path = Path(tmp_file.name)
+
+            try:
+                # Download file
+                response = self.session.get(metadata_url, timeout=60)
+                response.raise_for_status()
+
+                # Write to temp file
+                tmp_file.write(response.content)
+                tmp_file.flush()
+
+                # Extract filename from location
+                filename = Path(metadata_info.location).name
+
+                # Add to storage pool using add_repository_file
+                sha256, pool_path, size_bytes = self.storage.add_repository_file(
+                    tmp_path, filename, verify_checksum=True
+                )
+
+                # Verify SHA256 matches metadata (if provided)
+                if metadata_info.checksum and sha256 != metadata_info.checksum:
+                    raise ValueError(
+                        f"SHA256 mismatch for {metadata_info.file_type}: "
+                        f"expected {metadata_info.checksum}, got {sha256}"
+                    )
+
+                # Check if this RepositoryFile already exists
+                existing_file = session.query(RepositoryFile).filter_by(sha256=sha256).first()
+
+                if existing_file:
+                    # File already exists - just link to repository if not already linked
+                    if repository not in existing_file.repositories:
+                        existing_file.repositories.append(repository)
+                        session.commit()
+                else:
+                    # Create new RepositoryFile record
+                    repo_file = RepositoryFile(
+                        file_category="metadata",
+                        file_type=metadata_info.file_type,
+                        sha256=sha256,
+                        pool_path=pool_path,
+                        size_bytes=size_bytes,
+                        original_path=metadata_info.location,
+                        file_metadata={
+                            "checksum_type": "sha256",
+                            "open_checksum": metadata_info.open_checksum,
+                            "open_size": metadata_info.open_size,
+                        },
+                    )
+                    session.add(repo_file)
+                    session.commit()
+
+                    # Link to repository
+                    repo_file.repositories.append(repository)
+                    session.commit()
+
+            finally:
+                # Clean up temp file
+                if tmp_path.exists():
+                    tmp_path.unlink()
 
     def _fetch_primary_xml(
         self, base_url: str, primary_location: str

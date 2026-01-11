@@ -5,7 +5,7 @@ from datetime import datetime
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from chantal.db.models import Base, Repository, ContentItem, Snapshot, SyncHistory
+from chantal.db.models import Base, Repository, ContentItem, Snapshot, SyncHistory, RepositoryFile
 from chantal.plugins.rpm.models import RpmMetadata
 
 
@@ -288,3 +288,264 @@ def test_unique_constraints(db_session):
 
     with pytest.raises(Exception):  # SQLAlchemy will raise IntegrityError
         db_session.commit()
+
+# ============================================================================
+# RepositoryFile Tests
+# ============================================================================
+
+def test_create_repository_file(db_session):
+    """Test creating a repository file (metadata/installer)."""
+    repo_file = RepositoryFile(
+        file_category="metadata",
+        file_type="updateinfo",
+        sha256="abc123def456" * 4,  # 64 chars
+        pool_path="files/ab/c1/abc123def456_updateinfo.xml.gz",
+        size_bytes=524288,
+        original_path="repodata/abc123-updateinfo.xml.gz",
+        file_metadata={
+            "checksum_type": "sha256",
+            "open_checksum": "xyz789abc456" * 4,
+            "timestamp": 1704844800
+        }
+    )
+
+    db_session.add(repo_file)
+    db_session.commit()
+
+    # Query back
+    found = db_session.query(RepositoryFile).filter_by(file_type="updateinfo").first()
+    assert found is not None
+    assert found.file_category == "metadata"
+    assert found.size_bytes == 524288
+    assert found.file_metadata["checksum_type"] == "sha256"
+    assert found.original_path == "repodata/abc123-updateinfo.xml.gz"
+
+
+def test_repository_to_repository_file_relationship(db_session):
+    """Test many-to-many relationship between Repository and RepositoryFile."""
+    # Create repository
+    repo = Repository(
+        repo_id="rhel9-baseos",
+        name="RHEL 9 BaseOS",
+        type="rpm",
+        feed="https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/os",
+        enabled=True
+    )
+    db_session.add(repo)
+
+    # Create repository file
+    repo_file = RepositoryFile(
+        file_category="metadata",
+        file_type="updateinfo",
+        sha256="abc123" * 8,
+        pool_path="files/ab/c1/abc123_updateinfo.xml.gz",
+        size_bytes=100000,
+        original_path="repodata/updateinfo.xml.gz"
+    )
+    db_session.add(repo_file)
+
+    # Link repository to file
+    repo.repository_files.append(repo_file)
+    db_session.commit()
+
+    # Verify relationship from repository side
+    found_repo = db_session.query(Repository).filter_by(repo_id="rhel9-baseos").first()
+    assert len(found_repo.repository_files) == 1
+    assert found_repo.repository_files[0].file_type == "updateinfo"
+
+    # Verify relationship from file side
+    found_file = db_session.query(RepositoryFile).first()
+    assert len(found_file.repositories) == 1
+    assert found_file.repositories[0].repo_id == "rhel9-baseos"
+
+
+def test_snapshot_to_repository_file_relationship(db_session):
+    """Test many-to-many relationship between Snapshot and RepositoryFile."""
+    # Create repository
+    repo = Repository(
+        repo_id="rhel9-baseos",
+        name="RHEL 9 BaseOS",
+        type="rpm",
+        feed="https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/os"
+    )
+    db_session.add(repo)
+    db_session.commit()
+
+    # Create snapshot
+    snapshot = Snapshot(
+        repository_id=repo.id,
+        name="snapshot-2025-01-11",
+        description="Test snapshot",
+        package_count=0,
+        total_size_bytes=0
+    )
+    db_session.add(snapshot)
+
+    # Create repository file
+    repo_file = RepositoryFile(
+        file_category="metadata",
+        file_type="updateinfo",
+        sha256="def456" * 8,
+        pool_path="files/de/f4/def456_updateinfo.xml.gz",
+        size_bytes=200000,
+        original_path="repodata/def456-updateinfo.xml.gz"
+    )
+    db_session.add(repo_file)
+
+    # Link snapshot to file
+    snapshot.repository_files.append(repo_file)
+    db_session.commit()
+
+    # Verify relationship from snapshot side
+    found_snapshot = db_session.query(Snapshot).first()
+    assert len(found_snapshot.repository_files) == 1
+    assert found_snapshot.repository_files[0].file_type == "updateinfo"
+
+    # Verify relationship from file side
+    found_file = db_session.query(RepositoryFile).first()
+    assert len(found_file.snapshots) == 1
+    assert found_file.snapshots[0].name == "snapshot-2025-01-11"
+
+
+def test_repository_file_deduplication(db_session):
+    """Test that RepositoryFile uses SHA256 for deduplication."""
+    # Create two repositories
+    repo1 = Repository(
+        repo_id="rhel9-baseos",
+        name="RHEL 9 BaseOS",
+        type="rpm",
+        feed="https://example.com/rhel9/baseos"
+    )
+    repo2 = Repository(
+        repo_id="rhel9-appstream",
+        name="RHEL 9 AppStream",
+        type="rpm",
+        feed="https://example.com/rhel9/appstream"
+    )
+    db_session.add_all([repo1, repo2])
+
+    # Create one RepositoryFile (e.g., vmlinuz that's identical in both repos)
+    repo_file = RepositoryFile(
+        file_category="kickstart",
+        file_type="vmlinuz",
+        sha256="fedcba98" * 8,  # Same kernel
+        pool_path="files/fe/dc/fedcba98_vmlinuz",
+        size_bytes=10485760,  # 10MB
+        original_path="images/pxeboot/vmlinuz"
+    )
+    db_session.add(repo_file)
+
+    # Link to both repositories
+    repo1.repository_files.append(repo_file)
+    repo2.repository_files.append(repo_file)
+    db_session.commit()
+
+    # Verify only one RepositoryFile record exists
+    count = db_session.query(RepositoryFile).count()
+    assert count == 1
+
+    # Verify both repos reference it
+    found_file = db_session.query(RepositoryFile).first()
+    assert len(found_file.repositories) == 2
+    repo_ids = [r.repo_id for r in found_file.repositories]
+    assert "rhel9-baseos" in repo_ids
+    assert "rhel9-appstream" in repo_ids
+
+
+def test_snapshot_preserves_old_metadata(db_session):
+    """Test that snapshots preserve historical metadata versions."""
+    # Create repository
+    repo = Repository(
+        repo_id="rhel9-baseos",
+        name="RHEL 9 BaseOS",
+        type="rpm",
+        feed="https://example.com/rhel9/baseos"
+    )
+    db_session.add(repo)
+    db_session.commit()
+
+    # Create old metadata file
+    old_metadata = RepositoryFile(
+        file_category="metadata",
+        file_type="updateinfo",
+        sha256="old123abc" * 8,
+        pool_path="files/ol/d1/old123abc_updateinfo.xml.gz",
+        size_bytes=100000,
+        original_path="repodata/old123-updateinfo.xml.gz"
+    )
+    db_session.add(old_metadata)
+
+    # Link to repo and create snapshot
+    repo.repository_files.append(old_metadata)
+    snapshot1 = Snapshot(
+        repository_id=repo.id,
+        name="snapshot-2025-01-10",
+        package_count=0,
+        total_size_bytes=0
+    )
+    snapshot1.repository_files.append(old_metadata)
+    db_session.add(snapshot1)
+    db_session.commit()
+
+    # Simulate repo sync with new metadata (different SHA256)
+    new_metadata = RepositoryFile(
+        file_category="metadata",
+        file_type="updateinfo",
+        sha256="new456def" * 8,  # NEW SHA256
+        pool_path="files/ne/w4/new456def_updateinfo.xml.gz",
+        size_bytes=150000,
+        original_path="repodata/new456-updateinfo.xml.gz"  # Same path, new file
+    )
+    db_session.add(new_metadata)
+
+    # Remove old metadata from repo, add new
+    repo.repository_files.remove(old_metadata)
+    repo.repository_files.append(new_metadata)
+
+    # Create new snapshot
+    snapshot2 = Snapshot(
+        repository_id=repo.id,
+        name="snapshot-2025-01-11",
+        package_count=0,
+        total_size_bytes=0
+    )
+    snapshot2.repository_files.append(new_metadata)
+    db_session.add(snapshot2)
+    db_session.commit()
+
+    # Verify: old snapshot still has old metadata
+    found_snap1 = db_session.query(Snapshot).filter_by(name="snapshot-2025-01-10").first()
+    assert len(found_snap1.repository_files) == 1
+    assert found_snap1.repository_files[0].sha256 == "old123abc" * 8
+
+    # Verify: new snapshot has new metadata
+    found_snap2 = db_session.query(Snapshot).filter_by(name="snapshot-2025-01-11").first()
+    assert len(found_snap2.repository_files) == 1
+    assert found_snap2.repository_files[0].sha256 == "new456def" * 8
+
+    # Verify: both RepositoryFile records still exist in DB
+    assert db_session.query(RepositoryFile).count() == 2
+
+    # Verify: repo only has new metadata
+    found_repo = db_session.query(Repository).first()
+    assert len(found_repo.repository_files) == 1
+    assert found_repo.repository_files[0].sha256 == "new456def" * 8
+
+
+def test_repository_file_repr(db_session):
+    """Test RepositoryFile __repr__ method."""
+    repo_file = RepositoryFile(
+        file_category="kickstart",
+        file_type="vmlinuz",
+        sha256="test1234" * 8,
+        pool_path="files/te/st/test1234_vmlinuz",
+        size_bytes=10000,
+        original_path="images/pxeboot/vmlinuz"
+    )
+
+    repr_str = repr(repo_file)
+    assert "RepositoryFile" in repr_str
+    assert "kickstart" in repr_str
+    assert "vmlinuz" in repr_str
+    assert "images/pxeboot/vmlinuz" in repr_str
+    assert "test1234" in repr_str  # First 8 chars of SHA256

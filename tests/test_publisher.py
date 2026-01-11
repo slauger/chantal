@@ -427,9 +427,10 @@ def test_rpm_publisher_generate_repomd_xml(rpm_publisher, tmp_path):
     with gzip.open(primary_xml_path, "wb") as f:
         f.write(primary_xml_content)
 
-    # Generate repomd.xml
+    # Generate repomd.xml (with metadata files list)
+    metadata_files = [("primary", primary_xml_path)]
     repomd_xml_path = rpm_publisher._generate_repomd_xml(
-        repodata_path, primary_xml_path
+        repodata_path, metadata_files
     )
 
     # Verify file was created

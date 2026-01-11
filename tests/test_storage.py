@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from chantal.core.config import StorageConfig
 from chantal.core.storage import StorageManager
-from chantal.db.models import Base, ContentItem
+from chantal.db.models import Base, ContentItem, RepositoryFile
 from chantal.plugins.rpm.models import RpmMetadata
 
 
@@ -83,16 +83,17 @@ def test_get_pool_path(temp_storage):
 
     pool_path = temp_storage.get_pool_path(sha256, filename)
 
-    # Should use 2-level directory structure
-    assert pool_path.startswith("ab/cd/")
+    # Should use pool_type/2-level directory structure (default pool_type="content")
+    assert pool_path.startswith("content/ab/cd/")
     assert pool_path.endswith(f"{sha256}_{filename}")
 
     # Check format
     parts = pool_path.split("/")
-    assert len(parts) == 3
-    assert parts[0] == "ab"
-    assert parts[1] == "cd"
-    assert parts[2] == f"{sha256}_{filename}"
+    assert len(parts) == 4
+    assert parts[0] == "content"
+    assert parts[1] == "ab"
+    assert parts[2] == "cd"
+    assert parts[3] == f"{sha256}_{filename}"
 
 
 def test_get_absolute_pool_path(temp_storage):
@@ -364,3 +365,208 @@ def test_get_pool_statistics(temp_storage, test_file, db_session):
     assert stats["total_size_pool"] == size
     assert stats["orphaned_files"] == 0
     assert stats["deduplication_savings"] == 0  # No savings with single file
+
+
+# ============================================================================
+# RepositoryFile Storage Tests
+# ============================================================================
+
+def test_add_repository_file(temp_storage, test_file):
+    """Test adding repository file to storage pool."""
+    sha256, pool_path, size = temp_storage.add_repository_file(
+        test_file,
+        "updateinfo.xml.gz"
+    )
+
+    # Verify SHA256 was calculated
+    assert len(sha256) == 64
+    assert pool_path.startswith("files/")  # In files/ subdirectory
+    assert size == test_file.stat().st_size
+
+    # Verify file was copied to pool
+    pool_file = temp_storage.pool_path / pool_path
+    assert pool_file.exists()
+    assert pool_file.stat().st_size == size
+
+
+def test_add_repository_file_deduplication(temp_storage, test_file):
+    """Test that identical repository files are deduplicated."""
+    # Add file first time
+    sha256_1, pool_path_1, size_1 = temp_storage.add_repository_file(
+        test_file,
+        "updateinfo.xml.gz"
+    )
+
+    # Add same file again (different name)
+    sha256_2, pool_path_2, size_2 = temp_storage.add_repository_file(
+        test_file,
+        "filelists.xml.gz"  # Different name
+    )
+
+    # SHA256 should be same (same content)
+    assert sha256_1 == sha256_2
+
+    # Pool paths will differ (different filename in path)
+    assert pool_path_1 != pool_path_2
+
+    # Both files should exist (different names, but same content)
+    assert (temp_storage.pool_path / pool_path_1).exists()
+    assert (temp_storage.pool_path / pool_path_2).exists()
+
+
+def test_pool_subdirectories(temp_storage):
+    """Test that pool has content/ and files/ subdirectories."""
+    # Verify subdirectories were created
+    assert temp_storage.content_pool.exists()
+    assert temp_storage.file_pool.exists()
+    assert temp_storage.content_pool == temp_storage.pool_path / "content"
+    assert temp_storage.file_pool == temp_storage.pool_path / "files"
+
+
+def test_get_pool_path_with_pool_type(temp_storage):
+    """Test get_pool_path with pool_type parameter."""
+    sha256 = "a" * 64
+    filename = "test.rpm"
+
+    # Test content pool (default)
+    content_path = temp_storage.get_pool_path(sha256, filename)
+    assert content_path == f"content/aa/aa/{sha256}_test.rpm"
+
+    # Test files pool
+    files_path = temp_storage.get_pool_path(sha256, filename, pool_type="files")
+    assert files_path == f"files/aa/aa/{sha256}_test.rpm"
+
+
+def test_get_orphaned_files_with_repository_files(temp_storage, test_file, db_session):
+    """Test orphaned file detection includes both ContentItem and RepositoryFile."""
+    # Add file to pool as repository file
+    sha256, pool_path, _ = temp_storage.add_repository_file(test_file, "updateinfo.xml.gz")
+
+    # Create RepositoryFile in database
+    repo_file = RepositoryFile(
+        file_category="metadata",
+        file_type="updateinfo",
+        sha256=sha256,
+        pool_path=pool_path,
+        size_bytes=test_file.stat().st_size,
+        original_path="repodata/updateinfo.xml.gz"
+    )
+    db_session.add(repo_file)
+    db_session.commit()
+
+    # Check for orphans - should be empty (file is referenced)
+    orphaned = temp_storage.get_orphaned_files(db_session)
+    assert len(orphaned) == 0
+
+    # Delete from DB
+    db_session.delete(repo_file)
+    db_session.commit()
+
+    # Now should be orphaned
+    orphaned = temp_storage.get_orphaned_files(db_session)
+    assert len(orphaned) == 1
+    assert orphaned[0] == temp_storage.pool_path / pool_path
+
+
+def test_cleanup_orphaned_files_preserves_repository_files(temp_storage, test_file, db_session):
+    """Test that cleanup preserves repository files referenced in database."""
+    # Add file as repository file
+    sha256, pool_path, size = temp_storage.add_repository_file(test_file, "vmlinuz")
+
+    # Create RepositoryFile in database
+    repo_file = RepositoryFile(
+        file_category="kickstart",
+        file_type="vmlinuz",
+        sha256=sha256,
+        pool_path=pool_path,
+        size_bytes=size,
+        original_path="images/pxeboot/vmlinuz"
+    )
+    db_session.add(repo_file)
+    db_session.commit()
+
+    # Run cleanup
+    files_removed, bytes_freed = temp_storage.cleanup_orphaned_files(
+        db_session,
+        dry_run=False
+    )
+
+    # Nothing should be removed (file is referenced)
+    assert files_removed == 0
+    assert bytes_freed == 0
+
+    # File should still exist
+    assert (temp_storage.pool_path / pool_path).exists()
+
+
+def test_mixed_content_and_files_cleanup(temp_storage, db_session):
+    """Test cleanup with both ContentItem and RepositoryFile."""
+    # Create two different test files with different content
+    import tempfile
+
+    # File 1: Package file
+    with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".rpm") as f:
+        f.write("This is a package file.\n")
+        pkg_file = Path(f.name)
+
+    # File 2: Metadata file (different content = different SHA256)
+    with tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".xml") as f:
+        f.write("This is a metadata file with different content.\n")
+        meta_file = Path(f.name)
+
+    try:
+        # Add as package (content)
+        rpm_metadata = RpmMetadata(release="1", arch="x86_64")
+        sha256_pkg, pool_path_pkg, size_pkg = temp_storage.add_package(pkg_file, "test.rpm")
+
+        content_item = ContentItem(
+            content_type="rpm",
+            name="test-package",
+            version="1.0",
+            sha256=sha256_pkg,
+            size_bytes=size_pkg,
+            pool_path=pool_path_pkg,
+            filename="test.rpm",
+            content_metadata=rpm_metadata.model_dump(exclude_none=False)
+        )
+        db_session.add(content_item)
+
+        # Add as repository file
+        sha256_file, pool_path_file, size_file = temp_storage.add_repository_file(
+            meta_file,
+            "updateinfo.xml.gz"
+        )
+
+        repo_file = RepositoryFile(
+            file_category="metadata",
+            file_type="updateinfo",
+            sha256=sha256_file,
+            pool_path=pool_path_file,
+            size_bytes=size_file,
+            original_path="repodata/updateinfo.xml.gz"
+        )
+        db_session.add(repo_file)
+        db_session.commit()
+
+        # SHA256s should be different (different content)
+        assert sha256_pkg != sha256_file
+
+        # Both should be preserved
+        orphaned = temp_storage.get_orphaned_files(db_session)
+        assert len(orphaned) == 0
+
+        # Delete package from DB (but keep file)
+        db_session.delete(content_item)
+        db_session.commit()
+
+        # Package file should be orphaned, but not metadata file
+        orphaned = temp_storage.get_orphaned_files(db_session)
+        assert len(orphaned) == 1
+        assert orphaned[0] == temp_storage.pool_path / pool_path_pkg
+
+        # Metadata file should still be there
+        assert (temp_storage.pool_path / pool_path_file).exists()
+    finally:
+        # Cleanup temp files
+        pkg_file.unlink()
+        meta_file.unlink()
