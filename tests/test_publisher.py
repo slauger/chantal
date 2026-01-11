@@ -660,7 +660,7 @@ def test_rpm_publisher_publish_kickstart_files(
 
     # Publish kickstart files
     target_path = tmp_path / "published"
-    target_path.mkdir()
+    target_path.mkdir(exist_ok=True)  # May already exist due to StorageManager auto-creation
 
     rpm_publisher._publish_kickstart_files(kickstart_files, target_path)
 
