@@ -1,0 +1,55 @@
+# Kubernetes Official Helm Charts
+# Popular charts for Kubernetes infrastructure components
+
+repositories:
+  # Ingress NGINX - Most popular Kubernetes ingress controller
+  - id: ingress-nginx
+    name: Ingress NGINX Controller
+    type: helm
+    feed: https://kubernetes.github.io/ingress-nginx
+    enabled: true
+    filters:
+      post_processing:
+        only_latest_version: true
+
+  # Cert-Manager - Automatic TLS certificate management
+  - id: cert-manager
+    name: Cert-Manager
+    type: helm
+    feed: https://charts.jetstack.io
+    enabled: true
+    filters:
+      patterns:
+        include: ["^cert-manager$"]
+      post_processing:
+        only_latest_version: true
+
+  # Metrics Server - Kubernetes resource metrics
+  - id: metrics-server
+    name: Metrics Server
+    type: helm
+    feed: https://kubernetes-sigs.github.io/metrics-server/
+    enabled: true
+    filters:
+      post_processing:
+        only_latest_version: true
+
+  # External DNS - Automatic DNS record management
+  - id: external-dns
+    name: External DNS
+    type: helm
+    feed: https://kubernetes-sigs.github.io/external-dns/
+    enabled: true
+    filters:
+      post_processing:
+        only_latest_version: true
+
+  # Cluster Autoscaler - Automatic node scaling
+  - id: cluster-autoscaler
+    name: Cluster Autoscaler
+    type: helm
+    feed: https://kubernetes.github.io/autoscaler
+    enabled: true
+    filters:
+      post_processing:
+        only_latest_version: true

@@ -1,0 +1,72 @@
+# CI/CD Helm Charts
+# Charts for continuous integration and deployment tools
+
+repositories:
+  # GitLab - Complete DevOps platform
+  - id: gitlab
+    name: GitLab
+    type: helm
+    feed: https://charts.gitlab.io
+    enabled: true
+    filters:
+      patterns:
+        include:
+          - "^gitlab$"         # Full GitLab installation
+          - "^gitlab-runner$"  # GitLab CI/CD runners
+      post_processing:
+        only_latest_version: true
+
+  # ArgoCD - GitOps continuous delivery
+  - id: argocd
+    name: Argo CD
+    type: helm
+    feed: https://argoproj.github.io/argo-helm
+    enabled: true
+    filters:
+      patterns:
+        include:
+          - "^argo-cd$"
+          - "^argocd-apps$"
+          - "^argocd-image-updater$"
+      post_processing:
+        only_latest_version: true
+
+  # Jenkins - Automation server
+  - id: jenkins
+    name: Jenkins
+    type: helm
+    feed: https://charts.jenkins.io
+    enabled: true
+    filters:
+      patterns:
+        include:
+          - "^jenkins$"
+      post_processing:
+        only_latest_version: true
+
+  # Tekton - Cloud-native CI/CD
+  - id: tekton
+    name: Tekton Pipelines
+    type: helm
+    feed: https://charts.cd.foundation
+    enabled: true
+    filters:
+      patterns:
+        include:
+          - "^tekton-pipeline$"
+          - "^tekton-triggers$"
+      post_processing:
+        only_latest_version: true
+
+  # Harbor - Container registry
+  - id: harbor
+    name: Harbor Registry
+    type: helm
+    feed: https://helm.goharbor.io
+    enabled: true
+    filters:
+      patterns:
+        include:
+          - "^harbor$"
+      post_processing:
+        only_latest_version: true

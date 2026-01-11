@@ -1,0 +1,79 @@
+# Alpine Linux - Minimal Container Base
+# Selective mirroring of essential packages for container images
+# Use case: Air-gapped container builds, reproducible base images
+
+repositories:
+  # Minimal Alpine Base - Essential packages only
+  - id: alpine-v3.19-container-minimal
+    name: Alpine 3.19 - Minimal Container Base
+    type: apk
+    feed: https://dl-cdn.alpinelinux.org/alpine/
+    enabled: true
+    apk:
+      branch: v3.19
+      repository: main
+      architecture: x86_64
+    filters:
+      patterns:
+        include:
+          # Core system
+          - "^alpine-base$"
+          - "^alpine-baselayout$"
+          - "^alpine-baselayout-data$"
+          - "^alpine-keys$"
+          - "^apk-tools$"
+          - "^busybox$"
+          - "^busybox-binsh$"
+          # C library and utilities
+          - "^musl$"
+          - "^musl-utils$"
+          - "^libc-utils$"
+          # SSL/TLS support
+          - "^ca-certificates$"
+          - "^ca-certificates-bundle$"
+          - "^ssl_client$"
+          - "^libcrypto3$"
+          - "^libssl3$"
+          # Package management
+          - "^zlib$"
+      post_processing:
+        only_latest_version: true
+
+  # Extended Container Base - Common utilities
+  - id: alpine-v3.19-container-extended
+    name: Alpine 3.19 - Extended Container Base
+    type: apk
+    feed: https://dl-cdn.alpinelinux.org/alpine/
+    enabled: true
+    apk:
+      branch: v3.19
+      repository: main
+      architecture: x86_64
+    filters:
+      patterns:
+        include:
+          # Everything from minimal
+          - "^alpine-base$"
+          - "^alpine-baselayout.*$"
+          - "^alpine-keys$"
+          - "^apk-tools$"
+          - "^busybox.*$"
+          - "^musl.*$"
+          - "^libc-utils$"
+          - "^ca-certificates.*$"
+          - "^ssl_client$"
+          - "^libcrypto3$"
+          - "^libssl3$"
+          - "^zlib$"
+          # Additional common tools
+          - "^curl$"
+          - "^wget$"
+          - "^tar$"
+          - "^gzip$"
+          - "^bash$"
+          - "^coreutils$"
+          - "^findutils$"
+          - "^grep$"
+          - "^shadow$"  # For user/group management
+      post_processing:
+        only_latest_version: true

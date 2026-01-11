@@ -1,0 +1,60 @@
+# Alpine Linux 3.19 LTS
+# Latest stable release (January 2025)
+# Support until: May 2026
+
+repositories:
+  # Alpine 3.19 Main (x86_64)
+  - id: alpine-v3.19-main-x86_64
+    name: Alpine 3.19 Main (x86_64)
+    type: apk
+    feed: https://dl-cdn.alpinelinux.org/alpine/
+    enabled: true
+    apk:
+      branch: v3.19
+      repository: main
+      architecture: x86_64
+    filters:
+      post_processing:
+        only_latest_version: true
+
+  # Alpine 3.19 Community (x86_64)
+  - id: alpine-v3.19-community-x86_64
+    name: Alpine 3.19 Community (x86_64)
+    type: apk
+    feed: https://dl-cdn.alpinelinux.org/alpine/
+    enabled: true
+    apk:
+      branch: v3.19
+      repository: community
+      architecture: x86_64
+    filters:
+      post_processing:
+        only_latest_version: true
+
+  # Alpine 3.19 Main (aarch64) - ARM64
+  - id: alpine-v3.19-main-aarch64
+    name: Alpine 3.19 Main (aarch64)
+    type: apk
+    feed: https://dl-cdn.alpinelinux.org/alpine/
+    enabled: false  # Disabled by default, enable if needed
+    apk:
+      branch: v3.19
+      repository: main
+      architecture: aarch64
+    filters:
+      post_processing:
+        only_latest_version: true
+
+  # Alpine 3.19 Community (aarch64) - ARM64
+  - id: alpine-v3.19-community-aarch64
+    name: Alpine 3.19 Community (aarch64)
+    type: apk
+    feed: https://dl-cdn.alpinelinux.org/alpine/
+    enabled: false  # Disabled by default, enable if needed
+    apk:
+      branch: v3.19
+      repository: community
+      architecture: aarch64
+    filters:
+      post_processing:
+        only_latest_version: true

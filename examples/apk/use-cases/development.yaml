@@ -1,0 +1,96 @@
+# Alpine Linux - Development Tools
+# Packages for building and compiling software in containers
+
+repositories:
+  # Build Essentials - C/C++ development
+  - id: alpine-v3.19-build-essential
+    name: Alpine 3.19 - Build Essential
+    type: apk
+    feed: https://dl-cdn.alpinelinux.org/alpine/
+    enabled: true
+    apk:
+      branch: v3.19
+      repository: main
+      architecture: x86_64
+    filters:
+      patterns:
+        include:
+          # Core build tools
+          - "^build-base$"
+          - "^gcc$"
+          - "^g++$"
+          - "^make$"
+          - "^cmake$"
+          - "^autoconf$"
+          - "^automake$"
+          - "^libtool$"
+          - "^pkgconf$"
+          # Headers and development libraries
+          - "^linux-headers$"
+          - "^musl-dev$"
+          - "^libc-dev$"
+          - "^openssl-dev$"
+          - "^zlib-dev$"
+          # Version control
+          - "^git$"
+          - "^git-lfs$"
+      post_processing:
+        only_latest_version: true
+
+  # Python Development (from community)
+  - id: alpine-v3.19-python-dev
+    name: Alpine 3.19 - Python Development
+    type: apk
+    feed: https://dl-cdn.alpinelinux.org/alpine/
+    enabled: true
+    apk:
+      branch: v3.19
+      repository: community
+      architecture: x86_64
+    filters:
+      patterns:
+        include:
+          - "^python3$"
+          - "^python3-dev$"
+          - "^py3-pip$"
+          - "^py3-setuptools$"
+          - "^py3-wheel$"
+          - "^py3-virtualenv$"
+      post_processing:
+        only_latest_version: true
+
+  # Node.js Development (from community)
+  - id: alpine-v3.19-nodejs-dev
+    name: Alpine 3.19 - Node.js Development
+    type: apk
+    feed: https://dl-cdn.alpinelinux.org/alpine/
+    enabled: true
+    apk:
+      branch: v3.19
+      repository: community
+      architecture: x86_64
+    filters:
+      patterns:
+        include:
+          - "^nodejs$"
+          - "^npm$"
+          - "^yarn$"
+      post_processing:
+        only_latest_version: true
+
+  # Go Development (from community)
+  - id: alpine-v3.19-go-dev
+    name: Alpine 3.19 - Go Development
+    type: apk
+    feed: https://dl-cdn.alpinelinux.org/alpine/
+    enabled: true
+    apk:
+      branch: v3.19
+      repository: community
+      architecture: x86_64
+    filters:
+      patterns:
+        include:
+          - "^go$"
+      post_processing:
+        only_latest_version: true

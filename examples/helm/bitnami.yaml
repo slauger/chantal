@@ -1,0 +1,67 @@
+# Bitnami Helm Charts
+# High-quality, production-ready charts for common applications
+
+repositories:
+  # Bitnami - All Charts (Full Mirror)
+  # Warning: This is LARGE (~900+ charts)
+  # Consider using selective filtering instead
+  - id: bitnami-all
+    name: Bitnami - All Charts
+    type: helm
+    feed: https://charts.bitnami.com/bitnami
+    enabled: false  # Disabled by default due to size
+    filters:
+      post_processing:
+        only_latest_version: true
+
+  # Bitnami - Databases Only (Selective)
+  - id: bitnami-databases
+    name: Bitnami - Database Charts
+    type: helm
+    feed: https://charts.bitnami.com/bitnami
+    enabled: true
+    filters:
+      patterns:
+        include:
+          - "^postgresql$"
+          - "^mysql$"
+          - "^mariadb$"
+          - "^mongodb$"
+          - "^redis$"
+          - "^cassandra$"
+          - "^elasticsearch$"
+      post_processing:
+        only_latest_version: true
+
+  # Bitnami - Web Servers (Selective)
+  - id: bitnami-webservers
+    name: Bitnami - Web Server Charts
+    type: helm
+    feed: https://charts.bitnami.com/bitnami
+    enabled: true
+    filters:
+      patterns:
+        include:
+          - "^nginx$"
+          - "^apache$"
+          - "^nginx-ingress-controller$"
+      post_processing:
+        only_latest_version: true
+
+  # Bitnami - Application Infrastructure (Selective)
+  - id: bitnami-infrastructure
+    name: Bitnami - Infrastructure Charts
+    type: helm
+    feed: https://charts.bitnami.com/bitnami
+    enabled: true
+    filters:
+      patterns:
+        include:
+          - "^kafka$"
+          - "^rabbitmq$"
+          - "^etcd$"
+          - "^zookeeper$"
+          - "^consul$"
+          - "^minio$"
+      post_processing:
+        only_latest_version: true

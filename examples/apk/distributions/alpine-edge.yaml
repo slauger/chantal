@@ -1,0 +1,47 @@
+# Alpine Linux Edge
+# Rolling release - latest development version
+# Warning: Not recommended for production!
+
+repositories:
+  # Alpine Edge Main (x86_64)
+  - id: alpine-edge-main-x86_64
+    name: Alpine Edge Main (x86_64)
+    type: apk
+    feed: https://dl-cdn.alpinelinux.org/alpine/
+    enabled: false  # Disabled by default - edge is unstable
+    apk:
+      branch: edge
+      repository: main
+      architecture: x86_64
+    filters:
+      post_processing:
+        only_latest_version: true
+
+  # Alpine Edge Community (x86_64)
+  - id: alpine-edge-community-x86_64
+    name: Alpine Edge Community (x86_64)
+    type: apk
+    feed: https://dl-cdn.alpinelinux.org/alpine/
+    enabled: false  # Disabled by default - edge is unstable
+    apk:
+      branch: edge
+      repository: community
+      architecture: x86_64
+    filters:
+      post_processing:
+        only_latest_version: true
+
+  # Alpine Edge Testing (x86_64)
+  # Warning: Extremely unstable, only for development
+  - id: alpine-edge-testing-x86_64
+    name: Alpine Edge Testing (x86_64)
+    type: apk
+    feed: https://dl-cdn.alpinelinux.org/alpine/
+    enabled: false  # Disabled - testing is highly unstable
+    apk:
+      branch: edge
+      repository: testing
+      architecture: x86_64
+    filters:
+      post_processing:
+        only_latest_version: true

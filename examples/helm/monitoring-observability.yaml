@@ -1,0 +1,65 @@
+# Monitoring and Observability Helm Charts
+# Popular charts for Prometheus, Grafana, and logging stack
+
+repositories:
+  # Prometheus Community Charts
+  - id: prometheus-community
+    name: Prometheus Community
+    type: helm
+    feed: https://prometheus-community.github.io/helm-charts
+    enabled: true
+    filters:
+      patterns:
+        include:
+          - "^kube-prometheus-stack$"  # Full Prometheus + Grafana stack
+          - "^prometheus$"              # Prometheus only
+          - "^prometheus-operator$"     # Operator
+          - "^alertmanager$"            # Alertmanager
+          - "^prometheus-node-exporter$"
+          - "^prometheus-pushgateway$"
+      post_processing:
+        only_latest_version: true
+
+  # Grafana Official Charts
+  - id: grafana
+    name: Grafana
+    type: helm
+    feed: https://grafana.github.io/helm-charts
+    enabled: true
+    filters:
+      patterns:
+        include:
+          - "^grafana$"
+          - "^loki$"                    # Log aggregation
+          - "^promtail$"                # Log collector
+          - "^tempo$"                   # Distributed tracing
+          - "^mimir$"                   # Long-term metrics storage
+      post_processing:
+        only_latest_version: true
+
+  # Elastic Stack (ELK)
+  - id: elastic
+    name: Elastic Stack
+    type: helm
+    feed: https://helm.elastic.co
+    enabled: true
+    filters:
+      patterns:
+        include:
+          - "^elasticsearch$"
+          - "^kibana$"
+          - "^filebeat$"
+          - "^metricbeat$"
+          - "^logstash$"
+      post_processing:
+        only_latest_version: true
+
+  # Jaeger - Distributed Tracing
+  - id: jaeger
+    name: Jaeger Tracing
+    type: helm
+    feed: https://jaegertracing.github.io/helm-charts
+    enabled: true
+    filters:
+      post_processing:
+        only_latest_version: true

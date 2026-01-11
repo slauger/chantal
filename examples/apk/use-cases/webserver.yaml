@@ -1,0 +1,66 @@
+# Alpine Linux - Web Server Packages
+# Common web servers and related tools
+
+repositories:
+  # NGINX Web Server
+  - id: alpine-v3.19-nginx
+    name: Alpine 3.19 - NGINX
+    type: apk
+    feed: https://dl-cdn.alpinelinux.org/alpine/
+    enabled: true
+    apk:
+      branch: v3.19
+      repository: main
+      architecture: x86_64
+    filters:
+      patterns:
+        include:
+          - "^nginx$"
+          - "^nginx-mod-.*$"  # NGINX modules
+      post_processing:
+        only_latest_version: true
+
+  # Apache HTTP Server (from community)
+  - id: alpine-v3.19-apache
+    name: Alpine 3.19 - Apache HTTP Server
+    type: apk
+    feed: https://dl-cdn.alpinelinux.org/alpine/
+    enabled: true
+    apk:
+      branch: v3.19
+      repository: community
+      architecture: x86_64
+    filters:
+      patterns:
+        include:
+          - "^apache2$"
+          - "^apache2-.*$"  # Apache modules
+      post_processing:
+        only_latest_version: true
+
+  # PHP-FPM (from community)
+  - id: alpine-v3.19-php-fpm
+    name: Alpine 3.19 - PHP-FPM
+    type: apk
+    feed: https://dl-cdn.alpinelinux.org/alpine/
+    enabled: true
+    apk:
+      branch: v3.19
+      repository: community
+      architecture: x86_64
+    filters:
+      patterns:
+        include:
+          - "^php82$"
+          - "^php82-fpm$"
+          - "^php82-opcache$"
+          - "^php82-pdo$"
+          - "^php82-pdo_mysql$"
+          - "^php82-pdo_pgsql$"
+          - "^php82-mbstring$"
+          - "^php82-curl$"
+          - "^php82-json$"
+          - "^php82-xml$"
+          - "^php82-zip$"
+      post_processing:
+        only_latest_version: true
