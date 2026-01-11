@@ -418,8 +418,14 @@ def repo_show(ctx: click.Context, repo_id: str, output_format: str) -> None:
         repository = session.query(Repository).filter_by(repo_id=repo_id).first()
 
         if not repository:
-            click.echo(f"Error: Repository '{repo_id}' not found in database.", err=True)
-            click.echo("Run 'chantal repo list' to see available repositories.", err=True)
+            # Check if repository exists in configuration
+            repo_config = next((r for r in config.repositories if r.id == repo_id), None)
+            if repo_config:
+                click.echo(f"Error: Repository '{repo_id}' has not been synced yet.", err=True)
+                click.echo(f"Run 'chantal repo sync --repo-id {repo_id}' first.", err=True)
+            else:
+                click.echo(f"Error: Repository '{repo_id}' not found in configuration.", err=True)
+                click.echo("Run 'chantal repo list' to see available repositories.", err=True)
             ctx.exit(1)
 
         # Get repository config from YAML
@@ -741,8 +747,14 @@ def repo_history(ctx: click.Context, repo_id: str, limit: int, output_format: st
         repository = session.query(Repository).filter_by(repo_id=repo_id).first()
 
         if not repository:
-            click.echo(f"Error: Repository '{repo_id}' not found in database.", err=True)
-            click.echo("Run 'chantal repo list' to see available repositories.", err=True)
+            # Check if repository exists in configuration
+            repo_config = next((r for r in config.repositories if r.id == repo_id), None)
+            if repo_config:
+                click.echo(f"Error: Repository '{repo_id}' has not been synced yet.", err=True)
+                click.echo(f"Run 'chantal repo sync --repo-id {repo_id}' first.", err=True)
+            else:
+                click.echo(f"Error: Repository '{repo_id}' not found in configuration.", err=True)
+                click.echo("Run 'chantal repo list' to see available repositories.", err=True)
             ctx.exit(1)
 
         # Get sync history ordered by most recent first
@@ -960,8 +972,14 @@ def _create_repository_snapshot(
         # Get repository from database
         repository = session.query(Repository).filter_by(repo_id=repo_id).first()
         if not repository:
-            click.echo(f"Error: Repository '{repo_id}' not found in database.", err=True)
-            click.echo("Run 'chantal repo list' to see available repositories.", err=True)
+            # Check if repository exists in configuration
+            repo_config = next((r for r in config.repositories if r.id == repo_id), None)
+            if repo_config:
+                click.echo(f"Error: Repository '{repo_id}' has not been synced yet.", err=True)
+                click.echo(f"Run 'chantal repo sync --repo-id {repo_id}' first.", err=True)
+            else:
+                click.echo(f"Error: Repository '{repo_id}' not found in configuration.", err=True)
+                click.echo("Run 'chantal repo list' to see available repositories.", err=True)
             ctx.exit(1)
 
         # Check if snapshot with this name already exists
@@ -2809,7 +2827,8 @@ def _publish_single_repository(session, storage, global_config, repo_config, cus
     # Get repository from database
     repository = session.query(Repository).filter_by(repo_id=repo_config.id).first()
     if not repository:
-        click.echo(f"Error: Repository '{repo_config.id}' not found in database. Sync it first.")
+        click.echo(f"Error: Repository '{repo_config.id}' has not been synced yet.", err=True)
+        click.echo(f"Run 'chantal repo sync --repo-id {repo_config.id}' first.", err=True)
         return
 
     # Determine target path
