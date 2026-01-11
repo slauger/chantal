@@ -1,0 +1,196 @@
+# AWS Helm Charts
+# Official charts for Amazon EKS (Elastic Kubernetes Service)
+
+repositories:
+  # AWS Load Balancer Controller
+  # Manages AWS Application Load Balancers (ALB) and Network Load Balancers (NLB)
+  # for Kubernetes Ingress and Service resources
+  - id: aws-load-balancer-controller
+    name: AWS Load Balancer Controller
+    type: helm
+    feed: https://aws.github.io/eks-charts
+    enabled: true
+    filters:
+      patterns:
+        include:
+          - "^aws-load-balancer-controller$"
+      post_processing:
+        only_latest_version: true
+
+  # AWS EBS CSI Driver
+  # Enables Kubernetes to manage AWS Elastic Block Store (EBS) volumes
+  # Required for dynamic volume provisioning on EKS
+  - id: aws-ebs-csi-driver
+    name: AWS EBS CSI Driver
+    type: helm
+    feed: https://kubernetes-sigs.github.io/aws-ebs-csi-driver
+    enabled: true
+    filters:
+      patterns:
+        include:
+          - "^aws-ebs-csi-driver$"
+      post_processing:
+        only_latest_version: true
+
+  # AWS EFS CSI Driver
+  # Enables Kubernetes to use AWS Elastic File System (EFS) for shared storage
+  # Supports ReadWriteMany access mode
+  - id: aws-efs-csi-driver
+    name: AWS EFS CSI Driver
+    type: helm
+    feed: https://kubernetes-sigs.github.io/aws-efs-csi-driver
+    enabled: true
+    filters:
+      patterns:
+        include:
+          - "^aws-efs-csi-driver$"
+      post_processing:
+        only_latest_version: true
+
+  # AWS FSx for Lustre CSI Driver
+  # High-performance file system for compute-intensive workloads
+  # Machine learning, HPC, video processing, financial modeling
+  - id: aws-fsx-csi-driver
+    name: AWS FSx for Lustre CSI Driver
+    type: helm
+    feed: https://kubernetes-sigs.github.io/aws-fsx-csi-driver
+    enabled: false  # Disabled by default, enable if using FSx
+    filters:
+      patterns:
+        include:
+          - "^aws-fsx-csi-driver$"
+      post_processing:
+        only_latest_version: true
+
+  # Karpenter - Node Autoscaling
+  # Modern alternative to Cluster Autoscaler
+  # Just-in-time node provisioning, faster scaling, cost optimization
+  - id: karpenter
+    name: Karpenter
+    type: helm
+    feed: https://charts.karpenter.sh
+    enabled: true
+    filters:
+      patterns:
+        include:
+          - "^karpenter$"
+          - "^karpenter-crd$"  # Custom Resource Definitions
+      post_processing:
+        only_latest_version: true
+
+  # AWS VPC CNI - Container Networking
+  # Provides native VPC networking for pods
+  # Each pod gets an IP from the VPC subnet
+  - id: aws-vpc-cni
+    name: AWS VPC CNI
+    type: helm
+    feed: https://aws.github.io/eks-charts
+    enabled: true
+    filters:
+      patterns:
+        include:
+          - "^aws-vpc-cni$"
+      post_processing:
+        only_latest_version: true
+
+  # AWS Node Termination Handler
+  # Gracefully handles EC2 instance termination events
+  # Spot instance interruptions, scheduled maintenance, instance rebalance
+  - id: aws-node-termination-handler
+    name: AWS Node Termination Handler
+    type: helm
+    feed: https://aws.github.io/eks-charts
+    enabled: true
+    filters:
+      patterns:
+        include:
+          - "^aws-node-termination-handler$"
+      post_processing:
+        only_latest_version: true
+
+  # Secrets Store CSI Driver - AWS Provider
+  # Integrates AWS Secrets Manager and Parameter Store with Kubernetes
+  # Mount secrets as volumes or sync to Kubernetes Secrets
+  - id: secrets-store-csi-driver-provider-aws
+    name: Secrets Store CSI Driver - AWS Provider
+    type: helm
+    feed: https://aws.github.io/secrets-store-csi-driver-provider-aws
+    enabled: true
+    filters:
+      patterns:
+        include:
+          - "^secrets-store-csi-driver-provider-aws$"
+      post_processing:
+        only_latest_version: true
+
+  # AWS for Fluent Bit
+  # Optimized Fluent Bit image for AWS
+  # Log routing to CloudWatch Logs, Kinesis Data Firehose, etc.
+  - id: aws-for-fluent-bit
+    name: AWS for Fluent Bit
+    type: helm
+    feed: https://aws.github.io/eks-charts
+    enabled: false  # Disabled by default, use if needed for logging
+    filters:
+      patterns:
+        include:
+          - "^aws-for-fluent-bit$"
+      post_processing:
+        only_latest_version: true
+
+  # AWS CloudWatch Metrics
+  # Container Insights for EKS
+  # Collects metrics and logs from containerized applications
+  - id: aws-cloudwatch-metrics
+    name: AWS CloudWatch Metrics
+    type: helm
+    feed: https://aws.github.io/eks-charts
+    enabled: false  # Disabled by default, enable if using CloudWatch
+    filters:
+      patterns:
+        include:
+          - "^aws-cloudwatch-metrics$"
+      post_processing:
+        only_latest_version: true
+
+  # Amazon EKS Pod Identity Webhook
+  # Associates IAM roles with Kubernetes service accounts
+  # Fine-grained IAM permissions for pods (IRSA - IAM Roles for Service Accounts)
+  - id: eks-pod-identity-webhook
+    name: EKS Pod Identity Webhook
+    type: helm
+    feed: https://aws.github.io/eks-charts
+    enabled: false  # Usually pre-installed on EKS, only needed for self-managed
+    filters:
+      patterns:
+        include:
+          - "^eks-pod-identity-webhook$"
+      post_processing:
+        only_latest_version: true
+
+  # Mountpoint for Amazon S3 CSI Driver
+  # Mount S3 buckets as volumes in Kubernetes pods
+  # High-throughput access to S3 for data-intensive workloads
+  - id: aws-mountpoint-s3-csi-driver
+    name: Mountpoint for Amazon S3 CSI Driver
+    type: helm
+    feed: https://awslabs.github.io/mountpoint-s3-csi-driver
+    enabled: false  # Disabled by default, enable if mounting S3 buckets
+    filters:
+      patterns:
+        include:
+          - "^aws-mountpoint-s3-csi-driver$"
+      post_processing:
+        only_latest_version: true
+
+  # AWS EKS - Complete Repository (All Charts)
+  # If you prefer to mirror all AWS EKS charts at once
+  # Note: This includes all charts from eks-charts repo
+  - id: aws-eks-all-charts
+    name: AWS EKS - All Charts
+    type: helm
+    feed: https://aws.github.io/eks-charts
+    enabled: false  # Disabled by default, enable for complete mirror
+    filters:
+      post_processing:
+        only_latest_version: true

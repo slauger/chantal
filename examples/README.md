@@ -25,7 +25,8 @@ examples/
 │   ├── kubernetes-charts.yaml        # Official Kubernetes charts
 │   ├── bitnami.yaml                  # Bitnami application charts
 │   ├── monitoring-observability.yaml # Prometheus, Grafana, ELK stack
-│   └── ci-cd.yaml                    # GitLab, ArgoCD, Jenkins, Harbor
+│   ├── ci-cd.yaml                    # GitLab, ArgoCD, Jenkins, Harbor
+│   └── aws.yaml                      # AWS EKS charts (Load Balancer, CSI drivers, Karpenter)
 └── apk/                               # Alpine APK repository examples
     ├── distributions/                 # Alpine Linux releases
     │   ├── alpine-3.19.yaml          # Alpine 3.19 LTS (current)
@@ -219,6 +220,21 @@ Continuous integration and deployment platforms:
 
 **Use case**: Modern DevOps pipeline infrastructure
 
+#### AWS Charts (aws.yaml)
+Official AWS charts for Amazon EKS:
+- **AWS Load Balancer Controller**: Manages ALB/NLB for Kubernetes Ingress and Services
+- **EBS CSI Driver**: Dynamic EBS volume provisioning for persistent storage
+- **EFS CSI Driver**: Shared storage with AWS EFS (ReadWriteMany support)
+- **FSx for Lustre CSI Driver**: High-performance file system for HPC/ML workloads
+- **Karpenter**: Modern node autoscaling (alternative to Cluster Autoscaler)
+- **VPC CNI**: Native VPC networking for pods
+- **Node Termination Handler**: Graceful handling of spot interruptions
+- **Secrets Store CSI Driver**: AWS Secrets Manager/Parameter Store integration
+- **Fluent Bit**: Optimized logging to CloudWatch
+- **Mountpoint for S3**: Mount S3 buckets as volumes
+
+**Use case**: Complete EKS infrastructure for AWS deployments
+
 ### Alpine APK Repositories
 
 #### Alpine Linux Distributions
@@ -399,6 +415,7 @@ Estimated storage requirements (full mirror with `only_latest_version: true`):
 | Bitnami (full) | 5-10 GB | 900+ charts, use filters! |
 | Monitoring Stack | 200-500 MB | Prometheus, Grafana, ELK |
 | CI/CD Tools | 500 MB - 1 GB | GitLab, ArgoCD, Jenkins |
+| AWS EKS Charts | 100-300 MB | Load Balancer, CSI drivers, Karpenter |
 | **Alpine APK** | | |
 | Alpine 3.19 Main | 150-250 MB | Core packages (~500 packages) |
 | Alpine 3.19 Community | 2-4 GB | Additional packages (~15k packages) |
@@ -458,6 +475,7 @@ Planned additions (see Issue #3):
 - ✅ Bitnami charts (DONE)
 - ✅ Monitoring & Observability (DONE)
 - ✅ CI/CD tools (DONE)
+- ✅ AWS EKS charts (DONE)
 - Hashicorp (Vault, Consul via Helm)
 - Service Mesh (Istio, Linkerd)
 - Storage (Rook-Ceph, Longhorn, OpenEBS)
