@@ -16,6 +16,7 @@ from chantal.core.config import GlobalConfig, load_config
 from chantal.core.storage import StorageManager
 from chantal.db.connection import DatabaseManager
 from chantal.db.models import Repository, Snapshot, SyncHistory, ContentItem
+from chantal.db import migrations
 from chantal.plugins.rpm_sync import RpmSyncPlugin, CheckUpdatesResult, PackageUpdate
 from chantal.plugins.rpm import RpmPublisher
 from chantal.plugins.helm import HelmSyncer, HelmPublisher
@@ -63,39 +64,198 @@ def cli(ctx: click.Context, config: Optional[Path], verbose: bool) -> None:
         click.echo(f"Loaded configuration: {len(ctx.obj['config'].repositories)} repositories")
 
 
-@cli.command()
+# ============================================================================
+# Database Management Commands
+# ============================================================================
+
+
+@cli.group(context_settings=CONTEXT_SETTINGS)
+def db() -> None:
+    """Database management commands."""
+    pass
+
+
+@db.command("init")
 @click.pass_context
-def init(ctx: click.Context) -> None:
-    """Initialize Chantal (create directories, database schema)."""
+def db_init(ctx: click.Context) -> None:
+    """Initialize database schema using Alembic migrations.
+
+    Creates all database tables according to the latest schema version.
+    Storage directories will be created automatically when needed.
+    """
     config: GlobalConfig = ctx.obj["config"]
 
-    click.echo("Chantal initialization...")
+    click.echo("Initializing database schema...")
     click.echo(f"Database: {config.database.url}")
-    click.echo(f"Storage base path: {config.storage.base_path}")
-    click.echo(f"Pool path: {config.storage.get_pool_path()}")
-    click.echo(f"Published path: {config.storage.published_path}")
     click.echo()
 
-    # Create directories
-    click.echo("Creating directories...")
-    base_path = Path(config.storage.base_path)
-    pool_path = Path(config.storage.get_pool_path())
-    published_path = Path(config.storage.published_path)
+    try:
+        migrations.init_database(config.database.url)
+        current = migrations.get_current_revision(config.database.url)
+        click.echo(f"✓ Database initialized to revision: {current[:8]}")
+    except Exception as e:
+        click.echo(f"✗ Database initialization failed: {e}", err=True)
+        ctx.exit(1)
 
-    for path in [base_path, pool_path, published_path]:
-        if not path.exists():
-            path.mkdir(parents=True, exist_ok=True)
-            click.echo(f"  ✓ Created: {path}")
+
+@db.command("upgrade")
+@click.argument("revision", default="head", required=False)
+@click.pass_context
+def db_upgrade(ctx: click.Context, revision: str) -> None:
+    """Upgrade database schema to a specific revision (default: latest).
+
+    Examples:
+        chantal db upgrade         # Upgrade to latest
+        chantal db upgrade head    # Upgrade to latest (explicit)
+        chantal db upgrade abc123  # Upgrade to specific revision
+    """
+    config: GlobalConfig = ctx.obj["config"]
+
+    current = migrations.get_current_revision(config.database.url)
+
+    if current is None:
+        click.echo("⚠️  Database not initialized!", err=True)
+        click.echo("Run 'chantal db init' first.", err=True)
+        ctx.exit(1)
+
+    click.echo(f"Current revision: {current[:8]}")
+    click.echo(f"Upgrading to: {revision}")
+    click.echo()
+
+    try:
+        migrations.upgrade_database(config.database.url, revision)
+        new_current = migrations.get_current_revision(config.database.url)
+        click.echo(f"✓ Database upgraded to revision: {new_current[:8]}")
+    except Exception as e:
+        click.echo(f"✗ Upgrade failed: {e}", err=True)
+        ctx.exit(1)
+
+
+@db.command("status")
+@click.pass_context
+def db_status(ctx: click.Context) -> None:
+    """Show database schema status and pending migrations."""
+    config: GlobalConfig = ctx.obj["config"]
+
+    current = migrations.get_current_revision(config.database.url)
+    head = migrations.get_head_revision(config.database.url)
+
+    click.echo("Database Schema Status")
+    click.echo("━" * 60)
+    click.echo()
+    click.echo(f"Database:  {config.database.url}")
+
+    if current is None:
+        click.echo("Current:   Not initialized")
+        click.echo(f"Latest:    {head[:8]}")
+        click.echo()
+        click.echo("Status:    ⚠️  Database not initialized")
+        click.echo()
+        click.echo("Run 'chantal db init' to initialize the database.")
+        return
+
+    current_info = migrations.get_revision_info(config.database.url, current)
+    head_info = migrations.get_revision_info(config.database.url, head)
+
+    current_msg = current_info[1] if current_info else ""
+    head_msg = head_info[1] if head_info else ""
+
+    click.echo(f"Current:   {current[:8]} ({current_msg})")
+    click.echo(f"Latest:    {head[:8]} ({head_msg})")
+    click.echo()
+
+    if current == head:
+        click.echo("Status:    ✓ Up to date")
+    else:
+        pending = migrations.get_pending_migrations(config.database.url)
+        click.echo(f"Status:    ⚠️  {len(pending)} migration(s) pending")
+        click.echo()
+        click.echo("Pending Migrations:")
+        for rev, msg in pending:
+            click.echo(f"  • {rev[:8]} - {msg}")
+        click.echo()
+        click.echo("Run 'chantal db upgrade' to apply pending migrations.")
+
+
+@db.command("current")
+@click.pass_context
+def db_current(ctx: click.Context) -> None:
+    """Show current database schema revision."""
+    config: GlobalConfig = ctx.obj["config"]
+
+    current = migrations.get_current_revision(config.database.url)
+
+    if current is None:
+        click.echo("Database not initialized")
+        click.echo("Run 'chantal db init' to initialize.")
+        return
+
+    current_info = migrations.get_revision_info(config.database.url, current)
+    current_msg = current_info[1] if current_info else ""
+
+    click.echo(f"Current revision: {current}")
+    if current_msg:
+        click.echo(f"Message: {current_msg}")
+
+
+@db.command("history")
+@click.pass_context
+def db_history(ctx: click.Context) -> None:
+    """Show migration history."""
+    config: GlobalConfig = ctx.obj["config"]
+
+    history = migrations.get_migration_history(config.database.url)
+
+    click.echo("Migration History")
+    click.echo("━" * 60)
+    click.echo()
+
+    if not history:
+        click.echo("No migrations found.")
+        return
+
+    for rev, msg, is_applied in history:
+        status = "✓" if is_applied else "⧗"
+        state = "Applied" if is_applied else "Pending"
+        click.echo(f"{status} {rev[:8]} - {msg} [{state}]")
+
+    click.echo()
+    click.echo("Legend: ✓ Applied  ⧗ Pending")
+
+
+# ============================================================================
+# Helper Functions
+# ============================================================================
+
+
+def check_db_schema_version(ctx: click.Context) -> None:
+    """Check if database schema is up to date.
+
+    Exits with error if database needs upgrade.
+
+    Args:
+        ctx: Click context with config
+    """
+    config: GlobalConfig = ctx.obj["config"]
+
+    if migrations.db_needs_upgrade(config.database.url):
+        current = migrations.get_current_revision(config.database.url)
+
+        if current is None:
+            click.echo("⚠️  Database not initialized!", err=True)
+            click.echo("Run 'chantal db init' to initialize the database.", err=True)
         else:
-            click.echo(f"  - Already exists: {path}")
+            pending = migrations.get_pending_migrations(config.database.url)
+            click.echo("⚠️  Database schema is outdated!", err=True)
+            click.echo(f"   {len(pending)} migration(s) pending.", err=True)
+            click.echo("Run 'chantal db upgrade' to update the database.", err=True)
 
-    # Initialize database
-    click.echo("\nInitializing database...")
-    db_manager = DatabaseManager(config.database.url)
-    db_manager.create_all()
-    click.echo("  ✓ Database schema created")
+        ctx.exit(1)
 
-    click.echo("\n✓ Chantal initialized successfully!")
+
+# ============================================================================
+# Repository Management Commands
+# ============================================================================
 
 
 @cli.group(context_settings=CONTEXT_SETTINGS)
@@ -238,6 +398,9 @@ def repo_sync(
     if sum([bool(repo_id), bool(all), bool(pattern)]) > 1:
         click.echo("Error: Cannot use multiple selection methods (--repo-id, --all, --pattern)")
         raise click.Abort()
+
+    # Check database schema version
+    check_db_schema_version(ctx)
 
     config: GlobalConfig = ctx.obj["config"]
 
@@ -932,6 +1095,9 @@ def snapshot_create(ctx: click.Context, repo_id: str, view: str, name: str, desc
     For repositories: Creates snapshot of single repository
     For views: Creates snapshots of ALL repositories in view + ViewSnapshot
     """
+    # Check database schema version
+    check_db_schema_version(ctx)
+
     config: GlobalConfig = ctx.obj["config"]
 
     # Validate: exactly one of --repo-id or --view must be specified
@@ -2362,12 +2528,6 @@ def stats(ctx: click.Context, repo_id: str) -> None:
     click.echo("  Total Snapshots: 23")
 
 
-@cli.group(context_settings=CONTEXT_SETTINGS)
-def db() -> None:
-    """Database management commands."""
-    pass
-
-
 @db.command("cleanup")
 @click.option("--dry-run", is_flag=True, help="Show what would be deleted")
 @click.pass_context
@@ -2801,6 +2961,9 @@ def publish_repo(ctx: click.Context, repo_id: str, all: bool, target: str) -> No
         click.echo("Error: Cannot use both --repo-id and --all")
         raise click.Abort()
 
+    # Check database schema version
+    check_db_schema_version(ctx)
+
     config: GlobalConfig = ctx.obj["config"]
 
     # Initialize managers
@@ -2928,6 +3091,9 @@ def publish_snapshot(ctx: click.Context, snapshot: str, repo_id: str, view: str,
     For repository snapshots: --snapshot <name> --repo-id <repo>
     For view snapshots: --snapshot <name> --view <view>
     """
+    # Check database schema version
+    check_db_schema_version(ctx)
+
     config: GlobalConfig = ctx.obj["config"]
 
     # Validate: at most one of --repo-id or --view can be specified
