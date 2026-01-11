@@ -2426,17 +2426,27 @@ def pool_stats(ctx: click.Context) -> None:
 
 @pool.command("cleanup")
 @click.option("--dry-run", is_flag=True, help="Show what would be deleted without actually deleting")
+@click.option("--orphaned", is_flag=True, help="Only clean orphaned files (in pool but not in database)")
+@click.option("--missing", is_flag=True, help="Only clean missing entries (in database but not in pool)")
 @click.pass_context
-def pool_cleanup(ctx: click.Context, dry_run: bool) -> None:
-    """Remove orphaned files from storage pool.
+def pool_cleanup(ctx: click.Context, dry_run: bool, orphaned: bool, missing: bool) -> None:
+    """Clean up pool integrity issues.
 
-    Orphaned files are package files in the pool that are not referenced
-    in the database. This can happen after package deletion or cleanup operations.
+    By default, cleans both orphaned files and missing database entries.
+    Use --orphaned or --missing to clean only one type.
+
+    Orphaned files: Files in pool that are not referenced in database
+    Missing entries: Database entries without corresponding pool files
     """
     from chantal.core.storage import StorageManager
     from chantal.db.connection import DatabaseManager
+    from chantal.db.models import ContentItem
 
     config: GlobalConfig = ctx.obj["config"]
+
+    # Determine what to clean (default: both)
+    cleanup_orphaned = orphaned or (not orphaned and not missing)
+    cleanup_missing = missing or (not orphaned and not missing)
 
     # Initialize storage manager
     storage = StorageManager(config.storage)
@@ -2447,21 +2457,72 @@ def pool_cleanup(ctx: click.Context, dry_run: bool) -> None:
 
     try:
         if dry_run:
-            click.echo("DRY RUN: Finding orphaned files...")
+            click.echo("DRY RUN: Analyzing pool integrity issues...")
         else:
-            click.echo("Cleaning up orphaned files...")
-
+            click.echo("Cleaning up pool integrity issues...")
         click.echo()
 
-        # Cleanup orphaned files
-        files_removed, bytes_freed = storage.cleanup_orphaned_files(session, dry_run=dry_run)
+        total_files_removed = 0
+        total_bytes_freed = 0
+        total_db_removed = 0
 
+        # Clean up orphaned files (in pool but not in DB)
+        if cleanup_orphaned:
+            if dry_run:
+                click.echo("Checking for orphaned files...")
+            else:
+                click.echo("Removing orphaned files...")
+
+            files_removed, bytes_freed = storage.cleanup_orphaned_files(session, dry_run=dry_run)
+            total_files_removed += files_removed
+            total_bytes_freed += bytes_freed
+
+            if dry_run:
+                click.echo(f"  Would remove {files_removed:,} orphaned files ({bytes_freed / (1024**2):.2f} MB)")
+            else:
+                click.echo(f"  Removed {files_removed:,} orphaned files ({bytes_freed / (1024**2):.2f} MB)")
+            click.echo()
+
+        # Clean up missing entries (in DB but not in pool)
+        if cleanup_missing:
+            if dry_run:
+                click.echo("Checking for missing files...")
+            else:
+                click.echo("Removing database entries with missing files...")
+
+            # Find packages with missing files
+            packages = session.query(ContentItem).all()
+            missing_packages = []
+
+            for package in packages:
+                pool_file = storage.pool_path / package.pool_path
+                if not pool_file.exists():
+                    missing_packages.append(package)
+
+            if not dry_run:
+                for package in missing_packages:
+                    session.delete(package)
+                session.commit()
+
+            total_db_removed = len(missing_packages)
+
+            if dry_run:
+                click.echo(f"  Would remove {total_db_removed:,} database entries")
+            else:
+                click.echo(f"  Removed {total_db_removed:,} database entries")
+            click.echo()
+
+        # Summary
+        click.echo("=" * 60)
         if dry_run:
-            click.echo(f"Would remove {files_removed:,} orphaned files")
-            click.echo(f"Would free {bytes_freed:,} bytes ({bytes_freed / (1024**2):.2f} MB)")
+            click.echo("Summary (DRY RUN):")
         else:
-            click.echo(f"Removed {files_removed:,} orphaned files")
-            click.echo(f"Freed {bytes_freed:,} bytes ({bytes_freed / (1024**2):.2f} MB)")
+            click.echo("Summary:")
+
+        if cleanup_orphaned:
+            click.echo(f"  Orphaned files: {total_files_removed:,} ({total_bytes_freed / (1024**2):.2f} MB)")
+        if cleanup_missing:
+            click.echo(f"  Missing entries: {total_db_removed:,}")
 
     finally:
         session.close()
