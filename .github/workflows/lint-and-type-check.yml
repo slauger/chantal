@@ -1,0 +1,70 @@
+name: Lint and Type Check
+
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  lint-and-type-check:
+    name: Lint and Type Check
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.11', '3.12', '3.13']
+      fail-fast: false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('**/pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-${{ matrix.python-version }}-
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run ruff (linting)
+        run: |
+          echo "Running ruff linter..."
+          ruff check src/chantal/ tests/ --output-format=github
+        continue-on-error: true
+        # TODO: Set to false once linting errors are fixed
+
+      - name: Run black (code formatting check)
+        run: |
+          echo "Checking code formatting with black..."
+          black --check --diff src/chantal/ tests/
+        continue-on-error: true
+        # TODO: Set to false once formatting is consistent
+
+      - name: Run mypy (type checking)
+        run: |
+          echo "Running mypy type checker..."
+          mypy src/chantal/ --ignore-missing-imports
+        continue-on-error: true
+        # TODO: Set to false once type errors are fixed
+        # Note: Using strict type checking as configured in pyproject.toml
+        #       (disallow_untyped_defs, disallow_incomplete_defs, etc.)
+
+      - name: Run pytest
+        run: |
+          echo "Running pytest..."
+          pytest tests/ -v --tb=short
+        continue-on-error: false
