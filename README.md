@@ -73,8 +73,8 @@ pip install -e .
 ### Basic Usage
 
 ```bash
-# 1. Initialize
-chantal init
+# 1. Initialize database schema
+chantal db init
 
 # 2. Configure repositories (see docs for examples)
 vim /etc/chantal/config.yaml
@@ -90,6 +90,33 @@ chantal publish snapshot --snapshot epel9-latest-2025-01
 ```
 
 **Result:** Published repository in `/var/www/repos/` ready to serve with Apache/NGINX.
+
+### Database Management
+
+Chantal uses Alembic for database schema migrations:
+
+```bash
+# Initialize database schema (first-time setup)
+chantal db init
+
+# Check current schema version
+chantal db current
+
+# Check schema status and pending migrations
+chantal db status
+
+# Upgrade to latest schema version
+chantal db upgrade
+
+# View migration history
+chantal db history
+
+# Database statistics and verification
+chantal db stats
+chantal db verify
+```
+
+**Note:** Storage directories are created automatically when needed. The `db init` command only initializes the database schema.
 
 ---
 

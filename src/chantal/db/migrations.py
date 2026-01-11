@@ -120,18 +120,30 @@ def get_migration_history(database_url: str) -> List[Tuple[str, str, bool]]:
     config = get_alembic_config(database_url)
     script = ScriptDirectory.from_config(config)
 
+    # Get all revisions using iterate_revisions (oldest to newest)
     history = []
-    found_current = current is None  # If no current, all are pending
-
-    for rev in script.walk_revisions("base", "heads"):
-        is_applied = not found_current
-        if rev.revision == current:
-            found_current = True
-            is_applied = True
+    for rev in script.iterate_revisions():
+        if current is None:
+            # No migrations applied yet
+            is_applied = False
+        else:
+            # Check if this revision is the current one or comes before it
+            # We'll mark it as applied if it appears in the chain up to current
+            try:
+                # Try to walk from current to this revision
+                # If we can reach it, it's been applied
+                for check_rev in script.walk_revisions(current, rev.revision):
+                    if check_rev.revision == rev.revision:
+                        is_applied = True
+                        break
+                else:
+                    is_applied = False
+            except:
+                # If walk fails, check if it's exactly current
+                is_applied = (rev.revision == current)
 
         history.append((rev.revision, rev.doc or "", is_applied))
 
-    history.reverse()  # Show oldest first
     return history
 
 
