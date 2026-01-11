@@ -147,6 +147,24 @@ class ApkConfig(BaseModel):
     architecture: str = "x86_64"  # Architecture (x86_64, aarch64, armhf, armv7, x86)
 
 
+class AptConfig(BaseModel):
+    """APT/DEB-specific configuration."""
+
+    distribution: str  # Distribution/suite (jammy, bookworm, focal, bullseye, etc.)
+    components: list[str] = Field(
+        default_factory=lambda: ["main"],
+        description="Repository components (main, restricted, universe, multiverse, contrib, non-free)"
+    )
+    architectures: list[str] = Field(
+        default_factory=lambda: ["amd64"],
+        description="Architectures to mirror (amd64, arm64, i386, armhf, all)"
+    )
+    include_source_packages: bool = Field(
+        default=False,
+        description="Include source packages (.dsc, .orig.tar.gz, etc.)"
+    )
+
+
 class PatternFilterConfig(BaseModel):
     """Pattern-based filters (regex)."""
 
@@ -289,6 +307,7 @@ class RepositoryConfig(BaseModel):
 
     # Plugin-specific configuration
     apk: ApkConfig | None = None  # APK-specific config (branch, repository, architecture)
+    apt: AptConfig | None = None  # APT-specific config (distribution, components, architectures)
 
     @field_validator("type")
     @classmethod
