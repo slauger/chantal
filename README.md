@@ -30,6 +30,7 @@ A Python-based CLI tool for offline repository mirroring, inspired by pulp-admin
 - 📁 **Static Output** - Serve with any webserver (Apache, NGINX)
 - 🔐 **RHEL CDN Support** - Client certificate authentication for Red Hat repos
 - 🎯 **Smart Filtering** - Pattern-based package filtering with post-processing
+- 🪞 **Mirror & Filtered Modes** - Full metadata mirroring or filtered repos with regenerated metadata
 - ⚡ **Fast Updates** - Check for updates without downloading (like `dnf check-update`)
 
 **Supported Repository Types:**
@@ -210,18 +211,21 @@ See [Workflows Documentation](https://slauger.github.io/chantal/user-guide/workf
 **✅ Multi-Ecosystem Support:**
 - Content-addressed storage (SHA256 deduplication)
 - **RPM** repository sync (RHEL, CentOS, Fedora, EPEL, Rocky, AlmaLinux)
+  - Mirror mode: Full metadata mirroring (all repomd.xml types)
+  - Filtered mode: Smart metadata regeneration (updateinfo, filelists, etc.)
+  - Errata/advisory support (updateinfo.xml parsing and filtering)
 - **Helm** chart repositories (Kubernetes, Bitnami, AWS EKS, Prometheus, GitLab)
 - **Alpine APK** repositories (Alpine Linux, container images)
 - Immutable snapshots (all repository types)
 - Views (virtual repositories combining multiple repos)
 - RHEL CDN support (client certificates)
-- Pool management commands (verify, cleanup, orphaned detection)
-- 74+ tests passing
+- Pool management commands (verify, cleanup, orphaned, missing)
+- 85+ tests passing
 
 **🔄 Next Up:**
 - APT/DEB repository support (Debian, Ubuntu)
-- Errata/advisory support (updateinfo.xml for RPM)
-- Database management and migration tools
+- GitHub/GitLab release asset mirroring
+- Git repository mirroring
 - Web UI for repository management
 
 **📋 Full Roadmap:** See [ROADMAP.md](ROADMAP.md) for detailed milestone plan and [GitHub Issues](https://github.com/slauger/chantal/issues)
