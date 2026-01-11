@@ -107,8 +107,10 @@
 </li>
 <li class="toctree-l2"><a class="reference internal" href="../../../user-guide/cli-commands.html#storage-pool-management">Storage Pool Management</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="../../../user-guide/cli-commands.html#chantal-pool-stats"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">pool</span> <span class="pre">stats</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../user-guide/cli-commands.html#chantal-pool-orphaned"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">pool</span> <span class="pre">orphaned</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../user-guide/cli-commands.html#chantal-pool-cleanup"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">pool</span> <span class="pre">cleanup</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../user-guide/cli-commands.html#chantal-pool-verify"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">pool</span> <span class="pre">verify</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../user-guide/cli-commands.html#chantal-pool-missing"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">pool</span> <span class="pre">missing</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="../../../user-guide/cli-commands.html#statistics-database">Statistics &amp; Database</a><ul>
@@ -598,9 +600,31 @@
 <li class="toctree-l3"><a class="reference internal" href="../../../plugins/rpm-plugin.html#rhel-with-client-certificates">RHEL with Client Certificates</a></li>
 </ul>
 </li>
+<li class="toctree-l2"><a class="reference internal" href="../../../plugins/rpm-plugin.html#repository-modes">Repository Modes</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../plugins/rpm-plugin.html#mirror-mode-default">Mirror Mode (Default)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../plugins/rpm-plugin.html#filtered-mode">Filtered Mode</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../plugins/rpm-plugin.html#hosted-mode">Hosted Mode</a></li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="../../../plugins/rpm-plugin.html#how-it-works">How It Works</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="../../../plugins/rpm-plugin.html#sync-process">Sync Process</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../../plugins/rpm-plugin.html#publish-process">Publish Process</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../plugins/rpm-plugin.html#sync-process">Sync Process</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../plugins/rpm-plugin.html#fetch-repomd-xml">1. Fetch repomd.xml</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../plugins/rpm-plugin.html#download-metadata">2. Download Metadata</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../plugins/rpm-plugin.html#parse-packages">3. Parse Packages</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../plugins/rpm-plugin.html#apply-filters-filtered-mode-only">4. Apply Filters (Filtered Mode Only)</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../plugins/rpm-plugin.html#download-packages">5. Download Packages</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../plugins/rpm-plugin.html#update-database">6. Update Database</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../plugins/rpm-plugin.html#publish-process">Publish Process</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../plugins/rpm-plugin.html#query-packages">1. Query Packages</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../plugins/rpm-plugin.html#create-directory-structure">2. Create Directory Structure</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../plugins/rpm-plugin.html#create-package-hardlinks">3. Create Package Hardlinks</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../plugins/rpm-plugin.html#publish-metadata">4. Publish Metadata</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../plugins/rpm-plugin.html#updateinfo-filtering-filtered-mode">5. Updateinfo Filtering (Filtered Mode)</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../plugins/rpm-plugin.html#result">6. Result</a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="../../../plugins/rpm-plugin.html#metadata-files">Metadata Files</a><ul>
@@ -833,13 +857,36 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Repository.last_sync_at"><code class="docutils literal notranslate"><span class="pre">Repository.last_sync_at</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Repository.last_sync_status"><code class="docutils literal notranslate"><span class="pre">Repository.last_sync_status</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Repository.latest_path"><code class="docutils literal notranslate"><span class="pre">Repository.latest_path</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Repository.mode"><code class="docutils literal notranslate"><span class="pre">Repository.mode</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Repository.name"><code class="docutils literal notranslate"><span class="pre">Repository.name</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Repository.repo_id"><code class="docutils literal notranslate"><span class="pre">Repository.repo_id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Repository.repository_files"><code class="docutils literal notranslate"><span class="pre">Repository.repository_files</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Repository.snapshots"><code class="docutils literal notranslate"><span class="pre">Repository.snapshots</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Repository.snapshots_path"><code class="docutils literal notranslate"><span class="pre">Repository.snapshots_path</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Repository.sync_history"><code class="docutils literal notranslate"><span class="pre">Repository.sync_history</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Repository.type"><code class="docutils literal notranslate"><span class="pre">Repository.type</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Repository.updated_at"><code class="docutils literal notranslate"><span class="pre">Repository.updated_at</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.RepositoryFile"><code class="docutils literal notranslate"><span class="pre">RepositoryFile</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.RepositoryFile.created_at"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.created_at</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.RepositoryFile.file_category"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.file_category</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.RepositoryFile.file_metadata"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.file_metadata</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.RepositoryFile.file_type"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.file_type</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.RepositoryFile.id"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.RepositoryFile.original_path"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.original_path</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.RepositoryFile.pool_path"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.pool_path</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.RepositoryFile.repositories"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.repositories</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.RepositoryFile.sha256"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.sha256</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.RepositoryFile.size_bytes"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.size_bytes</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.RepositoryFile.snapshots"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.snapshots</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.RepositoryFile.updated_at"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.updated_at</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.RepositoryMode"><code class="docutils literal notranslate"><span class="pre">RepositoryMode</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.RepositoryMode.FILTERED"><code class="docutils literal notranslate"><span class="pre">RepositoryMode.FILTERED</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.RepositoryMode.HOSTED"><code class="docutils literal notranslate"><span class="pre">RepositoryMode.HOSTED</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.RepositoryMode.MIRROR"><code class="docutils literal notranslate"><span class="pre">RepositoryMode.MIRROR</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Snapshot"><code class="docutils literal notranslate"><span class="pre">Snapshot</span></code></a><ul>
@@ -852,6 +899,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Snapshot.package_count"><code class="docutils literal notranslate"><span class="pre">Snapshot.package_count</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Snapshot.published_path"><code class="docutils literal notranslate"><span class="pre">Snapshot.published_path</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Snapshot.repository"><code class="docutils literal notranslate"><span class="pre">Snapshot.repository</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Snapshot.repository_files"><code class="docutils literal notranslate"><span class="pre">Snapshot.repository_files</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Snapshot.repository_id"><code class="docutils literal notranslate"><span class="pre">Snapshot.repository_id</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Snapshot.total_size_bytes"><code class="docutils literal notranslate"><span class="pre">Snapshot.total_size_bytes</span></code></a></li>
 </ul>
@@ -922,6 +970,7 @@
 <li class="toctree-l3"><a class="reference internal" href="../../../api/modules.html#module-chantal.plugins.rpm">RPM Plugin</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.plugins.rpm.RpmPublisher"><code class="docutils literal notranslate"><span class="pre">RpmPublisher</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.plugins.rpm_sync.CheckUpdatesResult"><code class="docutils literal notranslate"><span class="pre">CheckUpdatesResult</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.plugins.rpm_sync.MetadataFileInfo"><code class="docutils literal notranslate"><span class="pre">MetadataFileInfo</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.plugins.rpm_sync.PackageMetadata"><code class="docutils literal notranslate"><span class="pre">PackageMetadata</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.plugins.rpm_sync.PackageUpdate"><code class="docutils literal notranslate"><span class="pre">PackageUpdate</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.plugins.rpm_sync.RpmSyncPlugin"><code class="docutils literal notranslate"><span class="pre">RpmSyncPlugin</span></code></a></li>
@@ -966,20 +1015,26 @@
 <span class="sd">This module implements publishing for RPM repositories with yum/dnf metadata.</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
+<span class="kn">import</span><span class="w"> </span><span class="nn">bz2</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">gzip</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">hashlib</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">shutil</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">xml.etree.ElementTree</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">ET</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">datetime</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">List</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Set</span><span class="p">,</span> <span class="n">Tuple</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">sqlalchemy.orm</span><span class="w"> </span><span class="kn">import</span> <span class="n">Session</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">chantal.core.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">RepositoryConfig</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">chantal.core.storage</span><span class="w"> </span><span class="kn">import</span> <span class="n">StorageManager</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">chantal.db.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">ContentItem</span><span class="p">,</span> <span class="n">Repository</span><span class="p">,</span> <span class="n">Snapshot</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">chantal.db.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">ContentItem</span><span class="p">,</span> <span class="n">Repository</span><span class="p">,</span> <span class="n">RepositoryFile</span><span class="p">,</span> <span class="n">RepositoryMode</span><span class="p">,</span> <span class="n">Snapshot</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">chantal.plugins.base</span><span class="w"> </span><span class="kn">import</span> <span class="n">PublisherPlugin</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">chantal.plugins.rpm.updateinfo</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">UpdateInfoFilter</span><span class="p">,</span>
+    <span class="n">UpdateInfoGenerator</span><span class="p">,</span>
+    <span class="n">UpdateInfoParser</span><span class="p">,</span>
+<span class="p">)</span>
 
 
 <div class="viewcode-block" id="RpmPublisher">
@@ -1024,8 +1079,12 @@
         <span class="c1"># Get packages</span>
         <span class="n">packages</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_repository_packages</span><span class="p">(</span><span class="n">session</span><span class="p">,</span> <span class="n">repository</span><span class="p">)</span>
 
+        <span class="c1"># Get repository files (metadata)</span>
+        <span class="n">session</span><span class="o">.</span><span class="n">refresh</span><span class="p">(</span><span class="n">repository</span><span class="p">)</span>
+        <span class="n">repository_files</span> <span class="o">=</span> <span class="n">repository</span><span class="o">.</span><span class="n">repository_files</span>
+
         <span class="c1"># Publish packages and metadata</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_publish_packages</span><span class="p">(</span><span class="n">packages</span><span class="p">,</span> <span class="n">target_path</span><span class="p">)</span></div>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_publish_packages</span><span class="p">(</span><span class="n">packages</span><span class="p">,</span> <span class="n">target_path</span><span class="p">,</span> <span class="n">repository_files</span><span class="p">,</span> <span class="n">repository</span><span class="o">.</span><span class="n">mode</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="RpmPublisher.publish_snapshot">
@@ -1050,8 +1109,12 @@
         <span class="c1"># Get packages from snapshot</span>
         <span class="n">packages</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_snapshot_packages</span><span class="p">(</span><span class="n">session</span><span class="p">,</span> <span class="n">snapshot</span><span class="p">)</span>
 
+        <span class="c1"># Get repository files (metadata) from snapshot</span>
+        <span class="n">session</span><span class="o">.</span><span class="n">refresh</span><span class="p">(</span><span class="n">snapshot</span><span class="p">)</span>
+        <span class="n">repository_files</span> <span class="o">=</span> <span class="n">snapshot</span><span class="o">.</span><span class="n">repository_files</span>
+
         <span class="c1"># Publish packages and metadata</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_publish_packages</span><span class="p">(</span><span class="n">packages</span><span class="p">,</span> <span class="n">target_path</span><span class="p">)</span></div>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_publish_packages</span><span class="p">(</span><span class="n">packages</span><span class="p">,</span> <span class="n">target_path</span><span class="p">,</span> <span class="n">repository_files</span><span class="p">,</span> <span class="n">repository</span><span class="o">.</span><span class="n">mode</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="RpmPublisher.unpublish">
@@ -1069,14 +1132,21 @@
     <span class="k">def</span><span class="w"> </span><span class="nf">_publish_packages</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">packages</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">ContentItem</span><span class="p">],</span>
-        <span class="n">target_path</span><span class="p">:</span> <span class="n">Path</span>
+        <span class="n">target_path</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span>
+        <span class="n">repository_files</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">RepositoryFile</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="n">mode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">RepositoryMode</span><span class="o">.</span><span class="n">MIRROR</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Publish content items and generate metadata.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            packages: List of content items to publish</span>
 <span class="sd">            target_path: Target directory</span>
+<span class="sd">            repository_files: List of repository files (metadata) to publish</span>
+<span class="sd">            mode: Repository mode (mirror/filtered/hosted)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">repository_files</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">repository_files</span> <span class="o">=</span> <span class="p">[]</span>
+
         <span class="c1"># Create directory structure</span>
         <span class="n">target_path</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="n">repodata_path</span> <span class="o">=</span> <span class="n">target_path</span> <span class="o">/</span> <span class="s2">&quot;repodata&quot;</span>
@@ -1085,11 +1155,26 @@
         <span class="c1"># Create hardlinks for packages</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_create_hardlinks</span><span class="p">(</span><span class="n">packages</span><span class="p">,</span> <span class="n">target_path</span><span class="p">,</span> <span class="n">subdir</span><span class="o">=</span><span class="s2">&quot;Packages&quot;</span><span class="p">)</span>
 
-        <span class="c1"># Generate metadata</span>
+        <span class="c1"># Create hardlinks for metadata files</span>
+        <span class="n">published_metadata</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_publish_metadata_files</span><span class="p">(</span><span class="n">repository_files</span><span class="p">,</span> <span class="n">repodata_path</span><span class="p">)</span>
+
+        <span class="c1"># Filter and regenerate updateinfo ONLY in filtered mode</span>
+        <span class="c1"># In mirror mode, all metadata is published as-is</span>
+        <span class="k">if</span> <span class="n">mode</span> <span class="o">==</span> <span class="n">RepositoryMode</span><span class="o">.</span><span class="n">FILTERED</span><span class="p">:</span>
+            <span class="n">published_metadata</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_filter_and_regenerate_updateinfo</span><span class="p">(</span>
+                <span class="n">packages</span><span class="p">,</span> <span class="n">repodata_path</span><span class="p">,</span> <span class="n">published_metadata</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Generate primary.xml (always generated)</span>
         <span class="n">primary_xml_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_generate_primary_xml</span><span class="p">(</span><span class="n">packages</span><span class="p">,</span> <span class="n">repodata_path</span><span class="p">)</span>
+
+        <span class="c1"># Add primary to published metadata list</span>
+        <span class="n">published_metadata</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="s2">&quot;primary&quot;</span><span class="p">,</span> <span class="n">primary_xml_path</span><span class="p">))</span>
+
+        <span class="c1"># Generate repomd.xml with all metadata entries</span>
         <span class="n">repomd_xml_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_generate_repomd_xml</span><span class="p">(</span>
             <span class="n">repodata_path</span><span class="p">,</span>
-            <span class="n">primary_xml_path</span>
+            <span class="n">published_metadata</span>
         <span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_generate_primary_xml</span><span class="p">(</span>
@@ -1186,32 +1271,66 @@
 
         <span class="k">return</span> <span class="n">primary_xml_gz_path</span>
 
+    <span class="k">def</span><span class="w"> </span><span class="nf">_publish_metadata_files</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">repository_files</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">RepositoryFile</span><span class="p">],</span>
+        <span class="n">repodata_path</span><span class="p">:</span> <span class="n">Path</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create hardlinks for repository metadata files.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            repository_files: List of RepositoryFile instances</span>
+<span class="sd">            repodata_path: Path to repodata directory</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            List of tuples (file_type, published_path) for each published file</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">published</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="k">for</span> <span class="n">repo_file</span> <span class="ow">in</span> <span class="n">repository_files</span><span class="p">:</span>
+            <span class="c1"># Only publish metadata files (not kickstart, etc.)</span>
+            <span class="k">if</span> <span class="n">repo_file</span><span class="o">.</span><span class="n">file_category</span> <span class="o">!=</span> <span class="s2">&quot;metadata&quot;</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="c1"># Get pool path</span>
+            <span class="n">pool_file_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="o">.</span><span class="n">pool_path</span> <span class="o">/</span> <span class="n">repo_file</span><span class="o">.</span><span class="n">pool_path</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">pool_file_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Warning: Pool file not found: </span><span class="si">{</span><span class="n">pool_file_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">continue</span>
+
+            <span class="c1"># Extract filename</span>
+            <span class="n">filename</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">repo_file</span><span class="o">.</span><span class="n">original_path</span><span class="p">)</span><span class="o">.</span><span class="n">name</span>
+
+            <span class="c1"># Target path in repodata/</span>
+            <span class="n">target_path</span> <span class="o">=</span> <span class="n">repodata_path</span> <span class="o">/</span> <span class="n">filename</span>
+
+            <span class="c1"># Create hardlink</span>
+            <span class="k">if</span> <span class="n">target_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+                <span class="n">target_path</span><span class="o">.</span><span class="n">unlink</span><span class="p">()</span>
+
+            <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">link</span><span class="p">(</span><span class="n">pool_file_path</span><span class="p">,</span> <span class="n">target_path</span><span class="p">)</span>
+
+            <span class="c1"># Add to published list</span>
+            <span class="n">published</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">repo_file</span><span class="o">.</span><span class="n">file_type</span><span class="p">,</span> <span class="n">target_path</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">published</span>
+
     <span class="k">def</span><span class="w"> </span><span class="nf">_generate_repomd_xml</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">repodata_path</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span>
-        <span class="n">primary_xml_path</span><span class="p">:</span> <span class="n">Path</span>
+        <span class="n">metadata_files</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">]]</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate repomd.xml root metadata file.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            repodata_path: Path to repodata directory</span>
-<span class="sd">            primary_xml_path: Path to primary.xml.gz</span>
+<span class="sd">            metadata_files: List of (file_type, file_path) tuples for all metadata</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            Path to generated repomd.xml</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c1"># Calculate checksum and size of primary.xml.gz</span>
-        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">primary_xml_path</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-            <span class="n">primary_data</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
-            <span class="n">primary_sha256</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">sha256</span><span class="p">(</span><span class="n">primary_data</span><span class="p">)</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span>
-            <span class="n">primary_size</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">primary_data</span><span class="p">)</span>
-
-        <span class="c1"># Calculate checksum of uncompressed primary.xml</span>
-        <span class="k">with</span> <span class="n">gzip</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">primary_xml_path</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-            <span class="n">primary_open_data</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
-            <span class="n">primary_open_sha256</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">sha256</span><span class="p">(</span><span class="n">primary_open_data</span><span class="p">)</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span>
-            <span class="n">primary_open_size</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">primary_open_data</span><span class="p">)</span>
-
         <span class="c1"># Create repomd.xml</span>
         <span class="n">repomd</span> <span class="o">=</span> <span class="n">ET</span><span class="o">.</span><span class="n">Element</span><span class="p">(</span><span class="s2">&quot;repomd&quot;</span><span class="p">)</span>
         <span class="n">repomd</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s2">&quot;xmlns&quot;</span><span class="p">,</span> <span class="s2">&quot;http://linux.duke.edu/metadata/repo&quot;</span><span class="p">)</span>
@@ -1221,29 +1340,53 @@
         <span class="n">revision</span> <span class="o">=</span> <span class="n">ET</span><span class="o">.</span><span class="n">SubElement</span><span class="p">(</span><span class="n">repomd</span><span class="p">,</span> <span class="s2">&quot;revision&quot;</span><span class="p">)</span>
         <span class="n">revision</span><span class="o">.</span><span class="n">text</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span><span class="o">.</span><span class="n">timestamp</span><span class="p">()))</span>
 
-        <span class="c1"># Primary data entry</span>
-        <span class="n">data</span> <span class="o">=</span> <span class="n">ET</span><span class="o">.</span><span class="n">SubElement</span><span class="p">(</span><span class="n">repomd</span><span class="p">,</span> <span class="s2">&quot;data&quot;</span><span class="p">)</span>
-        <span class="n">data</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s2">&quot;type&quot;</span><span class="p">,</span> <span class="s2">&quot;primary&quot;</span><span class="p">)</span>
+        <span class="c1"># Add data entry for each metadata file</span>
+        <span class="k">for</span> <span class="n">file_type</span><span class="p">,</span> <span class="n">file_path</span> <span class="ow">in</span> <span class="n">metadata_files</span><span class="p">:</span>
+            <span class="c1"># Calculate checksum and size of compressed file</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="n">file_data</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+                <span class="n">file_sha256</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">sha256</span><span class="p">(</span><span class="n">file_data</span><span class="p">)</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span>
+                <span class="n">file_size</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">file_data</span><span class="p">)</span>
 
-        <span class="n">checksum</span> <span class="o">=</span> <span class="n">ET</span><span class="o">.</span><span class="n">SubElement</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="s2">&quot;checksum&quot;</span><span class="p">)</span>
-        <span class="n">checksum</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s2">&quot;type&quot;</span><span class="p">,</span> <span class="s2">&quot;sha256&quot;</span><span class="p">)</span>
-        <span class="n">checksum</span><span class="o">.</span><span class="n">text</span> <span class="o">=</span> <span class="n">primary_sha256</span>
+            <span class="c1"># Calculate checksum of uncompressed file (if gzipped)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">file_path</span><span class="o">.</span><span class="n">suffix</span> <span class="o">==</span> <span class="s2">&quot;.gz&quot;</span><span class="p">:</span>
+                    <span class="k">with</span> <span class="n">gzip</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                        <span class="n">open_data</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+                        <span class="n">open_sha256</span> <span class="o">=</span> <span class="n">hashlib</span><span class="o">.</span><span class="n">sha256</span><span class="p">(</span><span class="n">open_data</span><span class="p">)</span><span class="o">.</span><span class="n">hexdigest</span><span class="p">()</span>
+                        <span class="n">open_size</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">open_data</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c1"># Not compressed</span>
+                    <span class="n">open_sha256</span> <span class="o">=</span> <span class="n">file_sha256</span>
+                    <span class="n">open_size</span> <span class="o">=</span> <span class="n">file_size</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                <span class="c1"># If decompression fails, use compressed values</span>
+                <span class="n">open_sha256</span> <span class="o">=</span> <span class="n">file_sha256</span>
+                <span class="n">open_size</span> <span class="o">=</span> <span class="n">file_size</span>
 
-        <span class="n">open_checksum</span> <span class="o">=</span> <span class="n">ET</span><span class="o">.</span><span class="n">SubElement</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="s2">&quot;open-checksum&quot;</span><span class="p">)</span>
-        <span class="n">open_checksum</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s2">&quot;type&quot;</span><span class="p">,</span> <span class="s2">&quot;sha256&quot;</span><span class="p">)</span>
-        <span class="n">open_checksum</span><span class="o">.</span><span class="n">text</span> <span class="o">=</span> <span class="n">primary_open_sha256</span>
+            <span class="c1"># Create data entry</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">ET</span><span class="o">.</span><span class="n">SubElement</span><span class="p">(</span><span class="n">repomd</span><span class="p">,</span> <span class="s2">&quot;data&quot;</span><span class="p">)</span>
+            <span class="n">data</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s2">&quot;type&quot;</span><span class="p">,</span> <span class="n">file_type</span><span class="p">)</span>
 
-        <span class="n">location</span> <span class="o">=</span> <span class="n">ET</span><span class="o">.</span><span class="n">SubElement</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="s2">&quot;location&quot;</span><span class="p">)</span>
-        <span class="n">location</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s2">&quot;href&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;repodata/</span><span class="si">{</span><span class="n">primary_xml_path</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">checksum</span> <span class="o">=</span> <span class="n">ET</span><span class="o">.</span><span class="n">SubElement</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="s2">&quot;checksum&quot;</span><span class="p">)</span>
+            <span class="n">checksum</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s2">&quot;type&quot;</span><span class="p">,</span> <span class="s2">&quot;sha256&quot;</span><span class="p">)</span>
+            <span class="n">checksum</span><span class="o">.</span><span class="n">text</span> <span class="o">=</span> <span class="n">file_sha256</span>
 
-        <span class="n">timestamp</span> <span class="o">=</span> <span class="n">ET</span><span class="o">.</span><span class="n">SubElement</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="s2">&quot;timestamp&quot;</span><span class="p">)</span>
-        <span class="n">timestamp</span><span class="o">.</span><span class="n">text</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span><span class="o">.</span><span class="n">timestamp</span><span class="p">()))</span>
+            <span class="n">open_checksum</span> <span class="o">=</span> <span class="n">ET</span><span class="o">.</span><span class="n">SubElement</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="s2">&quot;open-checksum&quot;</span><span class="p">)</span>
+            <span class="n">open_checksum</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s2">&quot;type&quot;</span><span class="p">,</span> <span class="s2">&quot;sha256&quot;</span><span class="p">)</span>
+            <span class="n">open_checksum</span><span class="o">.</span><span class="n">text</span> <span class="o">=</span> <span class="n">open_sha256</span>
 
-        <span class="n">size</span> <span class="o">=</span> <span class="n">ET</span><span class="o">.</span><span class="n">SubElement</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="s2">&quot;size&quot;</span><span class="p">)</span>
-        <span class="n">size</span><span class="o">.</span><span class="n">text</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">primary_size</span><span class="p">)</span>
+            <span class="n">location</span> <span class="o">=</span> <span class="n">ET</span><span class="o">.</span><span class="n">SubElement</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="s2">&quot;location&quot;</span><span class="p">)</span>
+            <span class="n">location</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="s2">&quot;href&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;repodata/</span><span class="si">{</span><span class="n">file_path</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
-        <span class="n">open_size</span> <span class="o">=</span> <span class="n">ET</span><span class="o">.</span><span class="n">SubElement</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="s2">&quot;open-size&quot;</span><span class="p">)</span>
-        <span class="n">open_size</span><span class="o">.</span><span class="n">text</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">primary_open_size</span><span class="p">)</span>
+            <span class="n">timestamp</span> <span class="o">=</span> <span class="n">ET</span><span class="o">.</span><span class="n">SubElement</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="s2">&quot;timestamp&quot;</span><span class="p">)</span>
+            <span class="n">timestamp</span><span class="o">.</span><span class="n">text</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span><span class="o">.</span><span class="n">timestamp</span><span class="p">()))</span>
+
+            <span class="n">size</span> <span class="o">=</span> <span class="n">ET</span><span class="o">.</span><span class="n">SubElement</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="s2">&quot;size&quot;</span><span class="p">)</span>
+            <span class="n">size</span><span class="o">.</span><span class="n">text</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">file_size</span><span class="p">)</span>
+
+            <span class="n">open_size_elem</span> <span class="o">=</span> <span class="n">ET</span><span class="o">.</span><span class="n">SubElement</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="s2">&quot;open-size&quot;</span><span class="p">)</span>
+            <span class="n">open_size_elem</span><span class="o">.</span><span class="n">text</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">open_size</span><span class="p">)</span>
 
         <span class="c1"># Write repomd.xml</span>
         <span class="n">tree</span> <span class="o">=</span> <span class="n">ET</span><span class="o">.</span><span class="n">ElementTree</span><span class="p">(</span><span class="n">repomd</span><span class="p">)</span>
@@ -1257,7 +1400,121 @@
             <span class="n">xml_declaration</span><span class="o">=</span><span class="kc">True</span>
         <span class="p">)</span>
 
-        <span class="k">return</span> <span class="n">repomd_xml_path</span></div>
+        <span class="k">return</span> <span class="n">repomd_xml_path</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_filter_and_regenerate_updateinfo</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">packages</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">ContentItem</span><span class="p">],</span>
+        <span class="n">repodata_path</span><span class="p">:</span> <span class="n">Path</span><span class="p">,</span>
+        <span class="n">published_metadata</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">]]</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">]]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Filter and regenerate updateinfo.xml based on available packages.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            packages: List of available ContentItem packages</span>
+<span class="sd">            repodata_path: Path to repodata directory</span>
+<span class="sd">            published_metadata: List of (file_type, file_path) tuples</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Updated list of (file_type, file_path) tuples with filtered updateinfo</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Find updateinfo in published metadata</span>
+        <span class="n">updateinfo_entry</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="n">updateinfo_index</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">file_type</span><span class="p">,</span> <span class="n">file_path</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">published_metadata</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">file_type</span> <span class="o">==</span> <span class="s2">&quot;updateinfo&quot;</span><span class="p">:</span>
+                <span class="n">updateinfo_entry</span> <span class="o">=</span> <span class="p">(</span><span class="n">file_type</span><span class="p">,</span> <span class="n">file_path</span><span class="p">)</span>
+                <span class="n">updateinfo_index</span> <span class="o">=</span> <span class="n">i</span>
+                <span class="k">break</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">updateinfo_entry</span><span class="p">:</span>
+            <span class="c1"># No updateinfo to filter</span>
+            <span class="k">return</span> <span class="n">published_metadata</span>
+
+        <span class="n">updateinfo_path</span> <span class="o">=</span> <span class="n">updateinfo_entry</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># Parse updateinfo</span>
+            <span class="n">parser</span> <span class="o">=</span> <span class="n">UpdateInfoParser</span><span class="p">()</span>
+            <span class="n">updates</span> <span class="o">=</span> <span class="n">parser</span><span class="o">.</span><span class="n">parse_file</span><span class="p">(</span><span class="n">updateinfo_path</span><span class="p">)</span>
+
+            <span class="c1"># Build set of available package NVRAs</span>
+            <span class="n">available_nvras</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_package_nvra_set</span><span class="p">(</span><span class="n">packages</span><span class="p">)</span>
+
+            <span class="c1"># Filter updates</span>
+            <span class="n">filter_obj</span> <span class="o">=</span> <span class="n">UpdateInfoFilter</span><span class="p">()</span>
+            <span class="n">filtered_updates</span> <span class="o">=</span> <span class="n">filter_obj</span><span class="o">.</span><span class="n">filter_updates</span><span class="p">(</span><span class="n">updates</span><span class="p">,</span> <span class="n">available_nvras</span><span class="p">)</span>
+
+            <span class="nb">print</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Filtered updateinfo: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">updates</span><span class="p">)</span><span class="si">}</span><span class="s2"> → </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">filtered_updates</span><span class="p">)</span><span class="si">}</span><span class="s2"> updates &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;(removed </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">updates</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nb">len</span><span class="p">(</span><span class="n">filtered_updates</span><span class="p">)</span><span class="si">}</span><span class="s2"> unavailable)&quot;</span>
+            <span class="p">)</span>
+
+            <span class="c1"># Generate new updateinfo.xml</span>
+            <span class="n">generator</span> <span class="o">=</span> <span class="n">UpdateInfoGenerator</span><span class="p">()</span>
+            <span class="n">filtered_xml</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="n">generate_xml</span><span class="p">(</span><span class="n">filtered_updates</span><span class="p">)</span>
+
+            <span class="c1"># Write filtered XML to temp file</span>
+            <span class="kn">import</span><span class="w"> </span><span class="nn">tempfile</span>
+            <span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">NamedTemporaryFile</span><span class="p">(</span>
+                <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;wb&quot;</span><span class="p">,</span> <span class="n">delete</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="s2">&quot;.xml&quot;</span>
+            <span class="p">)</span> <span class="k">as</span> <span class="n">tmp_f</span><span class="p">:</span>
+                <span class="n">tmp_f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">filtered_xml</span><span class="p">)</span>
+                <span class="n">tmp_xml_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">tmp_f</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+
+            <span class="c1"># Compress it</span>
+            <span class="n">filtered_updateinfo_path</span> <span class="o">=</span> <span class="n">repodata_path</span> <span class="o">/</span> <span class="n">updateinfo_path</span><span class="o">.</span><span class="n">name</span>
+
+            <span class="c1"># Determine compression based on extension</span>
+            <span class="k">if</span> <span class="n">updateinfo_path</span><span class="o">.</span><span class="n">suffix</span> <span class="o">==</span> <span class="s2">&quot;.bz2&quot;</span><span class="p">:</span>
+                <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">tmp_xml_path</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f_in</span><span class="p">:</span>
+                    <span class="k">with</span> <span class="n">bz2</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">filtered_updateinfo_path</span><span class="p">,</span> <span class="s2">&quot;wb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f_out</span><span class="p">:</span>
+                        <span class="n">shutil</span><span class="o">.</span><span class="n">copyfileobj</span><span class="p">(</span><span class="n">f_in</span><span class="p">,</span> <span class="n">f_out</span><span class="p">)</span>
+            <span class="k">elif</span> <span class="n">updateinfo_path</span><span class="o">.</span><span class="n">suffix</span> <span class="o">==</span> <span class="s2">&quot;.gz&quot;</span><span class="p">:</span>
+                <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">tmp_xml_path</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f_in</span><span class="p">:</span>
+                    <span class="k">with</span> <span class="n">gzip</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">filtered_updateinfo_path</span><span class="p">,</span> <span class="s2">&quot;wb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f_out</span><span class="p">:</span>
+                        <span class="n">shutil</span><span class="o">.</span><span class="n">copyfileobj</span><span class="p">(</span><span class="n">f_in</span><span class="p">,</span> <span class="n">f_out</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># No compression</span>
+                <span class="n">shutil</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">tmp_xml_path</span><span class="p">,</span> <span class="n">filtered_updateinfo_path</span><span class="p">)</span>
+
+            <span class="c1"># Clean up temp file</span>
+            <span class="n">tmp_xml_path</span><span class="o">.</span><span class="n">unlink</span><span class="p">()</span>
+
+            <span class="c1"># Replace in published_metadata list</span>
+            <span class="n">updated_metadata</span> <span class="o">=</span> <span class="n">published_metadata</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="n">updated_metadata</span><span class="p">[</span><span class="n">updateinfo_index</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;updateinfo&quot;</span><span class="p">,</span> <span class="n">filtered_updateinfo_path</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">updated_metadata</span>
+
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Warning: Failed to filter updateinfo: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="c1"># Return original metadata if filtering fails</span>
+            <span class="k">return</span> <span class="n">published_metadata</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_build_package_nvra_set</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">packages</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">ContentItem</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Set</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Build set of package NVRAs for filtering.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            packages: List of ContentItem packages</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            Set of NVRA strings (name-version-release.arch)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">nvras</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+
+        <span class="k">for</span> <span class="n">pkg</span> <span class="ow">in</span> <span class="n">packages</span><span class="p">:</span>
+            <span class="n">name</span> <span class="o">=</span> <span class="n">pkg</span><span class="o">.</span><span class="n">name</span>
+            <span class="n">version</span> <span class="o">=</span> <span class="n">pkg</span><span class="o">.</span><span class="n">version</span>
+            <span class="n">release</span> <span class="o">=</span> <span class="n">pkg</span><span class="o">.</span><span class="n">content_metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;release&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+            <span class="n">arch</span> <span class="o">=</span> <span class="n">pkg</span><span class="o">.</span><span class="n">content_metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;arch&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">name</span> <span class="ow">and</span> <span class="n">version</span> <span class="ow">and</span> <span class="n">release</span> <span class="ow">and</span> <span class="n">arch</span><span class="p">:</span>
+                <span class="n">nvra</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">version</span><span class="si">}</span><span class="s2">-</span><span class="si">{</span><span class="n">release</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">arch</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="n">nvras</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">nvra</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">nvras</span></div>
 
 </pre></div>
 

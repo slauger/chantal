@@ -110,8 +110,10 @@
 </li>
 <li class="toctree-l2"><a class="reference internal" href="user-guide/cli-commands.html#storage-pool-management">Storage Pool Management</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="user-guide/cli-commands.html#chantal-pool-stats"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">pool</span> <span class="pre">stats</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="user-guide/cli-commands.html#chantal-pool-orphaned"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">pool</span> <span class="pre">orphaned</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="user-guide/cli-commands.html#chantal-pool-cleanup"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">pool</span> <span class="pre">cleanup</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="user-guide/cli-commands.html#chantal-pool-verify"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">pool</span> <span class="pre">verify</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="user-guide/cli-commands.html#chantal-pool-missing"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">pool</span> <span class="pre">missing</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="user-guide/cli-commands.html#statistics-database">Statistics &amp; Database</a><ul>
@@ -601,9 +603,31 @@
 <li class="toctree-l3"><a class="reference internal" href="plugins/rpm-plugin.html#rhel-with-client-certificates">RHEL with Client Certificates</a></li>
 </ul>
 </li>
+<li class="toctree-l2"><a class="reference internal" href="plugins/rpm-plugin.html#repository-modes">Repository Modes</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="plugins/rpm-plugin.html#mirror-mode-default">Mirror Mode (Default)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="plugins/rpm-plugin.html#filtered-mode">Filtered Mode</a></li>
+<li class="toctree-l3"><a class="reference internal" href="plugins/rpm-plugin.html#hosted-mode">Hosted Mode</a></li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="plugins/rpm-plugin.html#how-it-works">How It Works</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="plugins/rpm-plugin.html#sync-process">Sync Process</a></li>
-<li class="toctree-l3"><a class="reference internal" href="plugins/rpm-plugin.html#publish-process">Publish Process</a></li>
+<li class="toctree-l3"><a class="reference internal" href="plugins/rpm-plugin.html#sync-process">Sync Process</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="plugins/rpm-plugin.html#fetch-repomd-xml">1. Fetch repomd.xml</a></li>
+<li class="toctree-l4"><a class="reference internal" href="plugins/rpm-plugin.html#download-metadata">2. Download Metadata</a></li>
+<li class="toctree-l4"><a class="reference internal" href="plugins/rpm-plugin.html#parse-packages">3. Parse Packages</a></li>
+<li class="toctree-l4"><a class="reference internal" href="plugins/rpm-plugin.html#apply-filters-filtered-mode-only">4. Apply Filters (Filtered Mode Only)</a></li>
+<li class="toctree-l4"><a class="reference internal" href="plugins/rpm-plugin.html#download-packages">5. Download Packages</a></li>
+<li class="toctree-l4"><a class="reference internal" href="plugins/rpm-plugin.html#update-database">6. Update Database</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="plugins/rpm-plugin.html#publish-process">Publish Process</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="plugins/rpm-plugin.html#query-packages">1. Query Packages</a></li>
+<li class="toctree-l4"><a class="reference internal" href="plugins/rpm-plugin.html#create-directory-structure">2. Create Directory Structure</a></li>
+<li class="toctree-l4"><a class="reference internal" href="plugins/rpm-plugin.html#create-package-hardlinks">3. Create Package Hardlinks</a></li>
+<li class="toctree-l4"><a class="reference internal" href="plugins/rpm-plugin.html#publish-metadata">4. Publish Metadata</a></li>
+<li class="toctree-l4"><a class="reference internal" href="plugins/rpm-plugin.html#updateinfo-filtering-filtered-mode">5. Updateinfo Filtering (Filtered Mode)</a></li>
+<li class="toctree-l4"><a class="reference internal" href="plugins/rpm-plugin.html#result">6. Result</a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="plugins/rpm-plugin.html#metadata-files">Metadata Files</a><ul>
@@ -836,13 +860,36 @@
 <li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.Repository.last_sync_at"><code class="docutils literal notranslate"><span class="pre">Repository.last_sync_at</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.Repository.last_sync_status"><code class="docutils literal notranslate"><span class="pre">Repository.last_sync_status</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.Repository.latest_path"><code class="docutils literal notranslate"><span class="pre">Repository.latest_path</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.Repository.mode"><code class="docutils literal notranslate"><span class="pre">Repository.mode</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.Repository.name"><code class="docutils literal notranslate"><span class="pre">Repository.name</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.Repository.repo_id"><code class="docutils literal notranslate"><span class="pre">Repository.repo_id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.Repository.repository_files"><code class="docutils literal notranslate"><span class="pre">Repository.repository_files</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.Repository.snapshots"><code class="docutils literal notranslate"><span class="pre">Repository.snapshots</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.Repository.snapshots_path"><code class="docutils literal notranslate"><span class="pre">Repository.snapshots_path</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.Repository.sync_history"><code class="docutils literal notranslate"><span class="pre">Repository.sync_history</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.Repository.type"><code class="docutils literal notranslate"><span class="pre">Repository.type</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.Repository.updated_at"><code class="docutils literal notranslate"><span class="pre">Repository.updated_at</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/modules.html#chantal.db.models.RepositoryFile"><code class="docutils literal notranslate"><span class="pre">RepositoryFile</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.RepositoryFile.created_at"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.created_at</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.RepositoryFile.file_category"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.file_category</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.RepositoryFile.file_metadata"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.file_metadata</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.RepositoryFile.file_type"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.file_type</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.RepositoryFile.id"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.RepositoryFile.original_path"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.original_path</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.RepositoryFile.pool_path"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.pool_path</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.RepositoryFile.repositories"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.repositories</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.RepositoryFile.sha256"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.sha256</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.RepositoryFile.size_bytes"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.size_bytes</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.RepositoryFile.snapshots"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.snapshots</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.RepositoryFile.updated_at"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.updated_at</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/modules.html#chantal.db.models.RepositoryMode"><code class="docutils literal notranslate"><span class="pre">RepositoryMode</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.RepositoryMode.FILTERED"><code class="docutils literal notranslate"><span class="pre">RepositoryMode.FILTERED</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.RepositoryMode.HOSTED"><code class="docutils literal notranslate"><span class="pre">RepositoryMode.HOSTED</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.RepositoryMode.MIRROR"><code class="docutils literal notranslate"><span class="pre">RepositoryMode.MIRROR</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="api/modules.html#chantal.db.models.Snapshot"><code class="docutils literal notranslate"><span class="pre">Snapshot</span></code></a><ul>
@@ -855,6 +902,7 @@
 <li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.Snapshot.package_count"><code class="docutils literal notranslate"><span class="pre">Snapshot.package_count</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.Snapshot.published_path"><code class="docutils literal notranslate"><span class="pre">Snapshot.published_path</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.Snapshot.repository"><code class="docutils literal notranslate"><span class="pre">Snapshot.repository</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.Snapshot.repository_files"><code class="docutils literal notranslate"><span class="pre">Snapshot.repository_files</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.Snapshot.repository_id"><code class="docutils literal notranslate"><span class="pre">Snapshot.repository_id</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.Snapshot.total_size_bytes"><code class="docutils literal notranslate"><span class="pre">Snapshot.total_size_bytes</span></code></a></li>
 </ul>
@@ -925,6 +973,7 @@
 <li class="toctree-l3"><a class="reference internal" href="api/modules.html#module-chantal.plugins.rpm">RPM Plugin</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.plugins.rpm.RpmPublisher"><code class="docutils literal notranslate"><span class="pre">RpmPublisher</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.plugins.rpm_sync.CheckUpdatesResult"><code class="docutils literal notranslate"><span class="pre">CheckUpdatesResult</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.plugins.rpm_sync.MetadataFileInfo"><code class="docutils literal notranslate"><span class="pre">MetadataFileInfo</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.plugins.rpm_sync.PackageMetadata"><code class="docutils literal notranslate"><span class="pre">PackageMetadata</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.plugins.rpm_sync.PackageUpdate"><code class="docutils literal notranslate"><span class="pre">PackageUpdate</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.plugins.rpm_sync.RpmSyncPlugin"><code class="docutils literal notranslate"><span class="pre">RpmSyncPlugin</span></code></a></li>

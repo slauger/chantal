@@ -107,8 +107,10 @@
 </li>
 <li class="toctree-l2"><a class="reference internal" href="../../../user-guide/cli-commands.html#storage-pool-management">Storage Pool Management</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="../../../user-guide/cli-commands.html#chantal-pool-stats"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">pool</span> <span class="pre">stats</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../user-guide/cli-commands.html#chantal-pool-orphaned"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">pool</span> <span class="pre">orphaned</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../user-guide/cli-commands.html#chantal-pool-cleanup"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">pool</span> <span class="pre">cleanup</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../user-guide/cli-commands.html#chantal-pool-verify"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">pool</span> <span class="pre">verify</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../user-guide/cli-commands.html#chantal-pool-missing"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">pool</span> <span class="pre">missing</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="../../../user-guide/cli-commands.html#statistics-database">Statistics &amp; Database</a><ul>
@@ -598,9 +600,31 @@
 <li class="toctree-l3"><a class="reference internal" href="../../../plugins/rpm-plugin.html#rhel-with-client-certificates">RHEL with Client Certificates</a></li>
 </ul>
 </li>
+<li class="toctree-l2"><a class="reference internal" href="../../../plugins/rpm-plugin.html#repository-modes">Repository Modes</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../plugins/rpm-plugin.html#mirror-mode-default">Mirror Mode (Default)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../plugins/rpm-plugin.html#filtered-mode">Filtered Mode</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../plugins/rpm-plugin.html#hosted-mode">Hosted Mode</a></li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="../../../plugins/rpm-plugin.html#how-it-works">How It Works</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="../../../plugins/rpm-plugin.html#sync-process">Sync Process</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../../plugins/rpm-plugin.html#publish-process">Publish Process</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../plugins/rpm-plugin.html#sync-process">Sync Process</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../plugins/rpm-plugin.html#fetch-repomd-xml">1. Fetch repomd.xml</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../plugins/rpm-plugin.html#download-metadata">2. Download Metadata</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../plugins/rpm-plugin.html#parse-packages">3. Parse Packages</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../plugins/rpm-plugin.html#apply-filters-filtered-mode-only">4. Apply Filters (Filtered Mode Only)</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../plugins/rpm-plugin.html#download-packages">5. Download Packages</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../plugins/rpm-plugin.html#update-database">6. Update Database</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../plugins/rpm-plugin.html#publish-process">Publish Process</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../plugins/rpm-plugin.html#query-packages">1. Query Packages</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../plugins/rpm-plugin.html#create-directory-structure">2. Create Directory Structure</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../plugins/rpm-plugin.html#create-package-hardlinks">3. Create Package Hardlinks</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../plugins/rpm-plugin.html#publish-metadata">4. Publish Metadata</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../plugins/rpm-plugin.html#updateinfo-filtering-filtered-mode">5. Updateinfo Filtering (Filtered Mode)</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../plugins/rpm-plugin.html#result">6. Result</a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="../../../plugins/rpm-plugin.html#metadata-files">Metadata Files</a><ul>
@@ -833,13 +857,36 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Repository.last_sync_at"><code class="docutils literal notranslate"><span class="pre">Repository.last_sync_at</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Repository.last_sync_status"><code class="docutils literal notranslate"><span class="pre">Repository.last_sync_status</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Repository.latest_path"><code class="docutils literal notranslate"><span class="pre">Repository.latest_path</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Repository.mode"><code class="docutils literal notranslate"><span class="pre">Repository.mode</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Repository.name"><code class="docutils literal notranslate"><span class="pre">Repository.name</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Repository.repo_id"><code class="docutils literal notranslate"><span class="pre">Repository.repo_id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Repository.repository_files"><code class="docutils literal notranslate"><span class="pre">Repository.repository_files</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Repository.snapshots"><code class="docutils literal notranslate"><span class="pre">Repository.snapshots</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Repository.snapshots_path"><code class="docutils literal notranslate"><span class="pre">Repository.snapshots_path</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Repository.sync_history"><code class="docutils literal notranslate"><span class="pre">Repository.sync_history</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Repository.type"><code class="docutils literal notranslate"><span class="pre">Repository.type</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Repository.updated_at"><code class="docutils literal notranslate"><span class="pre">Repository.updated_at</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.RepositoryFile"><code class="docutils literal notranslate"><span class="pre">RepositoryFile</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.RepositoryFile.created_at"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.created_at</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.RepositoryFile.file_category"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.file_category</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.RepositoryFile.file_metadata"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.file_metadata</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.RepositoryFile.file_type"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.file_type</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.RepositoryFile.id"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.RepositoryFile.original_path"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.original_path</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.RepositoryFile.pool_path"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.pool_path</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.RepositoryFile.repositories"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.repositories</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.RepositoryFile.sha256"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.sha256</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.RepositoryFile.size_bytes"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.size_bytes</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.RepositoryFile.snapshots"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.snapshots</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.RepositoryFile.updated_at"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.updated_at</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.RepositoryMode"><code class="docutils literal notranslate"><span class="pre">RepositoryMode</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.RepositoryMode.FILTERED"><code class="docutils literal notranslate"><span class="pre">RepositoryMode.FILTERED</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.RepositoryMode.HOSTED"><code class="docutils literal notranslate"><span class="pre">RepositoryMode.HOSTED</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.RepositoryMode.MIRROR"><code class="docutils literal notranslate"><span class="pre">RepositoryMode.MIRROR</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Snapshot"><code class="docutils literal notranslate"><span class="pre">Snapshot</span></code></a><ul>
@@ -852,6 +899,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Snapshot.package_count"><code class="docutils literal notranslate"><span class="pre">Snapshot.package_count</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Snapshot.published_path"><code class="docutils literal notranslate"><span class="pre">Snapshot.published_path</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Snapshot.repository"><code class="docutils literal notranslate"><span class="pre">Snapshot.repository</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Snapshot.repository_files"><code class="docutils literal notranslate"><span class="pre">Snapshot.repository_files</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Snapshot.repository_id"><code class="docutils literal notranslate"><span class="pre">Snapshot.repository_id</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Snapshot.total_size_bytes"><code class="docutils literal notranslate"><span class="pre">Snapshot.total_size_bytes</span></code></a></li>
 </ul>
@@ -922,6 +970,7 @@
 <li class="toctree-l3"><a class="reference internal" href="../../../api/modules.html#module-chantal.plugins.rpm">RPM Plugin</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.plugins.rpm.RpmPublisher"><code class="docutils literal notranslate"><span class="pre">RpmPublisher</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.plugins.rpm_sync.CheckUpdatesResult"><code class="docutils literal notranslate"><span class="pre">CheckUpdatesResult</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.plugins.rpm_sync.MetadataFileInfo"><code class="docutils literal notranslate"><span class="pre">MetadataFileInfo</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.plugins.rpm_sync.PackageMetadata"><code class="docutils literal notranslate"><span class="pre">PackageMetadata</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.plugins.rpm_sync.PackageUpdate"><code class="docutils literal notranslate"><span class="pre">PackageUpdate</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.plugins.rpm_sync.RpmSyncPlugin"><code class="docutils literal notranslate"><span class="pre">RpmSyncPlugin</span></code></a></li>
@@ -967,6 +1016,7 @@
 <span class="sd">snapshots, and their relationships.</span>
 <span class="sd">&quot;&quot;&quot;</span>
 
+<span class="kn">import</span><span class="w"> </span><span class="nn">enum</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">datetime</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span>
 
@@ -974,6 +1024,7 @@
     <span class="n">Boolean</span><span class="p">,</span>
     <span class="n">Column</span><span class="p">,</span>
     <span class="n">DateTime</span><span class="p">,</span>
+    <span class="n">Enum</span><span class="p">,</span>
     <span class="n">ForeignKey</span><span class="p">,</span>
     <span class="n">Index</span><span class="p">,</span>
     <span class="n">Integer</span><span class="p">,</span>
@@ -984,6 +1035,21 @@
     <span class="n">UniqueConstraint</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">sqlalchemy.orm</span><span class="w"> </span><span class="kn">import</span> <span class="n">DeclarativeBase</span><span class="p">,</span> <span class="n">Mapped</span><span class="p">,</span> <span class="n">mapped_column</span><span class="p">,</span> <span class="n">relationship</span>
+
+
+<div class="viewcode-block" id="RepositoryMode">
+<a class="viewcode-back" href="../../../api/modules.html#chantal.db.models.RepositoryMode">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">RepositoryMode</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">enum</span><span class="o">.</span><span class="n">Enum</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Repository operation modes.</span>
+
+<span class="sd">    - MIRROR: Full mirror, no filtering, metadata unchanged</span>
+<span class="sd">    - FILTERED: Filtered packages with customized metadata (include/exclude, retention, etc.)</span>
+<span class="sd">    - HOSTED: Self-hosted packages (for future use)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">MIRROR</span> <span class="o">=</span> <span class="s2">&quot;mirror&quot;</span>
+    <span class="n">FILTERED</span> <span class="o">=</span> <span class="s2">&quot;filtered&quot;</span>
+    <span class="n">HOSTED</span> <span class="o">=</span> <span class="s2">&quot;hosted&quot;</span></div>
+
 
 
 <div class="viewcode-block" id="Base">
@@ -1014,6 +1080,25 @@
     <span class="n">Column</span><span class="p">(</span><span class="s2">&quot;content_item_id&quot;</span><span class="p">,</span> <span class="n">Integer</span><span class="p">,</span> <span class="n">ForeignKey</span><span class="p">(</span><span class="s2">&quot;content_items.id&quot;</span><span class="p">),</span> <span class="n">primary_key</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
 <span class="p">)</span>
 
+<span class="c1"># Association table for many-to-many relationship between repositories and repository files</span>
+<span class="c1"># This tracks which metadata/installer files are currently in a repository (the &quot;latest&quot; state)</span>
+<span class="n">repository_repository_files</span> <span class="o">=</span> <span class="n">Table</span><span class="p">(</span>
+    <span class="s2">&quot;repository_repository_files&quot;</span><span class="p">,</span>
+    <span class="n">Base</span><span class="o">.</span><span class="n">metadata</span><span class="p">,</span>
+    <span class="n">Column</span><span class="p">(</span><span class="s2">&quot;repository_id&quot;</span><span class="p">,</span> <span class="n">Integer</span><span class="p">,</span> <span class="n">ForeignKey</span><span class="p">(</span><span class="s2">&quot;repositories.id&quot;</span><span class="p">),</span> <span class="n">primary_key</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+    <span class="n">Column</span><span class="p">(</span><span class="s2">&quot;repository_file_id&quot;</span><span class="p">,</span> <span class="n">Integer</span><span class="p">,</span> <span class="n">ForeignKey</span><span class="p">(</span><span class="s2">&quot;repository_files.id&quot;</span><span class="p">),</span> <span class="n">primary_key</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+    <span class="n">Column</span><span class="p">(</span><span class="s2">&quot;added_at&quot;</span><span class="p">,</span> <span class="n">DateTime</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">),</span>
+<span class="p">)</span>
+
+<span class="c1"># Association table for many-to-many relationship between snapshots and repository files</span>
+<span class="c1"># This tracks immutable point-in-time copies of repository metadata/installer files</span>
+<span class="n">snapshot_repository_files</span> <span class="o">=</span> <span class="n">Table</span><span class="p">(</span>
+    <span class="s2">&quot;snapshot_repository_files&quot;</span><span class="p">,</span>
+    <span class="n">Base</span><span class="o">.</span><span class="n">metadata</span><span class="p">,</span>
+    <span class="n">Column</span><span class="p">(</span><span class="s2">&quot;snapshot_id&quot;</span><span class="p">,</span> <span class="n">Integer</span><span class="p">,</span> <span class="n">ForeignKey</span><span class="p">(</span><span class="s2">&quot;snapshots.id&quot;</span><span class="p">),</span> <span class="n">primary_key</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+    <span class="n">Column</span><span class="p">(</span><span class="s2">&quot;repository_file_id&quot;</span><span class="p">,</span> <span class="n">Integer</span><span class="p">,</span> <span class="n">ForeignKey</span><span class="p">(</span><span class="s2">&quot;repository_files.id&quot;</span><span class="p">),</span> <span class="n">primary_key</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+<span class="p">)</span>
+
 
 <div class="viewcode-block" id="Repository">
 <a class="viewcode-back" href="../../../api/modules.html#chantal.db.models.Repository">[docs]</a>
@@ -1028,6 +1113,11 @@
     <span class="nb">type</span><span class="p">:</span> <span class="n">Mapped</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">mapped_column</span><span class="p">(</span><span class="n">String</span><span class="p">(</span><span class="mi">50</span><span class="p">),</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>  <span class="c1"># rpm, apt</span>
     <span class="n">feed</span><span class="p">:</span> <span class="n">Mapped</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">mapped_column</span><span class="p">(</span><span class="n">Text</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>  <span class="c1"># upstream URL (Pulp terminology)</span>
     <span class="n">enabled</span><span class="p">:</span> <span class="n">Mapped</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="n">mapped_column</span><span class="p">(</span><span class="n">Boolean</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">mode</span><span class="p">:</span> <span class="n">Mapped</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">mapped_column</span><span class="p">(</span>
+        <span class="n">Enum</span><span class="p">(</span><span class="n">RepositoryMode</span><span class="p">),</span>
+        <span class="n">default</span><span class="o">=</span><span class="n">RepositoryMode</span><span class="o">.</span><span class="n">FILTERED</span><span class="p">,</span>
+        <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span>
+    <span class="p">)</span>
 
     <span class="c1"># Paths</span>
     <span class="n">latest_path</span><span class="p">:</span> <span class="n">Mapped</span><span class="p">[</span><span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="n">mapped_column</span><span class="p">(</span><span class="n">Text</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
@@ -1056,6 +1146,9 @@
     <span class="p">)</span>
     <span class="n">content_items</span><span class="p">:</span> <span class="n">Mapped</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="s2">&quot;ContentItem&quot;</span><span class="p">]]</span> <span class="o">=</span> <span class="n">relationship</span><span class="p">(</span>
         <span class="s2">&quot;ContentItem&quot;</span><span class="p">,</span> <span class="n">secondary</span><span class="o">=</span><span class="n">repository_content_items</span><span class="p">,</span> <span class="n">back_populates</span><span class="o">=</span><span class="s2">&quot;repositories&quot;</span>
+    <span class="p">)</span>
+    <span class="n">repository_files</span><span class="p">:</span> <span class="n">Mapped</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="s2">&quot;RepositoryFile&quot;</span><span class="p">]]</span> <span class="o">=</span> <span class="n">relationship</span><span class="p">(</span>
+        <span class="s2">&quot;RepositoryFile&quot;</span><span class="p">,</span> <span class="n">secondary</span><span class="o">=</span><span class="n">repository_repository_files</span><span class="p">,</span> <span class="n">back_populates</span><span class="o">=</span><span class="s2">&quot;repositories&quot;</span>
     <span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
@@ -1182,6 +1275,9 @@
     <span class="n">repository</span><span class="p">:</span> <span class="n">Mapped</span><span class="p">[</span><span class="s2">&quot;Repository&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">relationship</span><span class="p">(</span><span class="s2">&quot;Repository&quot;</span><span class="p">,</span> <span class="n">back_populates</span><span class="o">=</span><span class="s2">&quot;snapshots&quot;</span><span class="p">)</span>
     <span class="n">content_items</span><span class="p">:</span> <span class="n">Mapped</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="s2">&quot;ContentItem&quot;</span><span class="p">]]</span> <span class="o">=</span> <span class="n">relationship</span><span class="p">(</span>
         <span class="s2">&quot;ContentItem&quot;</span><span class="p">,</span> <span class="n">secondary</span><span class="o">=</span><span class="n">snapshot_content_items</span><span class="p">,</span> <span class="n">back_populates</span><span class="o">=</span><span class="s2">&quot;snapshots&quot;</span>
+    <span class="p">)</span>
+    <span class="n">repository_files</span><span class="p">:</span> <span class="n">Mapped</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="s2">&quot;RepositoryFile&quot;</span><span class="p">]]</span> <span class="o">=</span> <span class="n">relationship</span><span class="p">(</span>
+        <span class="s2">&quot;RepositoryFile&quot;</span><span class="p">,</span> <span class="n">secondary</span><span class="o">=</span><span class="n">snapshot_repository_files</span><span class="p">,</span> <span class="n">back_populates</span><span class="o">=</span><span class="s2">&quot;snapshots&quot;</span>
     <span class="p">)</span>
 
     <span class="c1"># Unique constraint: snapshot name must be unique per repository</span>
@@ -1368,6 +1464,84 @@
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
         <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;&lt;ViewSnapshot(name=&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&#39;, view_id=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">view_id</span><span class="si">}</span><span class="s2">, snapshots=</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">snapshot_ids</span><span class="p">)</span><span class="si">}</span><span class="s2">)&gt;&quot;</span></div>
+
+
+
+<div class="viewcode-block" id="RepositoryFile">
+<a class="viewcode-back" href="../../../api/modules.html#chantal.db.models.RepositoryFile">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">RepositoryFile</span><span class="p">(</span><span class="n">Base</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Repository metadata and installer files.</span>
+
+<span class="sd">    Stores non-package files like:</span>
+<span class="sd">    - Metadata: updateinfo.xml, filelists.xml, comps.xml, modules.yaml, etc.</span>
+<span class="sd">    - Signatures: repomd.xml.asc, Release.gpg</span>
+<span class="sd">    - Kickstart: vmlinuz, initrd.img, .treeinfo</span>
+<span class="sd">    - Debian installer: debian-installer/</span>
+<span class="sd">    - SUSE specific: susedata.xml, patterns.xml, products.xml</span>
+
+<span class="sd">    Uses content-addressed storage like ContentItem - files can be shared</span>
+<span class="sd">    across multiple repositories and snapshots.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">__tablename__</span> <span class="o">=</span> <span class="s2">&quot;repository_files&quot;</span>
+
+    <span class="nb">id</span><span class="p">:</span> <span class="n">Mapped</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="n">mapped_column</span><span class="p">(</span><span class="n">Integer</span><span class="p">,</span> <span class="n">primary_key</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="c1"># Classification (NO ENUM - flexible for future SUSE/other formats!)</span>
+    <span class="n">file_category</span><span class="p">:</span> <span class="n">Mapped</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">mapped_column</span><span class="p">(</span><span class="n">String</span><span class="p">(</span><span class="mi">50</span><span class="p">),</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="c1"># Values: &quot;metadata&quot;, &quot;signature&quot;, &quot;kickstart&quot;, &quot;debian-installer&quot;</span>
+
+    <span class="n">file_type</span><span class="p">:</span> <span class="n">Mapped</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">mapped_column</span><span class="p">(</span><span class="n">String</span><span class="p">(</span><span class="mi">100</span><span class="p">),</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="c1"># Values: &quot;updateinfo&quot;, &quot;filelists&quot;, &quot;comps&quot;, &quot;modules&quot;,</span>
+    <span class="c1">#         &quot;vmlinuz&quot;, &quot;initrd&quot;, &quot;.treeinfo&quot;,</span>
+    <span class="c1">#         &quot;susedata&quot;, &quot;suseinfo&quot;, &quot;patterns&quot;, &quot;products&quot; (SUSE future)</span>
+
+    <span class="c1"># Content-addressed storage (in pool/files/ subdirectory)</span>
+    <span class="n">sha256</span><span class="p">:</span> <span class="n">Mapped</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">mapped_column</span><span class="p">(</span><span class="n">String</span><span class="p">(</span><span class="mi">64</span><span class="p">),</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">pool_path</span><span class="p">:</span> <span class="n">Mapped</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">mapped_column</span><span class="p">(</span><span class="n">Text</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="c1"># Format: &quot;files/ab/cd/abc123_updateinfo.xml.gz&quot;</span>
+    <span class="n">size_bytes</span><span class="p">:</span> <span class="n">Mapped</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="n">mapped_column</span><span class="p">(</span><span class="n">Integer</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="c1"># Publishing path (preserve exact upstream structure)</span>
+    <span class="n">original_path</span><span class="p">:</span> <span class="n">Mapped</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">mapped_column</span><span class="p">(</span><span class="n">Text</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="c1"># Examples:</span>
+    <span class="c1">#   &quot;repodata/abc123-updateinfo.xml.gz&quot;</span>
+    <span class="c1">#   &quot;images/pxeboot/vmlinuz&quot;</span>
+    <span class="c1">#   &quot;.treeinfo&quot;</span>
+    <span class="c1">#   &quot;v3.19/main/x86_64/APKINDEX.tar.gz&quot;</span>
+
+    <span class="c1"># Flexible metadata (type-specific info stored as JSON)</span>
+    <span class="c1"># Note: Named &#39;file_metadata&#39; because &#39;metadata&#39; is reserved by SQLAlchemy</span>
+    <span class="n">file_metadata</span><span class="p">:</span> <span class="n">Mapped</span><span class="p">[</span><span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]]</span> <span class="o">=</span> <span class="n">mapped_column</span><span class="p">(</span><span class="n">JSON</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="c1"># Examples:</span>
+    <span class="c1">#   {&quot;checksum_type&quot;: &quot;sha256&quot;, &quot;open_checksum&quot;: &quot;xyz&quot;, &quot;timestamp&quot;: 123456}</span>
+    <span class="c1">#   {&quot;kernel_version&quot;: &quot;5.14.0-362.8.1.el9_3&quot;}</span>
+
+    <span class="c1"># Timestamps</span>
+    <span class="n">created_at</span><span class="p">:</span> <span class="n">Mapped</span><span class="p">[</span><span class="n">datetime</span><span class="p">]</span> <span class="o">=</span> <span class="n">mapped_column</span><span class="p">(</span>
+        <span class="n">DateTime</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span>
+    <span class="p">)</span>
+    <span class="n">updated_at</span><span class="p">:</span> <span class="n">Mapped</span><span class="p">[</span><span class="n">datetime</span><span class="p">]</span> <span class="o">=</span> <span class="n">mapped_column</span><span class="p">(</span>
+        <span class="n">DateTime</span><span class="p">,</span> <span class="n">default</span><span class="o">=</span><span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">,</span> <span class="n">onupdate</span><span class="o">=</span><span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Relationships (many-to-many like ContentItem)</span>
+    <span class="n">repositories</span><span class="p">:</span> <span class="n">Mapped</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="s2">&quot;Repository&quot;</span><span class="p">]]</span> <span class="o">=</span> <span class="n">relationship</span><span class="p">(</span>
+        <span class="s2">&quot;Repository&quot;</span><span class="p">,</span> <span class="n">secondary</span><span class="o">=</span><span class="n">repository_repository_files</span><span class="p">,</span> <span class="n">back_populates</span><span class="o">=</span><span class="s2">&quot;repository_files&quot;</span>
+    <span class="p">)</span>
+    <span class="n">snapshots</span><span class="p">:</span> <span class="n">Mapped</span><span class="p">[</span><span class="nb">list</span><span class="p">[</span><span class="s2">&quot;Snapshot&quot;</span><span class="p">]]</span> <span class="o">=</span> <span class="n">relationship</span><span class="p">(</span>
+        <span class="s2">&quot;Snapshot&quot;</span><span class="p">,</span> <span class="n">secondary</span><span class="o">=</span><span class="n">snapshot_repository_files</span><span class="p">,</span> <span class="n">back_populates</span><span class="o">=</span><span class="s2">&quot;repository_files&quot;</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Indexes for common queries</span>
+    <span class="n">__table_args__</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="c1"># Composite index for common query: &quot;get all updateinfo files for repo X&quot;</span>
+        <span class="n">Index</span><span class="p">(</span><span class="s2">&quot;idx_repo_file_category&quot;</span><span class="p">,</span> <span class="s2">&quot;file_category&quot;</span><span class="p">),</span>
+        <span class="n">Index</span><span class="p">(</span><span class="s2">&quot;idx_repo_file_type&quot;</span><span class="p">,</span> <span class="s2">&quot;file_type&quot;</span><span class="p">),</span>
+    <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;&lt;RepositoryFile(category=&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">file_category</span><span class="si">}</span><span class="s2">&#39;, type=&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">file_type</span><span class="si">}</span><span class="s2">&#39;, path=&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">original_path</span><span class="si">}</span><span class="s2">&#39;, sha256=&#39;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">sha256</span><span class="p">[:</span><span class="mi">8</span><span class="p">]</span><span class="si">}</span><span class="s2">...&#39;)&gt;&quot;</span></div>
 
 </pre></div>
 

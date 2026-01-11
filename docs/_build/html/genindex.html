@@ -107,8 +107,10 @@
 </li>
 <li class="toctree-l2"><a class="reference internal" href="user-guide/cli-commands.html#storage-pool-management">Storage Pool Management</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="user-guide/cli-commands.html#chantal-pool-stats"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">pool</span> <span class="pre">stats</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="user-guide/cli-commands.html#chantal-pool-orphaned"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">pool</span> <span class="pre">orphaned</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="user-guide/cli-commands.html#chantal-pool-cleanup"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">pool</span> <span class="pre">cleanup</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="user-guide/cli-commands.html#chantal-pool-verify"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">pool</span> <span class="pre">verify</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="user-guide/cli-commands.html#chantal-pool-missing"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">pool</span> <span class="pre">missing</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="user-guide/cli-commands.html#statistics-database">Statistics &amp; Database</a><ul>
@@ -598,9 +600,31 @@
 <li class="toctree-l3"><a class="reference internal" href="plugins/rpm-plugin.html#rhel-with-client-certificates">RHEL with Client Certificates</a></li>
 </ul>
 </li>
+<li class="toctree-l2"><a class="reference internal" href="plugins/rpm-plugin.html#repository-modes">Repository Modes</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="plugins/rpm-plugin.html#mirror-mode-default">Mirror Mode (Default)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="plugins/rpm-plugin.html#filtered-mode">Filtered Mode</a></li>
+<li class="toctree-l3"><a class="reference internal" href="plugins/rpm-plugin.html#hosted-mode">Hosted Mode</a></li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="plugins/rpm-plugin.html#how-it-works">How It Works</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="plugins/rpm-plugin.html#sync-process">Sync Process</a></li>
-<li class="toctree-l3"><a class="reference internal" href="plugins/rpm-plugin.html#publish-process">Publish Process</a></li>
+<li class="toctree-l3"><a class="reference internal" href="plugins/rpm-plugin.html#sync-process">Sync Process</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="plugins/rpm-plugin.html#fetch-repomd-xml">1. Fetch repomd.xml</a></li>
+<li class="toctree-l4"><a class="reference internal" href="plugins/rpm-plugin.html#download-metadata">2. Download Metadata</a></li>
+<li class="toctree-l4"><a class="reference internal" href="plugins/rpm-plugin.html#parse-packages">3. Parse Packages</a></li>
+<li class="toctree-l4"><a class="reference internal" href="plugins/rpm-plugin.html#apply-filters-filtered-mode-only">4. Apply Filters (Filtered Mode Only)</a></li>
+<li class="toctree-l4"><a class="reference internal" href="plugins/rpm-plugin.html#download-packages">5. Download Packages</a></li>
+<li class="toctree-l4"><a class="reference internal" href="plugins/rpm-plugin.html#update-database">6. Update Database</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="plugins/rpm-plugin.html#publish-process">Publish Process</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="plugins/rpm-plugin.html#query-packages">1. Query Packages</a></li>
+<li class="toctree-l4"><a class="reference internal" href="plugins/rpm-plugin.html#create-directory-structure">2. Create Directory Structure</a></li>
+<li class="toctree-l4"><a class="reference internal" href="plugins/rpm-plugin.html#create-package-hardlinks">3. Create Package Hardlinks</a></li>
+<li class="toctree-l4"><a class="reference internal" href="plugins/rpm-plugin.html#publish-metadata">4. Publish Metadata</a></li>
+<li class="toctree-l4"><a class="reference internal" href="plugins/rpm-plugin.html#updateinfo-filtering-filtered-mode">5. Updateinfo Filtering (Filtered Mode)</a></li>
+<li class="toctree-l4"><a class="reference internal" href="plugins/rpm-plugin.html#result">6. Result</a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="plugins/rpm-plugin.html#metadata-files">Metadata Files</a><ul>
@@ -833,13 +857,36 @@
 <li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.Repository.last_sync_at"><code class="docutils literal notranslate"><span class="pre">Repository.last_sync_at</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.Repository.last_sync_status"><code class="docutils literal notranslate"><span class="pre">Repository.last_sync_status</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.Repository.latest_path"><code class="docutils literal notranslate"><span class="pre">Repository.latest_path</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.Repository.mode"><code class="docutils literal notranslate"><span class="pre">Repository.mode</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.Repository.name"><code class="docutils literal notranslate"><span class="pre">Repository.name</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.Repository.repo_id"><code class="docutils literal notranslate"><span class="pre">Repository.repo_id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.Repository.repository_files"><code class="docutils literal notranslate"><span class="pre">Repository.repository_files</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.Repository.snapshots"><code class="docutils literal notranslate"><span class="pre">Repository.snapshots</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.Repository.snapshots_path"><code class="docutils literal notranslate"><span class="pre">Repository.snapshots_path</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.Repository.sync_history"><code class="docutils literal notranslate"><span class="pre">Repository.sync_history</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.Repository.type"><code class="docutils literal notranslate"><span class="pre">Repository.type</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.Repository.updated_at"><code class="docutils literal notranslate"><span class="pre">Repository.updated_at</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/modules.html#chantal.db.models.RepositoryFile"><code class="docutils literal notranslate"><span class="pre">RepositoryFile</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.RepositoryFile.created_at"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.created_at</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.RepositoryFile.file_category"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.file_category</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.RepositoryFile.file_metadata"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.file_metadata</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.RepositoryFile.file_type"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.file_type</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.RepositoryFile.id"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.RepositoryFile.original_path"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.original_path</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.RepositoryFile.pool_path"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.pool_path</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.RepositoryFile.repositories"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.repositories</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.RepositoryFile.sha256"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.sha256</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.RepositoryFile.size_bytes"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.size_bytes</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.RepositoryFile.snapshots"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.snapshots</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.RepositoryFile.updated_at"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.updated_at</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="api/modules.html#chantal.db.models.RepositoryMode"><code class="docutils literal notranslate"><span class="pre">RepositoryMode</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.RepositoryMode.FILTERED"><code class="docutils literal notranslate"><span class="pre">RepositoryMode.FILTERED</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.RepositoryMode.HOSTED"><code class="docutils literal notranslate"><span class="pre">RepositoryMode.HOSTED</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.RepositoryMode.MIRROR"><code class="docutils literal notranslate"><span class="pre">RepositoryMode.MIRROR</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="api/modules.html#chantal.db.models.Snapshot"><code class="docutils literal notranslate"><span class="pre">Snapshot</span></code></a><ul>
@@ -852,6 +899,7 @@
 <li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.Snapshot.package_count"><code class="docutils literal notranslate"><span class="pre">Snapshot.package_count</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.Snapshot.published_path"><code class="docutils literal notranslate"><span class="pre">Snapshot.published_path</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.Snapshot.repository"><code class="docutils literal notranslate"><span class="pre">Snapshot.repository</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.Snapshot.repository_files"><code class="docutils literal notranslate"><span class="pre">Snapshot.repository_files</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.Snapshot.repository_id"><code class="docutils literal notranslate"><span class="pre">Snapshot.repository_id</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.db.models.Snapshot.total_size_bytes"><code class="docutils literal notranslate"><span class="pre">Snapshot.total_size_bytes</span></code></a></li>
 </ul>
@@ -922,6 +970,7 @@
 <li class="toctree-l3"><a class="reference internal" href="api/modules.html#module-chantal.plugins.rpm">RPM Plugin</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.plugins.rpm.RpmPublisher"><code class="docutils literal notranslate"><span class="pre">RpmPublisher</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.plugins.rpm_sync.CheckUpdatesResult"><code class="docutils literal notranslate"><span class="pre">CheckUpdatesResult</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.plugins.rpm_sync.MetadataFileInfo"><code class="docutils literal notranslate"><span class="pre">MetadataFileInfo</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.plugins.rpm_sync.PackageMetadata"><code class="docutils literal notranslate"><span class="pre">PackageMetadata</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.plugins.rpm_sync.PackageUpdate"><code class="docutils literal notranslate"><span class="pre">PackageUpdate</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="api/modules.html#chantal.plugins.rpm_sync.RpmSyncPlugin"><code class="docutils literal notranslate"><span class="pre">RpmSyncPlugin</span></code></a></li>
@@ -990,20 +1039,22 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="api/modules.html#chantal.core.storage.StorageManager.add_package">add_package() (chantal.core.storage.StorageManager method)</a>
 </li>
+      <li><a href="api/modules.html#chantal.core.storage.StorageManager.add_repository_file">add_repository_file() (chantal.core.storage.StorageManager method)</a>
+</li>
       <li><a href="api/modules.html#chantal.db.models.ViewRepository.added_at">added_at (chantal.db.models.ViewRepository attribute)</a>
 </li>
       <li><a href="api/modules.html#chantal.core.config.RepositoryConfig.apk">apk (chantal.core.config.RepositoryConfig attribute)</a>
 </li>
       <li><a href="api/modules.html#chantal.core.config.ApkConfig">ApkConfig (class in chantal.core.config)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="api/modules.html#chantal.plugins.rpm_sync.PackageMetadata.arch">arch (chantal.plugins.rpm_sync.PackageMetadata attribute)</a>
 
       <ul>
         <li><a href="api/modules.html#chantal.plugins.rpm_sync.PackageUpdate.arch">(chantal.plugins.rpm_sync.PackageUpdate attribute)</a>
 </li>
       </ul></li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="api/modules.html#chantal.core.config.ApkConfig.architecture">architecture (chantal.core.config.ApkConfig attribute)</a>
 </li>
       <li><a href="api/modules.html#chantal.core.config.GenericMetadataFilterConfig.architectures">architectures (chantal.core.config.GenericMetadataFilterConfig attribute)</a>
@@ -1109,6 +1160,8 @@
       </ul></li>
       <li><a href="api/modules.html#chantal.plugins.rpm_sync.RpmSyncPlugin.check_updates">check_updates() (chantal.plugins.rpm_sync.RpmSyncPlugin method)</a>
 </li>
+      <li><a href="api/modules.html#chantal.plugins.rpm_sync.MetadataFileInfo.checksum">checksum (chantal.plugins.rpm_sync.MetadataFileInfo attribute)</a>
+</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="api/modules.html#chantal.plugins.rpm_sync.CheckUpdatesResult">CheckUpdatesResult (class in chantal.plugins.rpm_sync)</a>
@@ -1147,6 +1200,8 @@
 
       <ul>
         <li><a href="api/modules.html#chantal.db.models.Repository.created_at">(chantal.db.models.Repository attribute)</a>
+</li>
+        <li><a href="api/modules.html#chantal.db.models.RepositoryFile.created_at">(chantal.db.models.RepositoryFile attribute)</a>
 </li>
         <li><a href="api/modules.html#chantal.db.models.Snapshot.created_at">(chantal.db.models.Snapshot attribute)</a>
 </li>
@@ -1245,13 +1300,25 @@
         <li><a href="api/modules.html#chantal.db.models.Repository.feed">(chantal.db.models.Repository attribute)</a>
 </li>
       </ul></li>
+      <li><a href="api/modules.html#chantal.db.models.RepositoryFile.file_category">file_category (chantal.db.models.RepositoryFile attribute)</a>
+</li>
+      <li><a href="api/modules.html#chantal.db.models.RepositoryFile.file_metadata">file_metadata (chantal.db.models.RepositoryFile attribute)</a>
+</li>
       <li><a href="api/modules.html#chantal.plugins.rpm_sync.PackageMetadata.file_time">file_time (chantal.plugins.rpm_sync.PackageMetadata attribute)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/modules.html#chantal.db.models.RepositoryFile.file_type">file_type (chantal.db.models.RepositoryFile attribute)</a>
+
+      <ul>
+        <li><a href="api/modules.html#chantal.plugins.rpm_sync.MetadataFileInfo.file_type">(chantal.plugins.rpm_sync.MetadataFileInfo attribute)</a>
+</li>
+      </ul></li>
       <li><a href="api/modules.html#chantal.db.models.ContentItem.filename">filename (chantal.db.models.ContentItem attribute)</a>
 </li>
       <li><a href="api/modules.html#chantal.core.config.FilterConfig">FilterConfig (class in chantal.core.config)</a>
+</li>
+      <li><a href="api/modules.html#chantal.db.models.RepositoryMode.FILTERED">FILTERED (chantal.db.models.RepositoryMode attribute)</a>
 </li>
       <li><a href="api/modules.html#chantal.core.config.RepositoryConfig.filters">filters (chantal.core.config.RepositoryConfig attribute)</a>
 </li>
@@ -1303,6 +1370,8 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="api/modules.html#chantal.core.config.AuthConfig.headers">headers (chantal.core.config.AuthConfig attribute)</a>
 </li>
+      <li><a href="api/modules.html#chantal.db.models.RepositoryMode.HOSTED">HOSTED (chantal.db.models.RepositoryMode attribute)</a>
+</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="api/modules.html#chantal.core.config.ProxyConfig.http_proxy">http_proxy (chantal.core.config.ProxyConfig attribute)</a>
@@ -1321,6 +1390,8 @@
         <li><a href="api/modules.html#chantal.db.models.ContentItem.id">(chantal.db.models.ContentItem attribute)</a>
 </li>
         <li><a href="api/modules.html#chantal.db.models.Repository.id">(chantal.db.models.Repository attribute)</a>
+</li>
+        <li><a href="api/modules.html#chantal.db.models.RepositoryFile.id">(chantal.db.models.RepositoryFile attribute)</a>
 </li>
         <li><a href="api/modules.html#chantal.db.models.Snapshot.id">(chantal.db.models.Snapshot attribute)</a>
 </li>
@@ -1403,9 +1474,11 @@
 </li>
       <li><a href="api/modules.html#chantal.plugins.rpm_sync.PackageUpdate.local_version">local_version (chantal.plugins.rpm_sync.PackageUpdate attribute)</a>
 </li>
-      <li><a href="api/modules.html#chantal.plugins.rpm_sync.PackageMetadata.location">location (chantal.plugins.rpm_sync.PackageMetadata attribute)</a>
+      <li><a href="api/modules.html#chantal.plugins.rpm_sync.MetadataFileInfo.location">location (chantal.plugins.rpm_sync.MetadataFileInfo attribute)</a>
 
       <ul>
+        <li><a href="api/modules.html#chantal.plugins.rpm_sync.PackageMetadata.location">(chantal.plugins.rpm_sync.PackageMetadata attribute)</a>
+</li>
         <li><a href="api/modules.html#chantal.plugins.rpm_sync.PackageUpdate.location">(chantal.plugins.rpm_sync.PackageUpdate attribute)</a>
 </li>
       </ul></li>
@@ -1425,8 +1498,20 @@
         <li><a href="api/modules.html#chantal.db.models.Base.metadata">(chantal.db.models.Base attribute)</a>
 </li>
       </ul></li>
+      <li><a href="api/modules.html#chantal.plugins.rpm_sync.SyncResult.metadata_files_downloaded">metadata_files_downloaded (chantal.plugins.rpm_sync.SyncResult attribute)</a>
+</li>
+      <li><a href="api/modules.html#chantal.plugins.rpm_sync.MetadataFileInfo">MetadataFileInfo (class in chantal.plugins.rpm_sync)</a>
+</li>
       <li><a href="api/modules.html#chantal.core.config.SizeFilterConfig.min">min (chantal.core.config.SizeFilterConfig attribute)</a>
 </li>
+      <li><a href="api/modules.html#chantal.db.models.RepositoryMode.MIRROR">MIRROR (chantal.db.models.RepositoryMode attribute)</a>
+</li>
+      <li><a href="api/modules.html#chantal.core.config.RepositoryConfig.mode">mode (chantal.core.config.RepositoryConfig attribute)</a>
+
+      <ul>
+        <li><a href="api/modules.html#chantal.db.models.Repository.mode">(chantal.db.models.Repository attribute)</a>
+</li>
+      </ul></li>
       <li><a href="api/modules.html#chantal.core.config.ApkConfig.model_config">model_config (chantal.core.config.ApkConfig attribute)</a>
 
       <ul>
@@ -1538,11 +1623,17 @@
 </li>
       <li><a href="api/modules.html#chantal.core.config.PostProcessingConfig.only_latest_n_versions">only_latest_n_versions (chantal.core.config.PostProcessingConfig attribute)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="api/modules.html#chantal.core.config.PostProcessingConfig.only_latest_version">only_latest_version (chantal.core.config.PostProcessingConfig attribute)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/modules.html#chantal.plugins.rpm_sync.MetadataFileInfo.open_checksum">open_checksum (chantal.plugins.rpm_sync.MetadataFileInfo attribute)</a>
+</li>
+      <li><a href="api/modules.html#chantal.plugins.rpm_sync.MetadataFileInfo.open_size">open_size (chantal.plugins.rpm_sync.MetadataFileInfo attribute)</a>
+</li>
       <li><a href="api/modules.html#chantal.db.models.ViewRepository.order">order (chantal.db.models.ViewRepository attribute)</a>
+</li>
+      <li><a href="api/modules.html#chantal.db.models.RepositoryFile.original_path">original_path (chantal.db.models.RepositoryFile attribute)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -1590,6 +1681,8 @@
 
       <ul>
         <li><a href="api/modules.html#chantal.db.models.ContentItem.pool_path">(chantal.db.models.ContentItem attribute)</a>
+</li>
+        <li><a href="api/modules.html#chantal.db.models.RepositoryFile.pool_path">(chantal.db.models.RepositoryFile attribute)</a>
 </li>
       </ul></li>
   </ul></td>
@@ -1671,6 +1764,8 @@
       <ul>
         <li><a href="api/modules.html#chantal.db.models.ContentItem.repositories">(chantal.db.models.ContentItem attribute)</a>
 </li>
+        <li><a href="api/modules.html#chantal.db.models.RepositoryFile.repositories">(chantal.db.models.RepositoryFile attribute)</a>
+</li>
       </ul></li>
       <li><a href="api/modules.html#chantal.core.config.ApkConfig.repository">repository (chantal.core.config.ApkConfig attribute)</a>
 
@@ -1686,6 +1781,12 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="api/modules.html#chantal.db.models.Repository">Repository (class in chantal.db.models)</a>
 </li>
+      <li><a href="api/modules.html#chantal.db.models.Repository.repository_files">repository_files (chantal.db.models.Repository attribute)</a>
+
+      <ul>
+        <li><a href="api/modules.html#chantal.db.models.Snapshot.repository_files">(chantal.db.models.Snapshot attribute)</a>
+</li>
+      </ul></li>
       <li><a href="api/modules.html#chantal.db.models.Snapshot.repository_id">repository_id (chantal.db.models.Snapshot attribute)</a>
 
       <ul>
@@ -1695,6 +1796,10 @@
 </li>
       </ul></li>
       <li><a href="api/modules.html#chantal.core.config.RepositoryConfig">RepositoryConfig (class in chantal.core.config)</a>
+</li>
+      <li><a href="api/modules.html#chantal.db.models.RepositoryFile">RepositoryFile (class in chantal.db.models)</a>
+</li>
+      <li><a href="api/modules.html#chantal.db.models.RepositoryMode">RepositoryMode (class in chantal.db.models)</a>
 </li>
       <li><a href="api/modules.html#chantal.core.config.RepositoryConfig.retention">retention (chantal.core.config.RepositoryConfig attribute)</a>
 </li>
@@ -1723,15 +1828,21 @@
       <li><a href="api/modules.html#chantal.db.models.ContentItem.sha256">sha256 (chantal.db.models.ContentItem attribute)</a>
 
       <ul>
+        <li><a href="api/modules.html#chantal.db.models.RepositoryFile.sha256">(chantal.db.models.RepositoryFile attribute)</a>
+</li>
         <li><a href="api/modules.html#chantal.plugins.rpm_sync.PackageMetadata.sha256">(chantal.plugins.rpm_sync.PackageMetadata attribute)</a>
 </li>
         <li><a href="api/modules.html#chantal.plugins.rpm_sync.PackageUpdate.sha256">(chantal.plugins.rpm_sync.PackageUpdate attribute)</a>
 </li>
       </ul></li>
+      <li><a href="api/modules.html#chantal.plugins.rpm_sync.MetadataFileInfo.size">size (chantal.plugins.rpm_sync.MetadataFileInfo attribute)</a>
+</li>
       <li><a href="api/modules.html#chantal.core.config.GenericMetadataFilterConfig.size_bytes">size_bytes (chantal.core.config.GenericMetadataFilterConfig attribute)</a>
 
       <ul>
         <li><a href="api/modules.html#chantal.db.models.ContentItem.size_bytes">(chantal.db.models.ContentItem attribute)</a>
+</li>
+        <li><a href="api/modules.html#chantal.db.models.RepositoryFile.size_bytes">(chantal.db.models.RepositoryFile attribute)</a>
 </li>
         <li><a href="api/modules.html#chantal.plugins.rpm_sync.PackageMetadata.size_bytes">(chantal.plugins.rpm_sync.PackageMetadata attribute)</a>
 </li>
@@ -1754,6 +1865,8 @@
 
       <ul>
         <li><a href="api/modules.html#chantal.db.models.Repository.snapshots">(chantal.db.models.Repository attribute)</a>
+</li>
+        <li><a href="api/modules.html#chantal.db.models.RepositoryFile.snapshots">(chantal.db.models.RepositoryFile attribute)</a>
 </li>
       </ul></li>
   </ul></td>
@@ -1849,6 +1962,8 @@
       <li><a href="api/modules.html#chantal.db.models.Repository.updated_at">updated_at (chantal.db.models.Repository attribute)</a>
 
       <ul>
+        <li><a href="api/modules.html#chantal.db.models.RepositoryFile.updated_at">(chantal.db.models.RepositoryFile attribute)</a>
+</li>
         <li><a href="api/modules.html#chantal.db.models.View.updated_at">(chantal.db.models.View attribute)</a>
 </li>
       </ul></li>
@@ -1871,6 +1986,8 @@
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="api/modules.html#chantal.core.config.FilterConfig.validate_for_repo_type">validate_for_repo_type() (chantal.core.config.FilterConfig method)</a>
+</li>
+      <li><a href="api/modules.html#chantal.core.config.RepositoryConfig.validate_mode_and_filters">validate_mode_and_filters() (chantal.core.config.RepositoryConfig method)</a>
 </li>
       <li><a href="api/modules.html#chantal.core.config.PatternFilterConfig.validate_patterns">validate_patterns() (chantal.core.config.PatternFilterConfig class method)</a>
 </li>

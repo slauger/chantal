@@ -107,8 +107,10 @@
 </li>
 <li class="toctree-l2"><a class="reference internal" href="../../../user-guide/cli-commands.html#storage-pool-management">Storage Pool Management</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="../../../user-guide/cli-commands.html#chantal-pool-stats"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">pool</span> <span class="pre">stats</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../user-guide/cli-commands.html#chantal-pool-orphaned"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">pool</span> <span class="pre">orphaned</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../user-guide/cli-commands.html#chantal-pool-cleanup"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">pool</span> <span class="pre">cleanup</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../../../user-guide/cli-commands.html#chantal-pool-verify"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">pool</span> <span class="pre">verify</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../user-guide/cli-commands.html#chantal-pool-missing"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">pool</span> <span class="pre">missing</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="../../../user-guide/cli-commands.html#statistics-database">Statistics &amp; Database</a><ul>
@@ -598,9 +600,31 @@
 <li class="toctree-l3"><a class="reference internal" href="../../../plugins/rpm-plugin.html#rhel-with-client-certificates">RHEL with Client Certificates</a></li>
 </ul>
 </li>
+<li class="toctree-l2"><a class="reference internal" href="../../../plugins/rpm-plugin.html#repository-modes">Repository Modes</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="../../../plugins/rpm-plugin.html#mirror-mode-default">Mirror Mode (Default)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../plugins/rpm-plugin.html#filtered-mode">Filtered Mode</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../plugins/rpm-plugin.html#hosted-mode">Hosted Mode</a></li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="../../../plugins/rpm-plugin.html#how-it-works">How It Works</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="../../../plugins/rpm-plugin.html#sync-process">Sync Process</a></li>
-<li class="toctree-l3"><a class="reference internal" href="../../../plugins/rpm-plugin.html#publish-process">Publish Process</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../../../plugins/rpm-plugin.html#sync-process">Sync Process</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../plugins/rpm-plugin.html#fetch-repomd-xml">1. Fetch repomd.xml</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../plugins/rpm-plugin.html#download-metadata">2. Download Metadata</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../plugins/rpm-plugin.html#parse-packages">3. Parse Packages</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../plugins/rpm-plugin.html#apply-filters-filtered-mode-only">4. Apply Filters (Filtered Mode Only)</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../plugins/rpm-plugin.html#download-packages">5. Download Packages</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../plugins/rpm-plugin.html#update-database">6. Update Database</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../plugins/rpm-plugin.html#publish-process">Publish Process</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../plugins/rpm-plugin.html#query-packages">1. Query Packages</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../plugins/rpm-plugin.html#create-directory-structure">2. Create Directory Structure</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../plugins/rpm-plugin.html#create-package-hardlinks">3. Create Package Hardlinks</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../plugins/rpm-plugin.html#publish-metadata">4. Publish Metadata</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../plugins/rpm-plugin.html#updateinfo-filtering-filtered-mode">5. Updateinfo Filtering (Filtered Mode)</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../plugins/rpm-plugin.html#result">6. Result</a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="../../../plugins/rpm-plugin.html#metadata-files">Metadata Files</a><ul>
@@ -833,13 +857,36 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Repository.last_sync_at"><code class="docutils literal notranslate"><span class="pre">Repository.last_sync_at</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Repository.last_sync_status"><code class="docutils literal notranslate"><span class="pre">Repository.last_sync_status</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Repository.latest_path"><code class="docutils literal notranslate"><span class="pre">Repository.latest_path</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Repository.mode"><code class="docutils literal notranslate"><span class="pre">Repository.mode</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Repository.name"><code class="docutils literal notranslate"><span class="pre">Repository.name</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Repository.repo_id"><code class="docutils literal notranslate"><span class="pre">Repository.repo_id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Repository.repository_files"><code class="docutils literal notranslate"><span class="pre">Repository.repository_files</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Repository.snapshots"><code class="docutils literal notranslate"><span class="pre">Repository.snapshots</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Repository.snapshots_path"><code class="docutils literal notranslate"><span class="pre">Repository.snapshots_path</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Repository.sync_history"><code class="docutils literal notranslate"><span class="pre">Repository.sync_history</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Repository.type"><code class="docutils literal notranslate"><span class="pre">Repository.type</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Repository.updated_at"><code class="docutils literal notranslate"><span class="pre">Repository.updated_at</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.RepositoryFile"><code class="docutils literal notranslate"><span class="pre">RepositoryFile</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.RepositoryFile.created_at"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.created_at</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.RepositoryFile.file_category"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.file_category</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.RepositoryFile.file_metadata"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.file_metadata</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.RepositoryFile.file_type"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.file_type</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.RepositoryFile.id"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.RepositoryFile.original_path"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.original_path</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.RepositoryFile.pool_path"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.pool_path</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.RepositoryFile.repositories"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.repositories</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.RepositoryFile.sha256"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.sha256</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.RepositoryFile.size_bytes"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.size_bytes</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.RepositoryFile.snapshots"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.snapshots</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.RepositoryFile.updated_at"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.updated_at</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.RepositoryMode"><code class="docutils literal notranslate"><span class="pre">RepositoryMode</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.RepositoryMode.FILTERED"><code class="docutils literal notranslate"><span class="pre">RepositoryMode.FILTERED</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.RepositoryMode.HOSTED"><code class="docutils literal notranslate"><span class="pre">RepositoryMode.HOSTED</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.RepositoryMode.MIRROR"><code class="docutils literal notranslate"><span class="pre">RepositoryMode.MIRROR</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Snapshot"><code class="docutils literal notranslate"><span class="pre">Snapshot</span></code></a><ul>
@@ -852,6 +899,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Snapshot.package_count"><code class="docutils literal notranslate"><span class="pre">Snapshot.package_count</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Snapshot.published_path"><code class="docutils literal notranslate"><span class="pre">Snapshot.published_path</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Snapshot.repository"><code class="docutils literal notranslate"><span class="pre">Snapshot.repository</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Snapshot.repository_files"><code class="docutils literal notranslate"><span class="pre">Snapshot.repository_files</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Snapshot.repository_id"><code class="docutils literal notranslate"><span class="pre">Snapshot.repository_id</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.db.models.Snapshot.total_size_bytes"><code class="docutils literal notranslate"><span class="pre">Snapshot.total_size_bytes</span></code></a></li>
 </ul>
@@ -922,6 +970,7 @@
 <li class="toctree-l3"><a class="reference internal" href="../../../api/modules.html#module-chantal.plugins.rpm">RPM Plugin</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.plugins.rpm.RpmPublisher"><code class="docutils literal notranslate"><span class="pre">RpmPublisher</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.plugins.rpm_sync.CheckUpdatesResult"><code class="docutils literal notranslate"><span class="pre">CheckUpdatesResult</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.plugins.rpm_sync.MetadataFileInfo"><code class="docutils literal notranslate"><span class="pre">MetadataFileInfo</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.plugins.rpm_sync.PackageMetadata"><code class="docutils literal notranslate"><span class="pre">PackageMetadata</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.plugins.rpm_sync.PackageUpdate"><code class="docutils literal notranslate"><span class="pre">PackageUpdate</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../../../api/modules.html#chantal.plugins.rpm_sync.RpmSyncPlugin"><code class="docutils literal notranslate"><span class="pre">RpmSyncPlugin</span></code></a></li>
@@ -994,7 +1043,7 @@
     <span class="n">TimeFilterConfig</span><span class="p">,</span>
 <span class="p">)</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">chantal.core.storage</span><span class="w"> </span><span class="kn">import</span> <span class="n">StorageManager</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">chantal.db.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">ContentItem</span><span class="p">,</span> <span class="n">Repository</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">chantal.db.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">ContentItem</span><span class="p">,</span> <span class="n">Repository</span><span class="p">,</span> <span class="n">RepositoryFile</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">chantal.plugins.rpm.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">RpmMetadata</span>
 
 
@@ -1028,6 +1077,21 @@
 
 
 
+<div class="viewcode-block" id="MetadataFileInfo">
+<a class="viewcode-back" href="../../../api/modules.html#chantal.plugins.rpm_sync.MetadataFileInfo">[docs]</a>
+<span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">MetadataFileInfo</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Information about a metadata file from repomd.xml.&quot;&quot;&quot;</span>
+
+    <span class="n">file_type</span><span class="p">:</span> <span class="nb">str</span>  <span class="c1"># e.g., &quot;primary&quot;, &quot;updateinfo&quot;, &quot;filelists&quot;, &quot;other&quot;, &quot;comps&quot;, &quot;modules&quot;</span>
+    <span class="n">location</span><span class="p">:</span> <span class="nb">str</span>  <span class="c1"># Relative path (e.g., &quot;repodata/abc123-updateinfo.xml.gz&quot;)</span>
+    <span class="n">checksum</span><span class="p">:</span> <span class="nb">str</span>  <span class="c1"># SHA256 checksum</span>
+    <span class="n">size</span><span class="p">:</span> <span class="nb">int</span>  <span class="c1"># File size in bytes</span>
+    <span class="n">open_checksum</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># Checksum of uncompressed file</span>
+    <span class="n">open_size</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># Size of uncompressed file</span></div>
+
+
+
 <div class="viewcode-block" id="SyncResult">
 <a class="viewcode-back" href="../../../api/modules.html#chantal.plugins.rpm_sync.SyncResult">[docs]</a>
 <span class="nd">@dataclass</span>
@@ -1038,6 +1102,7 @@
     <span class="n">packages_skipped</span><span class="p">:</span> <span class="nb">int</span>  <span class="c1"># Already in pool</span>
     <span class="n">packages_total</span><span class="p">:</span> <span class="nb">int</span>
     <span class="n">bytes_downloaded</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">metadata_files_downloaded</span><span class="p">:</span> <span class="nb">int</span>  <span class="c1"># Number of metadata files downloaded</span>
     <span class="n">success</span><span class="p">:</span> <span class="nb">bool</span>
     <span class="n">error_message</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span></div>
 
@@ -1290,9 +1355,30 @@
                     <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  → ERROR: Failed to download: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
                     <span class="c1"># Continue with next package</span>
 
+            <span class="c1"># Step 7: Download metadata files</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Downloading metadata files...&quot;</span><span class="p">)</span>
+            <span class="n">metadata_files</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_extract_all_metadata</span><span class="p">(</span><span class="n">repomd_root</span><span class="p">)</span>
+            <span class="n">metadata_downloaded</span> <span class="o">=</span> <span class="mi">0</span>
+
+            <span class="k">for</span> <span class="n">metadata_info</span> <span class="ow">in</span> <span class="n">metadata_files</span><span class="p">:</span>
+                <span class="c1"># Skip primary (already used for package sync)</span>
+                <span class="k">if</span> <span class="n">metadata_info</span><span class="o">.</span><span class="n">file_type</span> <span class="o">==</span> <span class="s2">&quot;primary&quot;</span><span class="p">:</span>
+                    <span class="k">continue</span>
+
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_download_metadata_file</span><span class="p">(</span>
+                        <span class="n">metadata_info</span><span class="p">,</span> <span class="n">session</span><span class="p">,</span> <span class="n">repository</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">feed</span>
+                    <span class="p">)</span>
+                    <span class="n">metadata_downloaded</span> <span class="o">+=</span> <span class="mi">1</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  → Downloaded </span><span class="si">{</span><span class="n">metadata_info</span><span class="o">.</span><span class="n">file_type</span><span class="si">}</span><span class="s2">.xml.gz&quot;</span><span class="p">)</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  → Warning: Failed to download </span><span class="si">{</span><span class="n">metadata_info</span><span class="o">.</span><span class="n">file_type</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                    <span class="c1"># Continue with next metadata file</span>
+
             <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Sync complete!&quot;</span><span class="p">)</span>
-            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Downloaded: </span><span class="si">{</span><span class="n">packages_downloaded</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Skipped: </span><span class="si">{</span><span class="n">packages_skipped</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Packages downloaded: </span><span class="si">{</span><span class="n">packages_downloaded</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Packages skipped: </span><span class="si">{</span><span class="n">packages_skipped</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Metadata files downloaded: </span><span class="si">{</span><span class="n">metadata_downloaded</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
             <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  Total size: </span><span class="si">{</span><span class="n">bytes_downloaded</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">1024</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mi">1024</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> MB&quot;</span><span class="p">)</span>
 
             <span class="k">return</span> <span class="n">SyncResult</span><span class="p">(</span>
@@ -1300,6 +1386,7 @@
                 <span class="n">packages_skipped</span><span class="o">=</span><span class="n">packages_skipped</span><span class="p">,</span>
                 <span class="n">packages_total</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">packages</span><span class="p">),</span>
                 <span class="n">bytes_downloaded</span><span class="o">=</span><span class="n">bytes_downloaded</span><span class="p">,</span>
+                <span class="n">metadata_files_downloaded</span><span class="o">=</span><span class="n">metadata_downloaded</span><span class="p">,</span>
                 <span class="n">success</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
             <span class="p">)</span>
 
@@ -1310,6 +1397,7 @@
                 <span class="n">packages_skipped</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
                 <span class="n">packages_total</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
                 <span class="n">bytes_downloaded</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+                <span class="n">metadata_files_downloaded</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
                 <span class="n">success</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
                 <span class="n">error_message</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">),</span>
             <span class="p">)</span></div>
@@ -1510,6 +1598,173 @@
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Primary location href attribute missing&quot;</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">location</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_extract_all_metadata</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">repomd_root</span><span class="p">:</span> <span class="n">ET</span><span class="o">.</span><span class="n">Element</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">MetadataFileInfo</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Extract all metadata file information from repomd.xml.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            repomd_root: Parsed repomd.xml root element</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            List of metadata file information</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            ValueError: If metadata parsing fails</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Handle XML namespaces</span>
+        <span class="n">ns</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;repo&quot;</span><span class="p">:</span> <span class="s2">&quot;http://linux.duke.edu/metadata/repo&quot;</span><span class="p">}</span>
+
+        <span class="n">metadata_files</span> <span class="o">=</span> <span class="p">[]</span>
+
+        <span class="c1"># Find all data elements</span>
+        <span class="n">data_elems</span> <span class="o">=</span> <span class="n">repomd_root</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s2">&quot;repo:data&quot;</span><span class="p">,</span> <span class="n">ns</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">data_elems</span><span class="p">:</span>
+            <span class="c1"># Try without namespace</span>
+            <span class="n">data_elems</span> <span class="o">=</span> <span class="n">repomd_root</span><span class="o">.</span><span class="n">findall</span><span class="p">(</span><span class="s2">&quot;data&quot;</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">data_elem</span> <span class="ow">in</span> <span class="n">data_elems</span><span class="p">:</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="c1"># Get type attribute</span>
+                <span class="n">file_type</span> <span class="o">=</span> <span class="n">data_elem</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;type&quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">file_type</span><span class="p">:</span>
+                    <span class="k">continue</span>
+
+                <span class="c1"># Find location element</span>
+                <span class="n">location_elem</span> <span class="o">=</span> <span class="n">data_elem</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;repo:location&quot;</span><span class="p">,</span> <span class="n">ns</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">location_elem</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">location_elem</span> <span class="o">=</span> <span class="n">data_elem</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;location&quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">location_elem</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">continue</span>
+
+                <span class="n">location</span> <span class="o">=</span> <span class="n">location_elem</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;href&quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">location</span><span class="p">:</span>
+                    <span class="k">continue</span>
+
+                <span class="c1"># Find checksum element</span>
+                <span class="n">checksum_elem</span> <span class="o">=</span> <span class="n">data_elem</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;repo:checksum&quot;</span><span class="p">,</span> <span class="n">ns</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">checksum_elem</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">checksum_elem</span> <span class="o">=</span> <span class="n">data_elem</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;checksum&quot;</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">checksum_elem</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">checksum_elem</span><span class="o">.</span><span class="n">text</span><span class="p">:</span>
+                    <span class="k">continue</span>
+
+                <span class="c1"># Find size element</span>
+                <span class="n">size_elem</span> <span class="o">=</span> <span class="n">data_elem</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;repo:size&quot;</span><span class="p">,</span> <span class="n">ns</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">size_elem</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">size_elem</span> <span class="o">=</span> <span class="n">data_elem</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;size&quot;</span><span class="p">)</span>
+                <span class="n">size</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">size_elem</span><span class="o">.</span><span class="n">text</span><span class="p">)</span> <span class="k">if</span> <span class="n">size_elem</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">size_elem</span><span class="o">.</span><span class="n">text</span> <span class="k">else</span> <span class="mi">0</span>
+
+                <span class="c1"># Optional: open-checksum and open-size</span>
+                <span class="n">open_checksum_elem</span> <span class="o">=</span> <span class="n">data_elem</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;repo:open-checksum&quot;</span><span class="p">,</span> <span class="n">ns</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">open_checksum_elem</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">open_checksum_elem</span> <span class="o">=</span> <span class="n">data_elem</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;open-checksum&quot;</span><span class="p">)</span>
+                <span class="n">open_checksum</span> <span class="o">=</span> <span class="n">open_checksum_elem</span><span class="o">.</span><span class="n">text</span> <span class="k">if</span> <span class="n">open_checksum_elem</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+
+                <span class="n">open_size_elem</span> <span class="o">=</span> <span class="n">data_elem</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;repo:open-size&quot;</span><span class="p">,</span> <span class="n">ns</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">open_size_elem</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">open_size_elem</span> <span class="o">=</span> <span class="n">data_elem</span><span class="o">.</span><span class="n">find</span><span class="p">(</span><span class="s2">&quot;open-size&quot;</span><span class="p">)</span>
+                <span class="n">open_size</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">open_size_elem</span><span class="o">.</span><span class="n">text</span><span class="p">)</span> <span class="k">if</span> <span class="n">open_size_elem</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">open_size_elem</span><span class="o">.</span><span class="n">text</span> <span class="k">else</span> <span class="kc">None</span>
+
+                <span class="c1"># Create metadata file info</span>
+                <span class="n">metadata_info</span> <span class="o">=</span> <span class="n">MetadataFileInfo</span><span class="p">(</span>
+                    <span class="n">file_type</span><span class="o">=</span><span class="n">file_type</span><span class="p">,</span>
+                    <span class="n">location</span><span class="o">=</span><span class="n">location</span><span class="p">,</span>
+                    <span class="n">checksum</span><span class="o">=</span><span class="n">checksum_elem</span><span class="o">.</span><span class="n">text</span><span class="p">,</span>
+                    <span class="n">size</span><span class="o">=</span><span class="n">size</span><span class="p">,</span>
+                    <span class="n">open_checksum</span><span class="o">=</span><span class="n">open_checksum</span><span class="p">,</span>
+                    <span class="n">open_size</span><span class="o">=</span><span class="n">open_size</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="n">metadata_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">metadata_info</span><span class="p">)</span>
+
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="c1"># Skip malformed entries</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Warning: Failed to parse metadata entry: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">continue</span>
+
+        <span class="k">return</span> <span class="n">metadata_files</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">_download_metadata_file</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">metadata_info</span><span class="p">:</span> <span class="n">MetadataFileInfo</span><span class="p">,</span>
+        <span class="n">session</span><span class="p">:</span> <span class="n">Session</span><span class="p">,</span>
+        <span class="n">repository</span><span class="p">:</span> <span class="n">Repository</span><span class="p">,</span>
+        <span class="n">base_url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Download metadata file and store as RepositoryFile.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            metadata_info: Metadata file information</span>
+<span class="sd">            session: Database session</span>
+<span class="sd">            repository: Repository model instance</span>
+<span class="sd">            base_url: Base URL of repository</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            requests.RequestException: On HTTP errors</span>
+<span class="sd">            ValueError: On checksum mismatch</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Download metadata file to temporary location</span>
+        <span class="n">metadata_url</span> <span class="o">=</span> <span class="n">urljoin</span><span class="p">(</span><span class="n">base_url</span> <span class="o">+</span> <span class="s2">&quot;/&quot;</span><span class="p">,</span> <span class="n">metadata_info</span><span class="o">.</span><span class="n">location</span><span class="p">)</span>
+
+        <span class="k">with</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">NamedTemporaryFile</span><span class="p">(</span><span class="n">delete</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">suffix</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;.</span><span class="si">{</span><span class="n">metadata_info</span><span class="o">.</span><span class="n">file_type</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">tmp_file</span><span class="p">:</span>
+            <span class="n">tmp_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">tmp_file</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+
+            <span class="k">try</span><span class="p">:</span>
+                <span class="c1"># Download file</span>
+                <span class="n">response</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">metadata_url</span><span class="p">,</span> <span class="n">timeout</span><span class="o">=</span><span class="mi">60</span><span class="p">)</span>
+                <span class="n">response</span><span class="o">.</span><span class="n">raise_for_status</span><span class="p">()</span>
+
+                <span class="c1"># Write to temp file</span>
+                <span class="n">tmp_file</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">response</span><span class="o">.</span><span class="n">content</span><span class="p">)</span>
+                <span class="n">tmp_file</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+
+                <span class="c1"># Extract filename from location</span>
+                <span class="n">filename</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">metadata_info</span><span class="o">.</span><span class="n">location</span><span class="p">)</span><span class="o">.</span><span class="n">name</span>
+
+                <span class="c1"># Add to storage pool using add_repository_file</span>
+                <span class="n">sha256</span><span class="p">,</span> <span class="n">pool_path</span><span class="p">,</span> <span class="n">size_bytes</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">storage</span><span class="o">.</span><span class="n">add_repository_file</span><span class="p">(</span>
+                    <span class="n">tmp_path</span><span class="p">,</span> <span class="n">filename</span><span class="p">,</span> <span class="n">verify_checksum</span><span class="o">=</span><span class="kc">True</span>
+                <span class="p">)</span>
+
+                <span class="c1"># Verify SHA256 matches metadata (if provided)</span>
+                <span class="k">if</span> <span class="n">metadata_info</span><span class="o">.</span><span class="n">checksum</span> <span class="ow">and</span> <span class="n">sha256</span> <span class="o">!=</span> <span class="n">metadata_info</span><span class="o">.</span><span class="n">checksum</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;SHA256 mismatch for </span><span class="si">{</span><span class="n">metadata_info</span><span class="o">.</span><span class="n">file_type</span><span class="si">}</span><span class="s2">: &quot;</span>
+                        <span class="sa">f</span><span class="s2">&quot;expected </span><span class="si">{</span><span class="n">metadata_info</span><span class="o">.</span><span class="n">checksum</span><span class="si">}</span><span class="s2">, got </span><span class="si">{</span><span class="n">sha256</span><span class="si">}</span><span class="s2">&quot;</span>
+                    <span class="p">)</span>
+
+                <span class="c1"># Check if this RepositoryFile already exists</span>
+                <span class="n">existing_file</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">RepositoryFile</span><span class="p">)</span><span class="o">.</span><span class="n">filter_by</span><span class="p">(</span><span class="n">sha256</span><span class="o">=</span><span class="n">sha256</span><span class="p">)</span><span class="o">.</span><span class="n">first</span><span class="p">()</span>
+
+                <span class="k">if</span> <span class="n">existing_file</span><span class="p">:</span>
+                    <span class="c1"># File already exists - just link to repository if not already linked</span>
+                    <span class="k">if</span> <span class="n">repository</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">existing_file</span><span class="o">.</span><span class="n">repositories</span><span class="p">:</span>
+                        <span class="n">existing_file</span><span class="o">.</span><span class="n">repositories</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">repository</span><span class="p">)</span>
+                        <span class="n">session</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c1"># Create new RepositoryFile record</span>
+                    <span class="n">repo_file</span> <span class="o">=</span> <span class="n">RepositoryFile</span><span class="p">(</span>
+                        <span class="n">file_category</span><span class="o">=</span><span class="s2">&quot;metadata&quot;</span><span class="p">,</span>
+                        <span class="n">file_type</span><span class="o">=</span><span class="n">metadata_info</span><span class="o">.</span><span class="n">file_type</span><span class="p">,</span>
+                        <span class="n">sha256</span><span class="o">=</span><span class="n">sha256</span><span class="p">,</span>
+                        <span class="n">pool_path</span><span class="o">=</span><span class="n">pool_path</span><span class="p">,</span>
+                        <span class="n">size_bytes</span><span class="o">=</span><span class="n">size_bytes</span><span class="p">,</span>
+                        <span class="n">original_path</span><span class="o">=</span><span class="n">metadata_info</span><span class="o">.</span><span class="n">location</span><span class="p">,</span>
+                        <span class="n">file_metadata</span><span class="o">=</span><span class="p">{</span>
+                            <span class="s2">&quot;checksum_type&quot;</span><span class="p">:</span> <span class="s2">&quot;sha256&quot;</span><span class="p">,</span>
+                            <span class="s2">&quot;open_checksum&quot;</span><span class="p">:</span> <span class="n">metadata_info</span><span class="o">.</span><span class="n">open_checksum</span><span class="p">,</span>
+                            <span class="s2">&quot;open_size&quot;</span><span class="p">:</span> <span class="n">metadata_info</span><span class="o">.</span><span class="n">open_size</span><span class="p">,</span>
+                        <span class="p">},</span>
+                    <span class="p">)</span>
+                    <span class="n">session</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">repo_file</span><span class="p">)</span>
+                    <span class="n">session</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+
+                    <span class="c1"># Link to repository</span>
+                    <span class="n">repo_file</span><span class="o">.</span><span class="n">repositories</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">repository</span><span class="p">)</span>
+                    <span class="n">session</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+
+            <span class="k">finally</span><span class="p">:</span>
+                <span class="c1"># Clean up temp file</span>
+                <span class="k">if</span> <span class="n">tmp_path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+                    <span class="n">tmp_path</span><span class="o">.</span><span class="n">unlink</span><span class="p">()</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_fetch_primary_xml</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span> <span class="n">base_url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">primary_location</span><span class="p">:</span> <span class="nb">str</span>

@@ -523,6 +523,16 @@ Show storage pool statistics.
 chantal pool stats
 ```
 
+### `chantal pool orphaned`
+
+List orphaned files in pool (not referenced by any repository).
+
+```bash
+chantal pool orphaned
+```
+
+Shows files that exist in pool but are not referenced in the database.
+
 ### `chantal pool cleanup`
 
 Remove orphaned files from pool.
@@ -533,23 +543,59 @@ chantal pool cleanup --dry-run
 
 # Actually remove orphaned files
 chantal pool cleanup
+
+# Clean only content files (packages)
+chantal pool cleanup --content-only
+
+# Clean only metadata files
+chantal pool cleanup --metadata-only
+
+# Delete specific pool entries by SHA256
+chantal pool cleanup --sha256 abc123def456...
 ```
 
 **Options:**
 - `--dry-run`: Show what would be removed without actually removing
+- `--content-only`: Only clean orphaned content files (packages)
+- `--metadata-only`: Only clean orphaned metadata files
+- `--sha256`: Delete specific pool entry by SHA256 checksum
 
 ### `chantal pool verify`
 
 Verify pool integrity.
 
 ```bash
+# Verify all pool files
 chantal pool verify
+
+# Verify specific repository
+chantal pool verify --repo-id epel9-latest
+
+# Verify and show detailed output
+chantal pool verify --verbose
 ```
 
-Checks:
-- File existence
-- Checksum verification
-- Database consistency
+**Checks:**
+- File existence (database entry exists but file missing)
+- Checksum verification (file SHA256 matches database)
+- Database consistency (orphaned entries, duplicate files)
+
+**Options:**
+- `--repo-id`: Verify only files for specific repository
+- `--verbose`: Show detailed verification output
+
+### `chantal pool missing`
+
+List files that are referenced in database but missing from pool.
+
+```bash
+chantal pool missing
+
+# Check specific repository
+chantal pool missing --repo-id rhel9-baseos
+```
+
+Shows content items that have database entries but missing pool files.
 
 ## Statistics & Database
 

@@ -12,6 +12,12 @@ The RPM plugin consists of:
 
 ## Features
 
+**Repository Modes:**
+- ✅ **Mirror Mode** - Full metadata mirroring (all repomd.xml types)
+- ✅ **Filtered Mode** - Smart metadata regeneration for filtered repos
+- ✅ **Hosted Mode** - For self-hosted packages (future)
+
+**Package Management:**
 - ✅ Repomd.xml/primary.xml.gz parsing
 - ✅ RPM package downloading
 - ✅ SHA256 checksum verification
@@ -19,12 +25,17 @@ The RPM plugin consists of:
 - ✅ Pattern-based package filtering
 - ✅ Source RPM exclusion
 - ✅ Version filtering (only latest)
+
+**Metadata Support:**
+- ✅ Full metadata mirroring (updateinfo, filelists, other, comps, modules, etc.)
+- ✅ Updateinfo/errata parsing and filtering
+- ✅ Metadata regeneration for filtered repositories
+- ✅ Gzip/XZ/BZ2 compression support
 - ✅ RHEL CDN support (client certificates)
-- ✅ Metadata generation (repomd.xml, primary.xml.gz)
-- ✅ Gzip/XZ compression support
-- 🚧 Modular repositories (modules.yaml) - Planned
-- 🚧 Delta RPMs - Planned
-- 🚧 GPG signature verification - Planned
+
+**Planned:**
+- 🚧 Delta RPMs
+- 🚧 GPG signature verification
 
 ## Configuration
 
@@ -77,80 +88,281 @@ repositories:
       verify: true
 ```
 
+## Repository Modes
+
+Chantal supports three repository operation modes for RPM repositories:
+
+### Mirror Mode (Default)
+
+**Full metadata mirroring** - Downloads and publishes ALL metadata types from upstream repository unchanged.
+
+```yaml
+repositories:
+  - id: rhel9-baseos-mirror
+    name: RHEL 9 BaseOS (Full Mirror)
+    type: rpm
+    feed: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/os
+    enabled: true
+    mode: mirror  # Default
+```
+
+**Behavior:**
+- ✅ All metadata files downloaded: updateinfo, filelists, other, comps, modules, etc.
+- ✅ Metadata published unchanged (no filtering)
+- ✅ Perfect 1:1 mirror of upstream repository
+- ✅ Ideal for: Complete repository mirrors, compliance requirements
+
+**Metadata types mirrored:**
+- `primary` - Package metadata (name, version, arch, dependencies)
+- `filelists` - File listings for each package
+- `other` - Changelog data
+- `updateinfo` - Errata/security advisories
+- `comps` - Package groups and categories
+- `modules` - Modular metadata (RHEL 8+)
+- And any other metadata types present in repomd.xml
+
+### Filtered Mode
+
+**Smart filtering with metadata regeneration** - Filters packages and regenerates metadata to match.
+
+```yaml
+repositories:
+  - id: epel9-webservers
+    name: EPEL 9 - Web Servers Only
+    type: rpm
+    feed: https://dl.fedoraproject.org/pub/epel/9/Everything/x86_64/
+    enabled: true
+    mode: filtered
+    filters:
+      patterns:
+        include: ["^nginx-.*", "^httpd-.*", "^php-.*"]
+      post_processing:
+        only_latest_version: true
+```
+
+**Behavior:**
+- ✅ Packages filtered based on patterns/filters
+- ✅ Metadata regenerated to match available packages
+- ✅ Updateinfo filtered to include only relevant errata
+- ✅ Filelists, other metadata filtered accordingly
+- ✅ Ideal for: Custom repositories, filtered mirrors, disk space optimization
+
+**Metadata regeneration:**
+- `primary.xml` - Regenerated with filtered package list
+- `filelists.xml` - Regenerated with filtered packages
+- `other.xml` - Regenerated with filtered packages
+- `updateinfo.xml` - **Filtered** to include only errata for available packages
+- `comps.xml` - Copied unchanged (groups still valid)
+- `modules.yaml` - Copied unchanged (if present)
+
+**Updateinfo Filtering Example:**
+
+Upstream has 1000 security advisories, but you only mirror nginx packages:
+- **Mirror mode**: All 1000 advisories published (irrelevant for your packages)
+- **Filtered mode**: Only nginx-related advisories published (smart filtering)
+
+```python
+# Filtered updateinfo only includes errata matching your packages
+# RHSA-2024:1234 for nginx-1.20.1-1.el9 → INCLUDED
+# RHSA-2024:5678 for kernel-5.14.0-362.el9 → EXCLUDED (kernel not mirrored)
+```
+
+### Hosted Mode
+
+**Self-hosted packages** - For future use (uploading custom RPMs).
+
+```yaml
+repositories:
+  - id: custom-rpms
+    name: Custom Internal RPMs
+    type: rpm
+    mode: hosted
+    enabled: true
+```
+
+**Status:** Planned feature for uploading custom-built RPMs.
+
 ## How It Works
 
 ### Sync Process
 
-1. **Fetch repomd.xml**
-   ```
-   GET https://example.com/repo/repodata/repomd.xml
-   ```
-   Parse to find primary.xml.gz location
+#### 1. Fetch repomd.xml
+```
+GET https://example.com/repo/repodata/repomd.xml
+```
+Parse repomd.xml to discover all metadata types:
+- `primary` - Package metadata (required)
+- `filelists` - File listings
+- `other` - Changelog data
+- `updateinfo` - Errata/advisories
+- `comps` - Package groups
+- `modules` - Modular metadata
+- ... and any other types
 
-2. **Fetch primary.xml.gz**
-   ```
-   GET https://example.com/repo/repodata/abc123-primary.xml.gz
-   ```
-   Decompress and parse package list
+#### 2. Download Metadata
 
-3. **Apply filters**
-   - Pattern matching (include/exclude regex)
-   - Architecture filtering
-   - Size/build time filtering
-   - RPM-specific filters (exclude source RPMs, etc.)
-   - Post-processing (only latest version)
+**Mirror Mode:**
+- Downloads ALL metadata types from repomd.xml
+- Stores in pool: `/var/lib/chantal/pool/files/`
+- Metadata tracked in `RepositoryFile` model
 
-4. **Download packages**
-   ```
-   For each package:
-     - Calculate expected SHA256
-     - Check if exists in pool
-     - If not, download to pool
-     - Verify checksum
-   ```
+**Filtered Mode:**
+- Downloads primary.xml (required for package discovery)
+- Downloads updateinfo.xml (for errata filtering)
+- Other metadata downloaded as needed
 
-5. **Update database**
-   - Add packages to database
-   - Associate with repository
-   - Record sync history
+#### 3. Parse Packages
+
+Fetch and parse `primary.xml.gz`:
+```
+GET https://example.com/repo/repodata/abc123-primary.xml.gz
+```
+Extract package list with metadata:
+- Name, version, release, epoch, architecture
+- Dependencies, provides, requires
+- SHA256 checksum
+- File location
+
+#### 4. Apply Filters (Filtered Mode Only)
+
+- Pattern matching (include/exclude regex)
+- Architecture filtering
+- Size/build time filtering
+- RPM-specific filters (exclude source RPMs, etc.)
+- Post-processing (only latest version)
+
+**Mirror Mode:** No filtering applied.
+
+#### 5. Download Packages
+
+```
+For each package:
+  - Calculate expected SHA256
+  - Check if exists in pool
+  - If not, download to pool
+  - Verify checksum
+```
+
+Pool structure:
+```
+/var/lib/chantal/pool/content/{sha256[0:2]}/{sha256[2:4]}/{sha256}.rpm
+```
+
+#### 6. Update Database
+
+- Add packages to database (`ContentItem` model)
+- Add metadata files to database (`RepositoryFile` model)
+- Associate with repository
+- Record sync history
 
 ### Publish Process
 
-1. **Query packages**
-   ```python
-   packages = repository.packages
-   ```
+#### 1. Query Packages
+```python
+packages = repository.content_items
+metadata_files = repository.repository_files  # Mirror mode only
+```
 
-2. **Create directory structure**
-   ```
-   published/repo-id/latest/
-   ├── Packages/
-   └── repodata/
-   ```
+#### 2. Create Directory Structure
+```
+/var/www/repos/repo-id/latest/
+├── Packages/
+└── repodata/
+```
 
-3. **Create hardlinks**
-   ```
-   For each package:
-     pool/f2/56/f256...rpm
-       → published/repo-id/latest/Packages/nginx-1.20.2.rpm
-   ```
+#### 3. Create Package Hardlinks
+```
+For each package:
+  pool/content/f2/56/f256...rpm
+    → /var/www/repos/repo-id/latest/Packages/nginx-1.20.2.rpm
+```
 
-4. **Generate metadata**
-   - Create `primary.xml` with package metadata
-   - Compress to `primary.xml.gz`
-   - Generate `repomd.xml` with checksums
-   - Calculate and add checksums
+Zero-copy publishing using hardlinks.
 
-5. **Result**
-   ```
-   published/repo-id/latest/
-   ├── Packages/
-   │   ├── nginx-1.20.2-1.el9.x86_64.rpm
-   │   └── httpd-2.4.51-1.el9.x86_64.rpm
-   └── repodata/
-       ├── repomd.xml
-       └── abc123-primary.xml.gz
-   ```
+#### 4. Publish Metadata
+
+**Mirror Mode:**
+- Copy ALL metadata files from pool to `repodata/`
+- Hardlinks: `pool/files/{sha256}.xml.gz` → `repodata/{type}.xml.gz`
+- Copy `repomd.xml` unchanged
+- Perfect 1:1 mirror
+
+**Filtered Mode:**
+- Generate `primary.xml` with filtered package list
+- Generate `filelists.xml` with filtered packages
+- Generate `other.xml` with filtered packages
+- **Filter `updateinfo.xml`** to include only relevant errata
+- Copy `comps.xml` unchanged (if present)
+- Generate new `repomd.xml` with checksums
+
+#### 5. Updateinfo Filtering (Filtered Mode)
+
+Parse upstream updateinfo.xml:
+```xml
+<updates>
+  <update type="security" id="RHSA-2024:1234">
+    <title>nginx security update</title>
+    <pkglist>
+      <package name="nginx" version="1.20.1" release="1.el9" arch="x86_64"/>
+    </pkglist>
+  </update>
+  <update type="security" id="RHSA-2024:5678">
+    <title>kernel security update</title>
+    <pkglist>
+      <package name="kernel" version="5.14.0" release="362.el9" arch="x86_64"/>
+    </pkglist>
+  </update>
+</updates>
+```
+
+Filter logic:
+- Extract package NVRAs from each advisory
+- Check if ANY package in advisory is in your filtered repository
+- If yes: Include advisory in filtered updateinfo.xml
+- If no: Exclude advisory
+
+Result:
+```xml
+<updates>
+  <update type="security" id="RHSA-2024:1234">
+    <!-- nginx advisory INCLUDED (nginx is in filtered repo) -->
+  </update>
+  <!-- kernel advisory EXCLUDED (kernel not in filtered repo) -->
+</updates>
+```
+
+#### 6. Result
+
+**Mirror Mode:**
+```
+/var/www/repos/rhel9-baseos-mirror/latest/
+├── Packages/
+│   ├── nginx-1.20.2-1.el9.x86_64.rpm
+│   ├── kernel-5.14.0-362.el9.x86_64.rpm
+│   └── ... (all packages)
+└── repodata/
+    ├── repomd.xml
+    ├── abc123-primary.xml.gz
+    ├── def456-filelists.xml.gz
+    ├── ghi789-other.xml.gz
+    ├── jkl012-updateinfo.xml.gz
+    ├── mno345-comps.xml.gz
+    └── ... (all metadata types)
+```
+
+**Filtered Mode:**
+```
+/var/www/repos/epel9-webservers/latest/
+├── Packages/
+│   ├── nginx-1.20.2-1.el9.x86_64.rpm
+│   └── httpd-2.4.51-1.el9.x86_64.rpm
+└── repodata/
+    ├── repomd.xml (regenerated)
+    ├── abc123-primary.xml.gz (regenerated)
+    ├── def456-filelists.xml.gz (regenerated)
+    ├── ghi789-other.xml.gz (regenerated)
+    └── jkl012-updateinfo.xml.gz (filtered)
+```
 
 ## Metadata Files
 

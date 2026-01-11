@@ -110,8 +110,10 @@
 </li>
 <li class="toctree-l2"><a class="reference internal" href="../user-guide/cli-commands.html#storage-pool-management">Storage Pool Management</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="../user-guide/cli-commands.html#chantal-pool-stats"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">pool</span> <span class="pre">stats</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/cli-commands.html#chantal-pool-orphaned"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">pool</span> <span class="pre">orphaned</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../user-guide/cli-commands.html#chantal-pool-cleanup"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">pool</span> <span class="pre">cleanup</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="../user-guide/cli-commands.html#chantal-pool-verify"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">pool</span> <span class="pre">verify</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="../user-guide/cli-commands.html#chantal-pool-missing"><code class="docutils literal notranslate"><span class="pre">chantal</span> <span class="pre">pool</span> <span class="pre">missing</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="../user-guide/cli-commands.html#statistics-database">Statistics &amp; Database</a><ul>
@@ -601,9 +603,31 @@
 <li class="toctree-l3"><a class="reference internal" href="#rhel-with-client-certificates">RHEL with Client Certificates</a></li>
 </ul>
 </li>
+<li class="toctree-l2"><a class="reference internal" href="#repository-modes">Repository Modes</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#mirror-mode-default">Mirror Mode (Default)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#filtered-mode">Filtered Mode</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#hosted-mode">Hosted Mode</a></li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="#how-it-works">How It Works</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#sync-process">Sync Process</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#publish-process">Publish Process</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sync-process">Sync Process</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#fetch-repomd-xml">1. Fetch repomd.xml</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#download-metadata">2. Download Metadata</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#parse-packages">3. Parse Packages</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#apply-filters-filtered-mode-only">4. Apply Filters (Filtered Mode Only)</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#download-packages">5. Download Packages</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#update-database">6. Update Database</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#publish-process">Publish Process</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#query-packages">1. Query Packages</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#create-directory-structure">2. Create Directory Structure</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#create-package-hardlinks">3. Create Package Hardlinks</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#publish-metadata">4. Publish Metadata</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#updateinfo-filtering-filtered-mode">5. Updateinfo Filtering (Filtered Mode)</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#result">6. Result</a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#metadata-files">Metadata Files</a><ul>
@@ -836,13 +860,36 @@
 <li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Repository.last_sync_at"><code class="docutils literal notranslate"><span class="pre">Repository.last_sync_at</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Repository.last_sync_status"><code class="docutils literal notranslate"><span class="pre">Repository.last_sync_status</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Repository.latest_path"><code class="docutils literal notranslate"><span class="pre">Repository.latest_path</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Repository.mode"><code class="docutils literal notranslate"><span class="pre">Repository.mode</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Repository.name"><code class="docutils literal notranslate"><span class="pre">Repository.name</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Repository.repo_id"><code class="docutils literal notranslate"><span class="pre">Repository.repo_id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Repository.repository_files"><code class="docutils literal notranslate"><span class="pre">Repository.repository_files</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Repository.snapshots"><code class="docutils literal notranslate"><span class="pre">Repository.snapshots</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Repository.snapshots_path"><code class="docutils literal notranslate"><span class="pre">Repository.snapshots_path</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Repository.sync_history"><code class="docutils literal notranslate"><span class="pre">Repository.sync_history</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Repository.type"><code class="docutils literal notranslate"><span class="pre">Repository.type</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Repository.updated_at"><code class="docutils literal notranslate"><span class="pre">Repository.updated_at</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/modules.html#chantal.db.models.RepositoryFile"><code class="docutils literal notranslate"><span class="pre">RepositoryFile</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.RepositoryFile.created_at"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.created_at</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.RepositoryFile.file_category"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.file_category</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.RepositoryFile.file_metadata"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.file_metadata</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.RepositoryFile.file_type"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.file_type</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.RepositoryFile.id"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.RepositoryFile.original_path"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.original_path</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.RepositoryFile.pool_path"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.pool_path</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.RepositoryFile.repositories"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.repositories</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.RepositoryFile.sha256"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.sha256</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.RepositoryFile.size_bytes"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.size_bytes</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.RepositoryFile.snapshots"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.snapshots</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.RepositoryFile.updated_at"><code class="docutils literal notranslate"><span class="pre">RepositoryFile.updated_at</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="../api/modules.html#chantal.db.models.RepositoryMode"><code class="docutils literal notranslate"><span class="pre">RepositoryMode</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.RepositoryMode.FILTERED"><code class="docutils literal notranslate"><span class="pre">RepositoryMode.FILTERED</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.RepositoryMode.HOSTED"><code class="docutils literal notranslate"><span class="pre">RepositoryMode.HOSTED</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.RepositoryMode.MIRROR"><code class="docutils literal notranslate"><span class="pre">RepositoryMode.MIRROR</span></code></a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="../api/modules.html#chantal.db.models.Snapshot"><code class="docutils literal notranslate"><span class="pre">Snapshot</span></code></a><ul>
@@ -855,6 +902,7 @@
 <li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Snapshot.package_count"><code class="docutils literal notranslate"><span class="pre">Snapshot.package_count</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Snapshot.published_path"><code class="docutils literal notranslate"><span class="pre">Snapshot.published_path</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Snapshot.repository"><code class="docutils literal notranslate"><span class="pre">Snapshot.repository</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Snapshot.repository_files"><code class="docutils literal notranslate"><span class="pre">Snapshot.repository_files</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Snapshot.repository_id"><code class="docutils literal notranslate"><span class="pre">Snapshot.repository_id</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.db.models.Snapshot.total_size_bytes"><code class="docutils literal notranslate"><span class="pre">Snapshot.total_size_bytes</span></code></a></li>
 </ul>
@@ -925,6 +973,7 @@
 <li class="toctree-l3"><a class="reference internal" href="../api/modules.html#module-chantal.plugins.rpm">RPM Plugin</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.plugins.rpm.RpmPublisher"><code class="docutils literal notranslate"><span class="pre">RpmPublisher</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.plugins.rpm_sync.CheckUpdatesResult"><code class="docutils literal notranslate"><span class="pre">CheckUpdatesResult</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.plugins.rpm_sync.MetadataFileInfo"><code class="docutils literal notranslate"><span class="pre">MetadataFileInfo</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.plugins.rpm_sync.PackageMetadata"><code class="docutils literal notranslate"><span class="pre">PackageMetadata</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.plugins.rpm_sync.PackageUpdate"><code class="docutils literal notranslate"><span class="pre">PackageUpdate</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="../api/modules.html#chantal.plugins.rpm_sync.RpmSyncPlugin"><code class="docutils literal notranslate"><span class="pre">RpmSyncPlugin</span></code></a></li>
@@ -976,6 +1025,13 @@
 </section>
 <section id="features">
 <h2>Features<a class="headerlink" href="#features" title="Link to this heading"></a></h2>
+<p><strong>Repository Modes:</strong></p>
+<ul class="simple">
+<li><p>✅ <strong>Mirror Mode</strong> - Full metadata mirroring (all repomd.xml types)</p></li>
+<li><p>✅ <strong>Filtered Mode</strong> - Smart metadata regeneration for filtered repos</p></li>
+<li><p>✅ <strong>Hosted Mode</strong> - For self-hosted packages (future)</p></li>
+</ul>
+<p><strong>Package Management:</strong></p>
 <ul class="simple">
 <li><p>✅ Repomd.xml/primary.xml.gz parsing</p></li>
 <li><p>✅ RPM package downloading</p></li>
@@ -984,12 +1040,19 @@
 <li><p>✅ Pattern-based package filtering</p></li>
 <li><p>✅ Source RPM exclusion</p></li>
 <li><p>✅ Version filtering (only latest)</p></li>
+</ul>
+<p><strong>Metadata Support:</strong></p>
+<ul class="simple">
+<li><p>✅ Full metadata mirroring (updateinfo, filelists, other, comps, modules, etc.)</p></li>
+<li><p>✅ Updateinfo/errata parsing and filtering</p></li>
+<li><p>✅ Metadata regeneration for filtered repositories</p></li>
+<li><p>✅ Gzip/XZ/BZ2 compression support</p></li>
 <li><p>✅ RHEL CDN support (client certificates)</p></li>
-<li><p>✅ Metadata generation (repomd.xml, primary.xml.gz)</p></li>
-<li><p>✅ Gzip/XZ compression support</p></li>
-<li><p>🚧 Modular repositories (modules.yaml) - Planned</p></li>
-<li><p>🚧 Delta RPMs - Planned</p></li>
-<li><p>🚧 GPG signature verification - Planned</p></li>
+</ul>
+<p><strong>Planned:</strong></p>
+<ul class="simple">
+<li><p>🚧 Delta RPMs</p></li>
+<li><p>🚧 GPG signature verification</p></li>
 </ul>
 </section>
 <section id="configuration">
@@ -1044,24 +1107,150 @@
 </div>
 </section>
 </section>
+<section id="repository-modes">
+<h2>Repository Modes<a class="headerlink" href="#repository-modes" title="Link to this heading"></a></h2>
+<p>Chantal supports three repository operation modes for RPM repositories:</p>
+<section id="mirror-mode-default">
+<h3>Mirror Mode (Default)<a class="headerlink" href="#mirror-mode-default" title="Link to this heading"></a></h3>
+<p><strong>Full metadata mirroring</strong> - Downloads and publishes ALL metadata types from upstream repository unchanged.</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">repositories</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rhel9-baseos-mirror</span>
+<span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">RHEL 9 BaseOS (Full Mirror)</span>
+<span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rpm</span>
+<span class="w">    </span><span class="nt">feed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/os</span>
+<span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">    </span><span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">mirror</span><span class="w">  </span><span class="c1"># Default</span>
+</pre></div>
+</div>
+<p><strong>Behavior:</strong></p>
+<ul class="simple">
+<li><p>✅ All metadata files downloaded: updateinfo, filelists, other, comps, modules, etc.</p></li>
+<li><p>✅ Metadata published unchanged (no filtering)</p></li>
+<li><p>✅ Perfect 1:1 mirror of upstream repository</p></li>
+<li><p>✅ Ideal for: Complete repository mirrors, compliance requirements</p></li>
+</ul>
+<p><strong>Metadata types mirrored:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">primary</span></code> - Package metadata (name, version, arch, dependencies)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">filelists</span></code> - File listings for each package</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">other</span></code> - Changelog data</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">updateinfo</span></code> - Errata/security advisories</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">comps</span></code> - Package groups and categories</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">modules</span></code> - Modular metadata (RHEL 8+)</p></li>
+<li><p>And any other metadata types present in repomd.xml</p></li>
+</ul>
+</section>
+<section id="filtered-mode">
+<h3>Filtered Mode<a class="headerlink" href="#filtered-mode" title="Link to this heading"></a></h3>
+<p><strong>Smart filtering with metadata regeneration</strong> - Filters packages and regenerates metadata to match.</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">repositories</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">epel9-webservers</span>
+<span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">EPEL 9 - Web Servers Only</span>
+<span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rpm</span>
+<span class="w">    </span><span class="nt">feed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://dl.fedoraproject.org/pub/epel/9/Everything/x86_64/</span>
+<span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">    </span><span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">filtered</span>
+<span class="w">    </span><span class="nt">filters</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">patterns</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">include</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;^nginx-.*&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;^httpd-.*&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;^php-.*&quot;</span><span class="p p-Indicator">]</span>
+<span class="w">      </span><span class="nt">post_processing</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">only_latest_version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+</pre></div>
+</div>
+<p><strong>Behavior:</strong></p>
+<ul class="simple">
+<li><p>✅ Packages filtered based on patterns/filters</p></li>
+<li><p>✅ Metadata regenerated to match available packages</p></li>
+<li><p>✅ Updateinfo filtered to include only relevant errata</p></li>
+<li><p>✅ Filelists, other metadata filtered accordingly</p></li>
+<li><p>✅ Ideal for: Custom repositories, filtered mirrors, disk space optimization</p></li>
+</ul>
+<p><strong>Metadata regeneration:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">primary.xml</span></code> - Regenerated with filtered package list</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">filelists.xml</span></code> - Regenerated with filtered packages</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">other.xml</span></code> - Regenerated with filtered packages</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">updateinfo.xml</span></code> - <strong>Filtered</strong> to include only errata for available packages</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">comps.xml</span></code> - Copied unchanged (groups still valid)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">modules.yaml</span></code> - Copied unchanged (if present)</p></li>
+</ul>
+<p><strong>Updateinfo Filtering Example:</strong></p>
+<p>Upstream has 1000 security advisories, but you only mirror nginx packages:</p>
+<ul class="simple">
+<li><p><strong>Mirror mode</strong>: All 1000 advisories published (irrelevant for your packages)</p></li>
+<li><p><strong>Filtered mode</strong>: Only nginx-related advisories published (smart filtering)</p></li>
+</ul>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Filtered updateinfo only includes errata matching your packages</span>
+<span class="c1"># RHSA-2024:1234 for nginx-1.20.1-1.el9 → INCLUDED</span>
+<span class="c1"># RHSA-2024:5678 for kernel-5.14.0-362.el9 → EXCLUDED (kernel not mirrored)</span>
+</pre></div>
+</div>
+</section>
+<section id="hosted-mode">
+<h3>Hosted Mode<a class="headerlink" href="#hosted-mode" title="Link to this heading"></a></h3>
+<p><strong>Self-hosted packages</strong> - For future use (uploading custom RPMs).</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">repositories</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">custom-rpms</span>
+<span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Custom Internal RPMs</span>
+<span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rpm</span>
+<span class="w">    </span><span class="nt">mode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hosted</span>
+<span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+</pre></div>
+</div>
+<p><strong>Status:</strong> Planned feature for uploading custom-built RPMs.</p>
+</section>
+</section>
 <section id="how-it-works">
 <h2>How It Works<a class="headerlink" href="#how-it-works" title="Link to this heading"></a></h2>
 <section id="sync-process">
 <h3>Sync Process<a class="headerlink" href="#sync-process" title="Link to this heading"></a></h3>
-<ol class="arabic">
-<li><p><strong>Fetch repomd.xml</strong></p>
+<section id="fetch-repomd-xml">
+<h4>1. Fetch repomd.xml<a class="headerlink" href="#fetch-repomd-xml" title="Link to this heading"></a></h4>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">GET</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">example</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">repo</span><span class="o">/</span><span class="n">repodata</span><span class="o">/</span><span class="n">repomd</span><span class="o">.</span><span class="n">xml</span>
 </pre></div>
 </div>
-<p>Parse to find primary.xml.gz location</p>
-</li>
-<li><p><strong>Fetch primary.xml.gz</strong></p>
+<p>Parse repomd.xml to discover all metadata types:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">primary</span></code> - Package metadata (required)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">filelists</span></code> - File listings</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">other</span></code> - Changelog data</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">updateinfo</span></code> - Errata/advisories</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">comps</span></code> - Package groups</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">modules</span></code> - Modular metadata</p></li>
+<li><p>… and any other types</p></li>
+</ul>
+</section>
+<section id="download-metadata">
+<h4>2. Download Metadata<a class="headerlink" href="#download-metadata" title="Link to this heading"></a></h4>
+<p><strong>Mirror Mode:</strong></p>
+<ul class="simple">
+<li><p>Downloads ALL metadata types from repomd.xml</p></li>
+<li><p>Stores in pool: <code class="docutils literal notranslate"><span class="pre">/var/lib/chantal/pool/files/</span></code></p></li>
+<li><p>Metadata tracked in <code class="docutils literal notranslate"><span class="pre">RepositoryFile</span></code> model</p></li>
+</ul>
+<p><strong>Filtered Mode:</strong></p>
+<ul class="simple">
+<li><p>Downloads primary.xml (required for package discovery)</p></li>
+<li><p>Downloads updateinfo.xml (for errata filtering)</p></li>
+<li><p>Other metadata downloaded as needed</p></li>
+</ul>
+</section>
+<section id="parse-packages">
+<h4>3. Parse Packages<a class="headerlink" href="#parse-packages" title="Link to this heading"></a></h4>
+<p>Fetch and parse <code class="docutils literal notranslate"><span class="pre">primary.xml.gz</span></code>:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">GET</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">example</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">repo</span><span class="o">/</span><span class="n">repodata</span><span class="o">/</span><span class="n">abc123</span><span class="o">-</span><span class="n">primary</span><span class="o">.</span><span class="n">xml</span><span class="o">.</span><span class="n">gz</span>
 </pre></div>
 </div>
-<p>Decompress and parse package list</p>
-</li>
-<li><p><strong>Apply filters</strong></p>
+<p>Extract package list with metadata:</p>
+<ul class="simple">
+<li><p>Name, version, release, epoch, architecture</p></li>
+<li><p>Dependencies, provides, requires</p></li>
+<li><p>SHA256 checksum</p></li>
+<li><p>File location</p></li>
+</ul>
+</section>
+<section id="apply-filters-filtered-mode-only">
+<h4>4. Apply Filters (Filtered Mode Only)<a class="headerlink" href="#apply-filters-filtered-mode-only" title="Link to this heading"></a></h4>
 <ul class="simple">
 <li><p>Pattern matching (include/exclude regex)</p></li>
 <li><p>Architecture filtering</p></li>
@@ -1069,8 +1258,10 @@
 <li><p>RPM-specific filters (exclude source RPMs, etc.)</p></li>
 <li><p>Post-processing (only latest version)</p></li>
 </ul>
-</li>
-<li><p><strong>Download packages</strong></p>
+<p><strong>Mirror Mode:</strong> No filtering applied.</p>
+</section>
+<section id="download-packages">
+<h4>5. Download Packages<a class="headerlink" href="#download-packages" title="Link to this heading"></a></h4>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">For</span> <span class="n">each</span> <span class="n">package</span><span class="p">:</span>
   <span class="o">-</span> <span class="n">Calculate</span> <span class="n">expected</span> <span class="n">SHA256</span>
   <span class="o">-</span> <span class="n">Check</span> <span class="k">if</span> <span class="n">exists</span> <span class="ow">in</span> <span class="n">pool</span>
@@ -1078,58 +1269,134 @@
   <span class="o">-</span> <span class="n">Verify</span> <span class="n">checksum</span>
 </pre></div>
 </div>
-</li>
-<li><p><strong>Update database</strong></p>
+<p>Pool structure:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">/</span><span class="n">var</span><span class="o">/</span><span class="n">lib</span><span class="o">/</span><span class="n">chantal</span><span class="o">/</span><span class="n">pool</span><span class="o">/</span><span class="n">content</span><span class="o">/</span><span class="p">{</span><span class="n">sha256</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">2</span><span class="p">]}</span><span class="o">/</span><span class="p">{</span><span class="n">sha256</span><span class="p">[</span><span class="mi">2</span><span class="p">:</span><span class="mi">4</span><span class="p">]}</span><span class="o">/</span><span class="p">{</span><span class="n">sha256</span><span class="p">}</span><span class="o">.</span><span class="n">rpm</span>
+</pre></div>
+</div>
+</section>
+<section id="update-database">
+<h4>6. Update Database<a class="headerlink" href="#update-database" title="Link to this heading"></a></h4>
 <ul class="simple">
-<li><p>Add packages to database</p></li>
+<li><p>Add packages to database (<code class="docutils literal notranslate"><span class="pre">ContentItem</span></code> model)</p></li>
+<li><p>Add metadata files to database (<code class="docutils literal notranslate"><span class="pre">RepositoryFile</span></code> model)</p></li>
 <li><p>Associate with repository</p></li>
 <li><p>Record sync history</p></li>
 </ul>
-</li>
-</ol>
+</section>
 </section>
 <section id="publish-process">
 <h3>Publish Process<a class="headerlink" href="#publish-process" title="Link to this heading"></a></h3>
-<ol class="arabic">
-<li><p><strong>Query packages</strong></p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">packages</span> <span class="o">=</span> <span class="n">repository</span><span class="o">.</span><span class="n">packages</span>
+<section id="query-packages">
+<h4>1. Query Packages<a class="headerlink" href="#query-packages" title="Link to this heading"></a></h4>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">packages</span> <span class="o">=</span> <span class="n">repository</span><span class="o">.</span><span class="n">content_items</span>
+<span class="n">metadata_files</span> <span class="o">=</span> <span class="n">repository</span><span class="o">.</span><span class="n">repository_files</span>  <span class="c1"># Mirror mode only</span>
 </pre></div>
 </div>
-</li>
-<li><p><strong>Create directory structure</strong></p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>published/repo-id/latest/
+</section>
+<section id="create-directory-structure">
+<h4>2. Create Directory Structure<a class="headerlink" href="#create-directory-structure" title="Link to this heading"></a></h4>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>/var/www/repos/repo-id/latest/
 ├── Packages/
 └── repodata/
 </pre></div>
 </div>
-</li>
-<li><p><strong>Create hardlinks</strong></p>
+</section>
+<section id="create-package-hardlinks">
+<h4>3. Create Package Hardlinks<a class="headerlink" href="#create-package-hardlinks" title="Link to this heading"></a></h4>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>For each package:
-  pool/f2/56/f256...rpm
-    → published/repo-id/latest/Packages/nginx-1.20.2.rpm
+  pool/content/f2/56/f256...rpm
+    → /var/www/repos/repo-id/latest/Packages/nginx-1.20.2.rpm
 </pre></div>
 </div>
-</li>
-<li><p><strong>Generate metadata</strong></p>
+<p>Zero-copy publishing using hardlinks.</p>
+</section>
+<section id="publish-metadata">
+<h4>4. Publish Metadata<a class="headerlink" href="#publish-metadata" title="Link to this heading"></a></h4>
+<p><strong>Mirror Mode:</strong></p>
 <ul class="simple">
-<li><p>Create <code class="docutils literal notranslate"><span class="pre">primary.xml</span></code> with package metadata</p></li>
-<li><p>Compress to <code class="docutils literal notranslate"><span class="pre">primary.xml.gz</span></code></p></li>
-<li><p>Generate <code class="docutils literal notranslate"><span class="pre">repomd.xml</span></code> with checksums</p></li>
-<li><p>Calculate and add checksums</p></li>
+<li><p>Copy ALL metadata files from pool to <code class="docutils literal notranslate"><span class="pre">repodata/</span></code></p></li>
+<li><p>Hardlinks: <code class="docutils literal notranslate"><span class="pre">pool/files/{sha256}.xml.gz</span></code> → <code class="docutils literal notranslate"><span class="pre">repodata/{type}.xml.gz</span></code></p></li>
+<li><p>Copy <code class="docutils literal notranslate"><span class="pre">repomd.xml</span></code> unchanged</p></li>
+<li><p>Perfect 1:1 mirror</p></li>
 </ul>
-</li>
-<li><p><strong>Result</strong></p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>published/repo-id/latest/
+<p><strong>Filtered Mode:</strong></p>
+<ul class="simple">
+<li><p>Generate <code class="docutils literal notranslate"><span class="pre">primary.xml</span></code> with filtered package list</p></li>
+<li><p>Generate <code class="docutils literal notranslate"><span class="pre">filelists.xml</span></code> with filtered packages</p></li>
+<li><p>Generate <code class="docutils literal notranslate"><span class="pre">other.xml</span></code> with filtered packages</p></li>
+<li><p><strong>Filter <code class="docutils literal notranslate"><span class="pre">updateinfo.xml</span></code></strong> to include only relevant errata</p></li>
+<li><p>Copy <code class="docutils literal notranslate"><span class="pre">comps.xml</span></code> unchanged (if present)</p></li>
+<li><p>Generate new <code class="docutils literal notranslate"><span class="pre">repomd.xml</span></code> with checksums</p></li>
+</ul>
+</section>
+<section id="updateinfo-filtering-filtered-mode">
+<h4>5. Updateinfo Filtering (Filtered Mode)<a class="headerlink" href="#updateinfo-filtering-filtered-mode" title="Link to this heading"></a></h4>
+<p>Parse upstream updateinfo.xml:</p>
+<div class="highlight-xml notranslate"><div class="highlight"><pre><span></span><span class="nt">&lt;updates&gt;</span>
+<span class="w">  </span><span class="nt">&lt;update</span><span class="w"> </span><span class="na">type=</span><span class="s">&quot;security&quot;</span><span class="w"> </span><span class="na">id=</span><span class="s">&quot;RHSA-2024:1234&quot;</span><span class="nt">&gt;</span>
+<span class="w">    </span><span class="nt">&lt;title&gt;</span>nginx<span class="w"> </span>security<span class="w"> </span>update<span class="nt">&lt;/title&gt;</span>
+<span class="w">    </span><span class="nt">&lt;pkglist&gt;</span>
+<span class="w">      </span><span class="nt">&lt;package</span><span class="w"> </span><span class="na">name=</span><span class="s">&quot;nginx&quot;</span><span class="w"> </span><span class="na">version=</span><span class="s">&quot;1.20.1&quot;</span><span class="w"> </span><span class="na">release=</span><span class="s">&quot;1.el9&quot;</span><span class="w"> </span><span class="na">arch=</span><span class="s">&quot;x86_64&quot;</span><span class="nt">/&gt;</span>
+<span class="w">    </span><span class="nt">&lt;/pkglist&gt;</span>
+<span class="w">  </span><span class="nt">&lt;/update&gt;</span>
+<span class="w">  </span><span class="nt">&lt;update</span><span class="w"> </span><span class="na">type=</span><span class="s">&quot;security&quot;</span><span class="w"> </span><span class="na">id=</span><span class="s">&quot;RHSA-2024:5678&quot;</span><span class="nt">&gt;</span>
+<span class="w">    </span><span class="nt">&lt;title&gt;</span>kernel<span class="w"> </span>security<span class="w"> </span>update<span class="nt">&lt;/title&gt;</span>
+<span class="w">    </span><span class="nt">&lt;pkglist&gt;</span>
+<span class="w">      </span><span class="nt">&lt;package</span><span class="w"> </span><span class="na">name=</span><span class="s">&quot;kernel&quot;</span><span class="w"> </span><span class="na">version=</span><span class="s">&quot;5.14.0&quot;</span><span class="w"> </span><span class="na">release=</span><span class="s">&quot;362.el9&quot;</span><span class="w"> </span><span class="na">arch=</span><span class="s">&quot;x86_64&quot;</span><span class="nt">/&gt;</span>
+<span class="w">    </span><span class="nt">&lt;/pkglist&gt;</span>
+<span class="w">  </span><span class="nt">&lt;/update&gt;</span>
+<span class="nt">&lt;/updates&gt;</span>
+</pre></div>
+</div>
+<p>Filter logic:</p>
+<ul class="simple">
+<li><p>Extract package NVRAs from each advisory</p></li>
+<li><p>Check if ANY package in advisory is in your filtered repository</p></li>
+<li><p>If yes: Include advisory in filtered updateinfo.xml</p></li>
+<li><p>If no: Exclude advisory</p></li>
+</ul>
+<p>Result:</p>
+<div class="highlight-xml notranslate"><div class="highlight"><pre><span></span><span class="nt">&lt;updates&gt;</span>
+<span class="w">  </span><span class="nt">&lt;update</span><span class="w"> </span><span class="na">type=</span><span class="s">&quot;security&quot;</span><span class="w"> </span><span class="na">id=</span><span class="s">&quot;RHSA-2024:1234&quot;</span><span class="nt">&gt;</span>
+<span class="w">    </span><span class="cm">&lt;!-- nginx advisory INCLUDED (nginx is in filtered repo) --&gt;</span>
+<span class="w">  </span><span class="nt">&lt;/update&gt;</span>
+<span class="w">  </span><span class="cm">&lt;!-- kernel advisory EXCLUDED (kernel not in filtered repo) --&gt;</span>
+<span class="nt">&lt;/updates&gt;</span>
+</pre></div>
+</div>
+</section>
+<section id="result">
+<h4>6. Result<a class="headerlink" href="#result" title="Link to this heading"></a></h4>
+<p><strong>Mirror Mode:</strong></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>/var/www/repos/rhel9-baseos-mirror/latest/
+├── Packages/
+│   ├── nginx-1.20.2-1.el9.x86_64.rpm
+│   ├── kernel-5.14.0-362.el9.x86_64.rpm
+│   └── ... (all packages)
+└── repodata/
+    ├── repomd.xml
+    ├── abc123-primary.xml.gz
+    ├── def456-filelists.xml.gz
+    ├── ghi789-other.xml.gz
+    ├── jkl012-updateinfo.xml.gz
+    ├── mno345-comps.xml.gz
+    └── ... (all metadata types)
+</pre></div>
+</div>
+<p><strong>Filtered Mode:</strong></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>/var/www/repos/epel9-webservers/latest/
 ├── Packages/
 │   ├── nginx-1.20.2-1.el9.x86_64.rpm
 │   └── httpd-2.4.51-1.el9.x86_64.rpm
 └── repodata/
-    ├── repomd.xml
-    └── abc123-primary.xml.gz
+    ├── repomd.xml (regenerated)
+    ├── abc123-primary.xml.gz (regenerated)
+    ├── def456-filelists.xml.gz (regenerated)
+    ├── ghi789-other.xml.gz (regenerated)
+    └── jkl012-updateinfo.xml.gz (filtered)
 </pre></div>
 </div>
-</li>
-</ol>
+</section>
 </section>
 </section>
 <section id="metadata-files">

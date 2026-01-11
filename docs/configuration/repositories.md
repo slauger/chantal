@@ -22,6 +22,9 @@ repositories:
 - `feed`: Upstream repository URL
 - `enabled`: Whether to include in `--all` operations
 
+**Optional Fields:**
+- `mode`: Repository operation mode (`mirror`, `filtered`, `hosted`) - RPM only, defaults to `filtered`
+
 ## Repository Types
 
 ### RPM Repositories
@@ -30,17 +33,40 @@ For DNF/YUM-based distributions (RHEL, CentOS, Fedora, Rocky, Alma):
 
 ```yaml
 repositories:
+  # Filtered mode (default) - filters packages and regenerates metadata
+  - id: epel9-webservers
+    name: EPEL 9 - Web Servers
+    type: rpm
+    feed: https://dl.fedoraproject.org/pub/epel/9/Everything/x86_64/
+    enabled: true
+    mode: filtered  # Default
+    filters:
+      patterns:
+        include: ["^nginx-.*", "^httpd-.*"]
+      post_processing:
+        only_latest_version: true
+
+  # Mirror mode - full metadata mirroring, no filtering
   - id: rhel9-baseos
-    name: RHEL 9 BaseOS
+    name: RHEL 9 BaseOS (Full Mirror)
     type: rpm
     feed: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/os
     enabled: true
+    mode: mirror
 ```
 
 **Feed URL Requirements:**
 - Must point to a directory containing `repodata/repomd.xml`
 - Supports HTTP and HTTPS
 - Supports file:// URLs for local mirrors
+
+**Repository Modes (RPM only):**
+
+- **`filtered`** (default): Filters packages based on patterns/rules, regenerates metadata to match. Updateinfo filtered to include only relevant errata.
+- **`mirror`**: Full mirror of upstream repository. All metadata types downloaded and published unchanged. No filtering applied.
+- **`hosted`**: For self-hosted packages (future feature).
+
+See [RPM Plugin Documentation - Repository Modes](../plugins/rpm-plugin.md) for detailed mode explanations.
 
 ### Helm Repositories
 
