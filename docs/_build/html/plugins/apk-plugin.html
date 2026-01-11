@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>RPM Plugin &mdash; Chantal - Unified Repository Mirroring Tool</title>
+  <title>Alpine APK Plugin &mdash; Chantal - Unified Repository Mirroring Tool</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
 
@@ -19,8 +19,8 @@
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Helm Plugin" href="helm-plugin.html" />
-    <link rel="prev" title="Plugins Overview" href="overview.html" /> 
+    <link rel="next" title="Creating Custom Plugins" href="custom-plugins.html" />
+    <link rel="prev" title="Helm Plugin" href="helm-plugin.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -592,47 +592,47 @@
 <li class="toctree-l2"><a class="reference internal" href="overview.html#further-reading">Further Reading</a></li>
 </ul>
 </li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">RPM Plugin</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#overview">Overview</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#features">Features</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#configuration">Configuration</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#basic-rpm-repository">Basic RPM Repository</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#with-filters">With Filters</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#rhel-with-client-certificates">RHEL with Client Certificates</a></li>
+<li class="toctree-l1"><a class="reference internal" href="rpm-plugin.html">RPM Plugin</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="rpm-plugin.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="rpm-plugin.html#features">Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="rpm-plugin.html#configuration">Configuration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="rpm-plugin.html#basic-rpm-repository">Basic RPM Repository</a></li>
+<li class="toctree-l3"><a class="reference internal" href="rpm-plugin.html#with-filters">With Filters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="rpm-plugin.html#rhel-with-client-certificates">RHEL with Client Certificates</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="#how-it-works">How It Works</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#sync-process">Sync Process</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#publish-process">Publish Process</a></li>
+<li class="toctree-l2"><a class="reference internal" href="rpm-plugin.html#how-it-works">How It Works</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="rpm-plugin.html#sync-process">Sync Process</a></li>
+<li class="toctree-l3"><a class="reference internal" href="rpm-plugin.html#publish-process">Publish Process</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="#metadata-files">Metadata Files</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#repomd-xml">repomd.xml</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#primary-xml-gz">primary.xml.gz</a></li>
+<li class="toctree-l2"><a class="reference internal" href="rpm-plugin.html#metadata-files">Metadata Files</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="rpm-plugin.html#repomd-xml">repomd.xml</a></li>
+<li class="toctree-l3"><a class="reference internal" href="rpm-plugin.html#primary-xml-gz">primary.xml.gz</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="#rpm-specific-filters">RPM-Specific Filters</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#exclude-source-rpms">Exclude Source RPMs</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#group-filtering">Group Filtering</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#license-filtering">License Filtering</a></li>
+<li class="toctree-l2"><a class="reference internal" href="rpm-plugin.html#rpm-specific-filters">RPM-Specific Filters</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="rpm-plugin.html#exclude-source-rpms">Exclude Source RPMs</a></li>
+<li class="toctree-l3"><a class="reference internal" href="rpm-plugin.html#group-filtering">Group Filtering</a></li>
+<li class="toctree-l3"><a class="reference internal" href="rpm-plugin.html#license-filtering">License Filtering</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="#supported-distributions">Supported Distributions</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#red-hat-enterprise-linux-rhel">Red Hat Enterprise Linux (RHEL)</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#centos-stream">CentOS Stream</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#fedora">Fedora</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#epel-extra-packages-for-enterprise-linux">EPEL (Extra Packages for Enterprise Linux)</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#rocky-linux">Rocky Linux</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#almalinux">AlmaLinux</a></li>
+<li class="toctree-l2"><a class="reference internal" href="rpm-plugin.html#supported-distributions">Supported Distributions</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="rpm-plugin.html#red-hat-enterprise-linux-rhel">Red Hat Enterprise Linux (RHEL)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="rpm-plugin.html#centos-stream">CentOS Stream</a></li>
+<li class="toctree-l3"><a class="reference internal" href="rpm-plugin.html#fedora">Fedora</a></li>
+<li class="toctree-l3"><a class="reference internal" href="rpm-plugin.html#epel-extra-packages-for-enterprise-linux">EPEL (Extra Packages for Enterprise Linux)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="rpm-plugin.html#rocky-linux">Rocky Linux</a></li>
+<li class="toctree-l3"><a class="reference internal" href="rpm-plugin.html#almalinux">AlmaLinux</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="#troubleshooting">Troubleshooting</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#metadata-not-found">Metadata Not Found</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#checksum-mismatch">Checksum Mismatch</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#no-packages-after-filtering">No Packages After Filtering</a></li>
+<li class="toctree-l2"><a class="reference internal" href="rpm-plugin.html#troubleshooting">Troubleshooting</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="rpm-plugin.html#metadata-not-found">Metadata Not Found</a></li>
+<li class="toctree-l3"><a class="reference internal" href="rpm-plugin.html#checksum-mismatch">Checksum Mismatch</a></li>
+<li class="toctree-l3"><a class="reference internal" href="rpm-plugin.html#no-packages-after-filtering">No Packages After Filtering</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="#future-enhancements">Future Enhancements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="rpm-plugin.html#future-enhancements">Future Enhancements</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="helm-plugin.html">Helm Plugin</a><ul>
@@ -684,60 +684,60 @@
 <li class="toctree-l2"><a class="reference internal" href="helm-plugin.html#further-reading">Further Reading</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="apk-plugin.html">Alpine APK Plugin</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="apk-plugin.html#overview">Overview</a></li>
-<li class="toctree-l2"><a class="reference internal" href="apk-plugin.html#features">Features</a></li>
-<li class="toctree-l2"><a class="reference internal" href="apk-plugin.html#configuration">Configuration</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="apk-plugin.html#basic-alpine-repository">Basic Alpine Repository</a></li>
-<li class="toctree-l3"><a class="reference internal" href="apk-plugin.html#with-filters">With Filters</a></li>
-<li class="toctree-l3"><a class="reference internal" href="apk-plugin.html#multiple-architectures">Multiple Architectures</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Alpine APK Plugin</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#features">Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#configuration">Configuration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#basic-alpine-repository">Basic Alpine Repository</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#with-filters">With Filters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#multiple-architectures">Multiple Architectures</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="apk-plugin.html#how-it-works">How It Works</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="apk-plugin.html#sync-process">Sync Process</a></li>
-<li class="toctree-l3"><a class="reference internal" href="apk-plugin.html#publish-process">Publish Process</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#how-it-works">How It Works</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#sync-process">Sync Process</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#publish-process">Publish Process</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="apk-plugin.html#package-filtering">Package Filtering</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="apk-plugin.html#pattern-filters">Pattern Filters</a></li>
-<li class="toctree-l3"><a class="reference internal" href="apk-plugin.html#version-filtering">Version Filtering</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#package-filtering">Package Filtering</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#pattern-filters">Pattern Filters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#version-filtering">Version Filtering</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="apk-plugin.html#common-use-cases">Common Use Cases</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="apk-plugin.html#mirror-complete-alpine-branch">Mirror Complete Alpine Branch</a></li>
-<li class="toctree-l3"><a class="reference internal" href="apk-plugin.html#mirror-community-repository">Mirror Community Repository</a></li>
-<li class="toctree-l3"><a class="reference internal" href="apk-plugin.html#mirror-edge-rolling-release">Mirror Edge (Rolling Release)</a></li>
-<li class="toctree-l3"><a class="reference internal" href="apk-plugin.html#selective-mirroring-container-base">Selective Mirroring (Container Base)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#common-use-cases">Common Use Cases</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#mirror-complete-alpine-branch">Mirror Complete Alpine Branch</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#mirror-community-repository">Mirror Community Repository</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#mirror-edge-rolling-release">Mirror Edge (Rolling Release)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#selective-mirroring-container-base">Selective Mirroring (Container Base)</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="apk-plugin.html#publishing-alpine-repositories">Publishing Alpine Repositories</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="apk-plugin.html#publish-latest-repository">Publish Latest Repository</a></li>
-<li class="toctree-l3"><a class="reference internal" href="apk-plugin.html#publish-snapshot">Publish Snapshot</a></li>
-<li class="toctree-l3"><a class="reference internal" href="apk-plugin.html#configure-alpine-linux-client">Configure Alpine Linux Client</a></li>
-<li class="toctree-l3"><a class="reference internal" href="apk-plugin.html#configure-alpine-with-snapshot">Configure Alpine with Snapshot</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#publishing-alpine-repositories">Publishing Alpine Repositories</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#publish-latest-repository">Publish Latest Repository</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#publish-snapshot">Publish Snapshot</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#configure-alpine-linux-client">Configure Alpine Linux Client</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#configure-alpine-with-snapshot">Configure Alpine with Snapshot</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="apk-plugin.html#package-metadata">Package Metadata</a></li>
-<li class="toctree-l2"><a class="reference internal" href="apk-plugin.html#alpine-specific-features">Alpine-Specific Features</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="apk-plugin.html#version-format">Version Format</a></li>
-<li class="toctree-l3"><a class="reference internal" href="apk-plugin.html#repository-types">Repository Types</a></li>
-<li class="toctree-l3"><a class="reference internal" href="apk-plugin.html#alpine-branches">Alpine Branches</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#package-metadata">Package Metadata</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#alpine-specific-features">Alpine-Specific Features</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#version-format">Version Format</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#repository-types">Repository Types</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#alpine-branches">Alpine Branches</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="apk-plugin.html#troubleshooting">Troubleshooting</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="apk-plugin.html#apkindex-not-found">APKINDEX Not Found</a></li>
-<li class="toctree-l3"><a class="reference internal" href="apk-plugin.html#sha1-checksum-warnings">SHA1 Checksum Warnings</a></li>
-<li class="toctree-l3"><a class="reference internal" href="apk-plugin.html#no-packages-after-filtering">No Packages After Filtering</a></li>
-<li class="toctree-l3"><a class="reference internal" href="apk-plugin.html#architecture-mismatch">Architecture Mismatch</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#troubleshooting">Troubleshooting</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#apkindex-not-found">APKINDEX Not Found</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#sha1-checksum-warnings">SHA1 Checksum Warnings</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#no-packages-after-filtering">No Packages After Filtering</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#architecture-mismatch">Architecture Mismatch</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="apk-plugin.html#integration-with-docker">Integration with Docker</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="apk-plugin.html#alpine-base-image-builds">Alpine Base Image Builds</a></li>
-<li class="toctree-l3"><a class="reference internal" href="apk-plugin.html#multi-architecture-builds">Multi-Architecture Builds</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#integration-with-docker">Integration with Docker</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#alpine-base-image-builds">Alpine Base Image Builds</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#multi-architecture-builds">Multi-Architecture Builds</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="apk-plugin.html#best-practices">Best Practices</a></li>
-<li class="toctree-l2"><a class="reference internal" href="apk-plugin.html#further-reading">Further Reading</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#best-practices">Best Practices</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#further-reading">Further Reading</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="custom-plugins.html">Creating Custom Plugins</a><ul>
@@ -952,9 +952,9 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
-      <li class="breadcrumb-item active">RPM Plugin</li>
+      <li class="breadcrumb-item active">Alpine APK Plugin</li>
       <li class="wy-breadcrumbs-aside">
-              <a href="https://github.com/slauger/chantal/blob/main/docs/plugins/rpm-plugin.md" class="fa fa-github"> Edit on GitHub</a>
+              <a href="https://github.com/slauger/chantal/blob/main/docs/plugins/apk-plugin.md" class="fa fa-github"> Edit on GitHub</a>
       </li>
   </ul>
   <hr/>
@@ -962,84 +962,100 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="rpm-plugin">
-<h1>RPM Plugin<a class="headerlink" href="#rpm-plugin" title="Link to this heading"></a></h1>
-<p>The RPM plugin provides support for DNF/YUM-based repositories (RHEL, CentOS, Fedora, Rocky Linux, AlmaLinux).</p>
+  <section id="alpine-apk-plugin">
+<h1>Alpine APK Plugin<a class="headerlink" href="#alpine-apk-plugin" title="Link to this heading"></a></h1>
+<p>The APK plugin provides support for Alpine Linux package repositories.</p>
 <section id="overview">
 <h2>Overview<a class="headerlink" href="#overview" title="Link to this heading"></a></h2>
 <p><strong>Status:</strong> ✅ Available</p>
-<p>The RPM plugin consists of:</p>
+<p>The APK plugin consists of:</p>
 <ul class="simple">
-<li><p><strong>RpmSyncPlugin</strong> - Syncs packages from upstream RPM repositories</p></li>
-<li><p><strong>RpmPublisher</strong> - Publishes RPM repositories with metadata</p></li>
+<li><p><strong>ApkSyncer</strong> - Syncs packages from Alpine Linux repositories</p></li>
+<li><p><strong>ApkPublisher</strong> - Publishes Alpine repositories with metadata</p></li>
 </ul>
 </section>
 <section id="features">
 <h2>Features<a class="headerlink" href="#features" title="Link to this heading"></a></h2>
 <ul class="simple">
-<li><p>✅ Repomd.xml/primary.xml.gz parsing</p></li>
-<li><p>✅ RPM package downloading</p></li>
-<li><p>✅ SHA256 checksum verification</p></li>
-<li><p>✅ Architecture filtering</p></li>
+<li><p>✅ APKINDEX.tar.gz parsing</p></li>
+<li><p>✅ APK package downloading (.apk files)</p></li>
+<li><p>✅ SHA1 checksum verification (with graceful handling of stale APKINDEX)</p></li>
+<li><p>✅ SHA256 checksum verification (content-addressed storage)</p></li>
 <li><p>✅ Pattern-based package filtering</p></li>
-<li><p>✅ Source RPM exclusion</p></li>
 <li><p>✅ Version filtering (only latest)</p></li>
-<li><p>✅ RHEL CDN support (client certificates)</p></li>
-<li><p>✅ Metadata generation (repomd.xml, primary.xml.gz)</p></li>
-<li><p>✅ Gzip/XZ compression support</p></li>
-<li><p>🚧 Modular repositories (modules.yaml) - Planned</p></li>
-<li><p>🚧 Delta RPMs - Planned</p></li>
-<li><p>🚧 GPG signature verification - Planned</p></li>
+<li><p>✅ Metadata generation (APKINDEX.tar.gz)</p></li>
+<li><p>✅ Package deduplication via content-addressed storage</p></li>
+<li><p>✅ Snapshot support</p></li>
+<li><p>✅ Multi-architecture support (x86_64, aarch64, armhf, armv7, x86)</p></li>
+<li><p>🚧 Package signing/verification - Planned</p></li>
 </ul>
 </section>
 <section id="configuration">
 <h2>Configuration<a class="headerlink" href="#configuration" title="Link to this heading"></a></h2>
-<section id="basic-rpm-repository">
-<h3>Basic RPM Repository<a class="headerlink" href="#basic-rpm-repository" title="Link to this heading"></a></h3>
+<section id="basic-alpine-repository">
+<h3>Basic Alpine Repository<a class="headerlink" href="#basic-alpine-repository" title="Link to this heading"></a></h3>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">repositories</span><span class="p">:</span>
-<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">epel9-latest</span>
-<span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">EPEL 9 - Latest</span>
-<span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rpm</span>
-<span class="w">    </span><span class="nt">feed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://dl.fedoraproject.org/pub/epel/9/Everything/x86_64/</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">alpine-v3.19-main</span>
+<span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Alpine 3.19 Main</span>
+<span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">apk</span>
+<span class="w">    </span><span class="nt">feed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://dl-cdn.alpinelinux.org/alpine/</span>
 <span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">    </span><span class="nt">apk</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">branch</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v3.19</span>
+<span class="w">      </span><span class="nt">repository</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">main</span>
+<span class="w">      </span><span class="nt">architecture</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">x86_64</span>
 </pre></div>
 </div>
+<p><strong>Required APK Configuration:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">branch</span></code>: Alpine branch (v3.19, v3.18, v3.17, edge, etc.)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">repository</span></code>: Repository type (main, community, testing)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">architecture</span></code>: Architecture (x86_64, aarch64, armhf, armv7, x86)</p></li>
+</ul>
 </section>
 <section id="with-filters">
 <h3>With Filters<a class="headerlink" href="#with-filters" title="Link to this heading"></a></h3>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">repositories</span><span class="p">:</span>
-<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">epel9-webservers</span>
-<span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">EPEL 9 - Web Servers</span>
-<span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rpm</span>
-<span class="w">    </span><span class="nt">feed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://dl.fedoraproject.org/pub/epel/9/Everything/x86_64/</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">alpine-v3.19-minimal</span>
+<span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Alpine 3.19 - Essential Packages</span>
+<span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">apk</span>
+<span class="w">    </span><span class="nt">feed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://dl-cdn.alpinelinux.org/alpine/</span>
 <span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">    </span><span class="nt">apk</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">branch</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v3.19</span>
+<span class="w">      </span><span class="nt">repository</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">main</span>
+<span class="w">      </span><span class="nt">architecture</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">x86_64</span>
 <span class="w">    </span><span class="nt">filters</span><span class="p">:</span>
 <span class="w">      </span><span class="nt">patterns</span><span class="p">:</span>
-<span class="w">        </span><span class="nt">include</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;^nginx-.*&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;^httpd-.*&quot;</span><span class="p p-Indicator">]</span>
-<span class="w">        </span><span class="nt">exclude</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;.*-debug.*&quot;</span><span class="p p-Indicator">]</span>
-<span class="w">      </span><span class="nt">metadata</span><span class="p">:</span>
-<span class="w">        </span><span class="nt">architectures</span><span class="p">:</span>
-<span class="w">          </span><span class="nt">include</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;x86_64&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;noarch&quot;</span><span class="p p-Indicator">]</span>
-<span class="w">      </span><span class="nt">rpm</span><span class="p">:</span>
-<span class="w">        </span><span class="nt">exclude_source_rpms</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">        </span><span class="nt">include</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;^alpine-base$&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;^busybox$&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;^musl$&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;^libc-dev$&quot;</span><span class="p p-Indicator">]</span>
 <span class="w">      </span><span class="nt">post_processing</span><span class="p">:</span>
 <span class="w">        </span><span class="nt">only_latest_version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
 </pre></div>
 </div>
 </section>
-<section id="rhel-with-client-certificates">
-<h3>RHEL with Client Certificates<a class="headerlink" href="#rhel-with-client-certificates" title="Link to this heading"></a></h3>
+<section id="multiple-architectures">
+<h3>Multiple Architectures<a class="headerlink" href="#multiple-architectures" title="Link to this heading"></a></h3>
+<p>Create separate repositories for each architecture:</p>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">repositories</span><span class="p">:</span>
-<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rhel9-baseos</span>
-<span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">RHEL 9 BaseOS</span>
-<span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rpm</span>
-<span class="w">    </span><span class="nt">feed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/os</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">alpine-v3.19-main-x86_64</span>
+<span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Alpine 3.19 Main (x86_64)</span>
+<span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">apk</span>
+<span class="w">    </span><span class="nt">feed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://dl-cdn.alpinelinux.org/alpine/</span>
 <span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<span class="w">    </span><span class="nt">ssl</span><span class="p">:</span>
-<span class="w">      </span><span class="nt">ca_bundle</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem</span>
-<span class="w">      </span><span class="nt">client_cert</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/etc/pki/entitlement/1234567890.pem</span>
-<span class="w">      </span><span class="nt">client_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/etc/pki/entitlement/1234567890-key.pem</span>
-<span class="w">      </span><span class="nt">verify</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">    </span><span class="nt">apk</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">branch</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v3.19</span>
+<span class="w">      </span><span class="nt">repository</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">main</span>
+<span class="w">      </span><span class="nt">architecture</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">x86_64</span>
+
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">alpine-v3.19-main-aarch64</span>
+<span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Alpine 3.19 Main (aarch64)</span>
+<span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">apk</span>
+<span class="w">    </span><span class="nt">feed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://dl-cdn.alpinelinux.org/alpine/</span>
+<span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">    </span><span class="nt">apk</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">branch</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v3.19</span>
+<span class="w">      </span><span class="nt">repository</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">main</span>
+<span class="w">      </span><span class="nt">architecture</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">aarch64</span>
 </pre></div>
 </div>
 </section>
@@ -1049,286 +1065,339 @@
 <section id="sync-process">
 <h3>Sync Process<a class="headerlink" href="#sync-process" title="Link to this heading"></a></h3>
 <ol class="arabic">
-<li><p><strong>Fetch repomd.xml</strong></p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">GET</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">example</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">repo</span><span class="o">/</span><span class="n">repodata</span><span class="o">/</span><span class="n">repomd</span><span class="o">.</span><span class="n">xml</span>
+<li><p><strong>Build APKINDEX URL</strong></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="n">feed</span><span class="p">}</span><span class="o">/</span><span class="p">{</span><span class="n">branch</span><span class="p">}</span><span class="o">/</span><span class="p">{</span><span class="n">repository</span><span class="p">}</span><span class="o">/</span><span class="p">{</span><span class="n">architecture</span><span class="p">}</span><span class="o">/</span><span class="n">APKINDEX</span><span class="o">.</span><span class="n">tar</span><span class="o">.</span><span class="n">gz</span>
+<span class="n">Example</span><span class="p">:</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">dl</span><span class="o">-</span><span class="n">cdn</span><span class="o">.</span><span class="n">alpinelinux</span><span class="o">.</span><span class="n">org</span><span class="o">/</span><span class="n">alpine</span><span class="o">/</span><span class="n">v3</span><span class="mf">.19</span><span class="o">/</span><span class="n">main</span><span class="o">/</span><span class="n">x86_64</span><span class="o">/</span><span class="n">APKINDEX</span><span class="o">.</span><span class="n">tar</span><span class="o">.</span><span class="n">gz</span>
 </pre></div>
 </div>
-<p>Parse to find primary.xml.gz location</p>
 </li>
-<li><p><strong>Fetch primary.xml.gz</strong></p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">GET</span> <span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">example</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">repo</span><span class="o">/</span><span class="n">repodata</span><span class="o">/</span><span class="n">abc123</span><span class="o">-</span><span class="n">primary</span><span class="o">.</span><span class="n">xml</span><span class="o">.</span><span class="n">gz</span>
-</pre></div>
-</div>
-<p>Decompress and parse package list</p>
+<li><p><strong>Fetch APKINDEX.tar.gz</strong></p>
+<ul class="simple">
+<li><p>Download tar.gz archive</p></li>
+<li><p>Extract APKINDEX file from archive</p></li>
+<li><p>Parse package metadata</p></li>
+</ul>
+</li>
+<li><p><strong>Parse package metadata</strong></p>
+<ul class="simple">
+<li><p>Package name, version, architecture</p></li>
+<li><p>SHA1 checksum (from APKINDEX)</p></li>
+<li><p>Size, description, dependencies</p></li>
+<li><p>Provides, install_if, origin</p></li>
+</ul>
 </li>
 <li><p><strong>Apply filters</strong></p>
 <ul class="simple">
 <li><p>Pattern matching (include/exclude regex)</p></li>
-<li><p>Architecture filtering</p></li>
-<li><p>Size/build time filtering</p></li>
-<li><p>RPM-specific filters (exclude source RPMs, etc.)</p></li>
-<li><p>Post-processing (only latest version)</p></li>
+<li><p>Version filtering (only latest)</p></li>
 </ul>
 </li>
 <li><p><strong>Download packages</strong></p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">For</span> <span class="n">each</span> <span class="n">package</span><span class="p">:</span>
-  <span class="o">-</span> <span class="n">Calculate</span> <span class="n">expected</span> <span class="n">SHA256</span>
-  <span class="o">-</span> <span class="n">Check</span> <span class="k">if</span> <span class="n">exists</span> <span class="ow">in</span> <span class="n">pool</span>
-  <span class="o">-</span> <span class="n">If</span> <span class="ow">not</span><span class="p">,</span> <span class="n">download</span> <span class="n">to</span> <span class="n">pool</span>
-  <span class="o">-</span> <span class="n">Verify</span> <span class="n">checksum</span>
-</pre></div>
-</div>
-</li>
-<li><p><strong>Update database</strong></p>
 <ul class="simple">
-<li><p>Add packages to database</p></li>
-<li><p>Associate with repository</p></li>
-<li><p>Record sync history</p></li>
+<li><p>Download .apk files to content-addressed pool</p></li>
+<li><p>Verify SHA1 checksums (with graceful handling)</p></li>
+<li><p>Calculate SHA256 for storage layer</p></li>
+<li><p>Deduplicate identical packages</p></li>
+</ul>
+</li>
+<li><p><strong>Store metadata</strong></p>
+<ul class="simple">
+<li><p>Create ContentItem records</p></li>
+<li><p>Store APK metadata in database</p></li>
+<li><p>Link packages to repository</p></li>
 </ul>
 </li>
 </ol>
+<p><strong>Note on SHA1 Checksums:</strong> Alpine CDN sometimes serves updated packages while the APKINDEX still contains old SHA1 checksums. Chantal logs warnings for mismatches but continues syncing, as SHA256 verification in the storage layer provides integrity guarantees.</p>
 </section>
 <section id="publish-process">
 <h3>Publish Process<a class="headerlink" href="#publish-process" title="Link to this heading"></a></h3>
 <ol class="arabic">
-<li><p><strong>Query packages</strong></p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">packages</span> <span class="o">=</span> <span class="n">repository</span><span class="o">.</span><span class="n">packages</span>
+<li><p><strong>Query database</strong> for packages in repository/snapshot</p></li>
+<li><p><strong>Create directory structure</strong> for published repository</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="n">branch</span><span class="p">}</span><span class="o">/</span><span class="p">{</span><span class="n">repository</span><span class="p">}</span><span class="o">/</span><span class="p">{</span><span class="n">architecture</span><span class="p">}</span><span class="o">/</span>
 </pre></div>
 </div>
 </li>
-<li><p><strong>Create directory structure</strong></p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>published/repo-id/latest/
-├── Packages/
-└── repodata/
-</pre></div>
-</div>
-</li>
-<li><p><strong>Create hardlinks</strong></p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>For each package:
-  pool/f2/56/f256...rpm
-    → published/repo-id/latest/Packages/nginx-1.20.2.rpm
-</pre></div>
-</div>
-</li>
-<li><p><strong>Generate metadata</strong></p>
-<ul class="simple">
-<li><p>Create <code class="docutils literal notranslate"><span class="pre">primary.xml</span></code> with package metadata</p></li>
-<li><p>Compress to <code class="docutils literal notranslate"><span class="pre">primary.xml.gz</span></code></p></li>
-<li><p>Generate <code class="docutils literal notranslate"><span class="pre">repomd.xml</span></code> with checksums</p></li>
-<li><p>Calculate and add checksums</p></li>
-</ul>
-</li>
-<li><p><strong>Result</strong></p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>published/repo-id/latest/
-├── Packages/
-│   ├── nginx-1.20.2-1.el9.x86_64.rpm
-│   └── httpd-2.4.51-1.el9.x86_64.rpm
-└── repodata/
-    ├── repomd.xml
-    └── abc123-primary.xml.gz
-</pre></div>
-</div>
-</li>
+<li><p><strong>Create hardlinks</strong> from pool to published directory</p></li>
+<li><p><strong>Generate APKINDEX.tar.gz</strong> with package metadata</p></li>
+<li><p><strong>Set correct file permissions</strong> for web server access</p></li>
 </ol>
 </section>
 </section>
-<section id="metadata-files">
-<h2>Metadata Files<a class="headerlink" href="#metadata-files" title="Link to this heading"></a></h2>
-<section id="repomd-xml">
-<h3>repomd.xml<a class="headerlink" href="#repomd-xml" title="Link to this heading"></a></h3>
-<p>Root metadata file:</p>
-<div class="highlight-xml notranslate"><div class="highlight"><pre><span></span><span class="cp">&lt;?xml version=&quot;1.0&quot;?&gt;</span>
-<span class="nt">&lt;repomd</span><span class="w"> </span><span class="na">xmlns=</span><span class="s">&quot;http://linux.duke.edu/metadata/repo&quot;</span><span class="nt">&gt;</span>
-<span class="w">  </span><span class="nt">&lt;revision&gt;</span>1641816000<span class="nt">&lt;/revision&gt;</span>
-<span class="w">  </span><span class="nt">&lt;data</span><span class="w"> </span><span class="na">type=</span><span class="s">&quot;primary&quot;</span><span class="nt">&gt;</span>
-<span class="w">    </span><span class="nt">&lt;checksum</span><span class="w"> </span><span class="na">type=</span><span class="s">&quot;sha256&quot;</span><span class="nt">&gt;</span>abc123...<span class="nt">&lt;/checksum&gt;</span>
-<span class="w">    </span><span class="nt">&lt;location</span><span class="w"> </span><span class="na">href=</span><span class="s">&quot;repodata/abc123-primary.xml.gz&quot;</span><span class="nt">/&gt;</span>
-<span class="w">    </span><span class="nt">&lt;timestamp&gt;</span>1641816000<span class="nt">&lt;/timestamp&gt;</span>
-<span class="w">    </span><span class="nt">&lt;size&gt;</span>12345<span class="nt">&lt;/size&gt;</span>
-<span class="w">    </span><span class="nt">&lt;open-checksum</span><span class="w"> </span><span class="na">type=</span><span class="s">&quot;sha256&quot;</span><span class="nt">&gt;</span>def456...<span class="nt">&lt;/open-checksum&gt;</span>
-<span class="w">    </span><span class="nt">&lt;open-size&gt;</span>67890<span class="nt">&lt;/open-size&gt;</span>
-<span class="w">  </span><span class="nt">&lt;/data&gt;</span>
-<span class="nt">&lt;/repomd&gt;</span>
-</pre></div>
-</div>
-</section>
-<section id="primary-xml-gz">
-<h3>primary.xml.gz<a class="headerlink" href="#primary-xml-gz" title="Link to this heading"></a></h3>
-<p>Package list (gzip-compressed):</p>
-<div class="highlight-xml notranslate"><div class="highlight"><pre><span></span><span class="cp">&lt;?xml version=&quot;1.0&quot;?&gt;</span>
-<span class="nt">&lt;metadata</span><span class="w"> </span><span class="na">packages=</span><span class="s">&quot;2&quot;</span><span class="nt">&gt;</span>
-<span class="w">  </span><span class="nt">&lt;package</span><span class="w"> </span><span class="na">type=</span><span class="s">&quot;rpm&quot;</span><span class="nt">&gt;</span>
-<span class="w">    </span><span class="nt">&lt;name&gt;</span>nginx<span class="nt">&lt;/name&gt;</span>
-<span class="w">    </span><span class="nt">&lt;arch&gt;</span>x86_64<span class="nt">&lt;/arch&gt;</span>
-<span class="w">    </span><span class="nt">&lt;version</span><span class="w"> </span><span class="na">epoch=</span><span class="s">&quot;0&quot;</span><span class="w"> </span><span class="na">ver=</span><span class="s">&quot;1.20.2&quot;</span><span class="w"> </span><span class="na">rel=</span><span class="s">&quot;1.el9&quot;</span><span class="nt">/&gt;</span>
-<span class="w">    </span><span class="nt">&lt;checksum</span><span class="w"> </span><span class="na">type=</span><span class="s">&quot;sha256&quot;</span><span class="w"> </span><span class="na">pkgid=</span><span class="s">&quot;YES&quot;</span><span class="nt">&gt;</span>f256abc...<span class="nt">&lt;/checksum&gt;</span>
-<span class="w">    </span><span class="nt">&lt;summary&gt;</span>High<span class="w"> </span>performance<span class="w"> </span>web<span class="w"> </span>server<span class="nt">&lt;/summary&gt;</span>
-<span class="w">    </span><span class="nt">&lt;description&gt;</span>...<span class="nt">&lt;/description&gt;</span>
-<span class="w">    </span><span class="nt">&lt;packager&gt;</span>...<span class="nt">&lt;/packager&gt;</span>
-<span class="w">    </span><span class="nt">&lt;url&gt;</span>...<span class="nt">&lt;/url&gt;</span>
-<span class="w">    </span><span class="nt">&lt;time</span><span class="w"> </span><span class="na">file=</span><span class="s">&quot;1641816000&quot;</span><span class="w"> </span><span class="na">build=</span><span class="s">&quot;1641815000&quot;</span><span class="nt">/&gt;</span>
-<span class="w">    </span><span class="nt">&lt;size</span><span class="w"> </span><span class="na">package=</span><span class="s">&quot;1234567&quot;</span><span class="w"> </span><span class="na">installed=</span><span class="s">&quot;4567890&quot;</span><span class="w"> </span><span class="na">archive=</span><span class="s">&quot;1234000&quot;</span><span class="nt">/&gt;</span>
-<span class="w">    </span><span class="nt">&lt;location</span><span class="w"> </span><span class="na">href=</span><span class="s">&quot;Packages/nginx-1.20.2-1.el9.x86_64.rpm&quot;</span><span class="nt">/&gt;</span>
-<span class="w">    </span><span class="nt">&lt;format&gt;</span>
-<span class="w">      </span><span class="nt">&lt;rpm:license&gt;</span>BSD<span class="nt">&lt;/rpm:license&gt;</span>
-<span class="w">      </span><span class="nt">&lt;rpm:vendor&gt;</span>EPEL<span class="nt">&lt;/rpm:vendor&gt;</span>
-<span class="w">      </span><span class="nt">&lt;rpm:group&gt;</span>System<span class="w"> </span>Environment/Daemons<span class="nt">&lt;/rpm:group&gt;</span>
-<span class="w">      </span><span class="nt">&lt;rpm:buildhost&gt;</span>buildvm.example.com<span class="nt">&lt;/rpm:buildhost&gt;</span>
-<span class="w">      </span><span class="nt">&lt;rpm:sourcerpm&gt;</span>nginx-1.20.2-1.el9.src.rpm<span class="nt">&lt;/rpm:sourcerpm&gt;</span>
-<span class="w">      </span><span class="nt">&lt;rpm:provides&gt;</span>...<span class="nt">&lt;/rpm:provides&gt;</span>
-<span class="w">      </span><span class="nt">&lt;rpm:requires&gt;</span>...<span class="nt">&lt;/rpm:requires&gt;</span>
-<span class="w">    </span><span class="nt">&lt;/format&gt;</span>
-<span class="w">  </span><span class="nt">&lt;/package&gt;</span>
-<span class="nt">&lt;/metadata&gt;</span>
-</pre></div>
-</div>
-</section>
-</section>
-<section id="rpm-specific-filters">
-<h2>RPM-Specific Filters<a class="headerlink" href="#rpm-specific-filters" title="Link to this heading"></a></h2>
-<section id="exclude-source-rpms">
-<h3>Exclude Source RPMs<a class="headerlink" href="#exclude-source-rpms" title="Link to this heading"></a></h3>
+<section id="package-filtering">
+<h2>Package Filtering<a class="headerlink" href="#package-filtering" title="Link to this heading"></a></h2>
+<section id="pattern-filters">
+<h3>Pattern Filters<a class="headerlink" href="#pattern-filters" title="Link to this heading"></a></h3>
+<p>Include specific packages by name:</p>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">filters</span><span class="p">:</span>
-<span class="w">  </span><span class="nt">rpm</span><span class="p">:</span>
-<span class="w">    </span><span class="nt">exclude_source_rpms</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">  </span><span class="nt">patterns</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">include</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;^nginx$&quot;</span><span class="w">           </span><span class="c1"># Exact match: nginx package</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;^python3-.*&quot;</span><span class="w">       </span><span class="c1"># All Python 3 packages</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;^docker-.*&quot;</span><span class="w">        </span><span class="c1"># All Docker-related packages</span>
 </pre></div>
 </div>
-<p>Excludes packages ending with <code class="docutils literal notranslate"><span class="pre">.src.rpm</span></code>.</p>
-</section>
-<section id="group-filtering">
-<h3>Group Filtering<a class="headerlink" href="#group-filtering" title="Link to this heading"></a></h3>
+<p>Exclude packages by pattern:</p>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">filters</span><span class="p">:</span>
-<span class="w">  </span><span class="nt">rpm</span><span class="p">:</span>
-<span class="w">    </span><span class="nt">groups</span><span class="p">:</span>
-<span class="w">      </span><span class="nt">include</span><span class="p">:</span>
-<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;System</span><span class="nv"> </span><span class="s">Environment/Base&quot;</span>
-<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;Applications/Internet&quot;</span>
+<span class="w">  </span><span class="nt">patterns</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">exclude</span><span class="p">:</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;.*-doc$&quot;</span><span class="w">           </span><span class="c1"># Exclude documentation packages</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;.*-dev$&quot;</span><span class="w">           </span><span class="c1"># Exclude development packages</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;^linux-firmware$&quot;</span><span class="w">  </span><span class="c1"># Exclude large firmware package</span>
 </pre></div>
 </div>
-<p>Filter by RPM group metadata.</p>
 </section>
-<section id="license-filtering">
-<h3>License Filtering<a class="headerlink" href="#license-filtering" title="Link to this heading"></a></h3>
+<section id="version-filtering">
+<h3>Version Filtering<a class="headerlink" href="#version-filtering" title="Link to this heading"></a></h3>
+<p>Keep only the latest version of each package:</p>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">filters</span><span class="p">:</span>
-<span class="w">  </span><span class="nt">rpm</span><span class="p">:</span>
-<span class="w">    </span><span class="nt">licenses</span><span class="p">:</span>
-<span class="w">      </span><span class="nt">include</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;GPL&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;MIT&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;Apache&quot;</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">post_processing</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">only_latest_version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
 </pre></div>
 </div>
-<p>Filter by package license.</p>
-</section>
-</section>
-<section id="supported-distributions">
-<h2>Supported Distributions<a class="headerlink" href="#supported-distributions" title="Link to this heading"></a></h2>
-<section id="red-hat-enterprise-linux-rhel">
-<h3>Red Hat Enterprise Linux (RHEL)<a class="headerlink" href="#red-hat-enterprise-linux-rhel" title="Link to this heading"></a></h3>
+<p>This is useful for:</p>
 <ul class="simple">
-<li><p>RHEL 8, 9</p></li>
-<li><p>Requires subscription and client certificates</p></li>
+<li><p>Reducing storage usage</p></li>
+<li><p>Simplifying package selection</p></li>
+<li><p>Automatically staying current with upstream</p></li>
 </ul>
-<p><strong>Example:</strong></p>
+<p><strong>Note:</strong> APK versions use <code class="docutils literal notranslate"><span class="pre">-rN</span></code> suffix for package releases (e.g., <code class="docutils literal notranslate"><span class="pre">1.2.3-r4</span></code>). The version filter properly handles this format.</p>
+</section>
+</section>
+<section id="common-use-cases">
+<h2>Common Use Cases<a class="headerlink" href="#common-use-cases" title="Link to this heading"></a></h2>
+<section id="mirror-complete-alpine-branch">
+<h3>Mirror Complete Alpine Branch<a class="headerlink" href="#mirror-complete-alpine-branch" title="Link to this heading"></a></h3>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">repositories</span><span class="p">:</span>
-<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rhel9-baseos</span>
-<span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rpm</span>
-<span class="w">    </span><span class="nt">feed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/os</span>
-<span class="w">    </span><span class="nt">ssl</span><span class="p">:</span>
-<span class="w">      </span><span class="nt">client_cert</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/etc/pki/entitlement/xxx.pem</span>
-<span class="w">      </span><span class="nt">client_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">/etc/pki/entitlement/xxx-key.pem</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">alpine-v3.19-main</span>
+<span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Alpine 3.19 Main</span>
+<span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">apk</span>
+<span class="w">    </span><span class="nt">feed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://dl-cdn.alpinelinux.org/alpine/</span>
+<span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">    </span><span class="nt">apk</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">branch</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v3.19</span>
+<span class="w">      </span><span class="nt">repository</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">main</span>
+<span class="w">      </span><span class="nt">architecture</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">x86_64</span>
 </pre></div>
 </div>
 </section>
-<section id="centos-stream">
-<h3>CentOS Stream<a class="headerlink" href="#centos-stream" title="Link to this heading"></a></h3>
-<ul class="simple">
-<li><p>CentOS Stream 8, 9</p></li>
-</ul>
-<p><strong>Example:</strong></p>
+<section id="mirror-community-repository">
+<h3>Mirror Community Repository<a class="headerlink" href="#mirror-community-repository" title="Link to this heading"></a></h3>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">repositories</span><span class="p">:</span>
-<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">centos-stream-9-baseos</span>
-<span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rpm</span>
-<span class="w">    </span><span class="nt">feed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://mirror.stream.centos.org/9-stream/BaseOS/x86_64/os/</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">alpine-v3.19-community</span>
+<span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Alpine 3.19 Community</span>
+<span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">apk</span>
+<span class="w">    </span><span class="nt">feed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://dl-cdn.alpinelinux.org/alpine/</span>
+<span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">    </span><span class="nt">apk</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">branch</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v3.19</span>
+<span class="w">      </span><span class="nt">repository</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">community</span>
+<span class="w">      </span><span class="nt">architecture</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">x86_64</span>
 </pre></div>
 </div>
 </section>
-<section id="fedora">
-<h3>Fedora<a class="headerlink" href="#fedora" title="Link to this heading"></a></h3>
-<ul class="simple">
-<li><p>Fedora 38, 39, 40+</p></li>
-</ul>
-<p><strong>Example:</strong></p>
+<section id="mirror-edge-rolling-release">
+<h3>Mirror Edge (Rolling Release)<a class="headerlink" href="#mirror-edge-rolling-release" title="Link to this heading"></a></h3>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">repositories</span><span class="p">:</span>
-<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">fedora-40-everything</span>
-<span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rpm</span>
-<span class="w">    </span><span class="nt">feed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://download.fedoraproject.org/pub/fedora/linux/releases/40/Everything/x86_64/os/</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">alpine-edge-main</span>
+<span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Alpine Edge Main</span>
+<span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">apk</span>
+<span class="w">    </span><span class="nt">feed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://dl-cdn.alpinelinux.org/alpine/</span>
+<span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">    </span><span class="nt">apk</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">branch</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">edge</span>
+<span class="w">      </span><span class="nt">repository</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">main</span>
+<span class="w">      </span><span class="nt">architecture</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">x86_64</span>
 </pre></div>
 </div>
 </section>
-<section id="epel-extra-packages-for-enterprise-linux">
-<h3>EPEL (Extra Packages for Enterprise Linux)<a class="headerlink" href="#epel-extra-packages-for-enterprise-linux" title="Link to this heading"></a></h3>
-<ul class="simple">
-<li><p>EPEL 8, 9</p></li>
-</ul>
-<p><strong>Example:</strong></p>
+<section id="selective-mirroring-container-base">
+<h3>Selective Mirroring (Container Base)<a class="headerlink" href="#selective-mirroring-container-base" title="Link to this heading"></a></h3>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">repositories</span><span class="p">:</span>
-<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">epel9-everything</span>
-<span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rpm</span>
-<span class="w">    </span><span class="nt">feed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://dl.fedoraproject.org/pub/epel/9/Everything/x86_64/</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">alpine-v3.19-container-base</span>
+<span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Alpine 3.19 - Container Base Packages</span>
+<span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">apk</span>
+<span class="w">    </span><span class="nt">feed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://dl-cdn.alpinelinux.org/alpine/</span>
+<span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">    </span><span class="nt">apk</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">branch</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v3.19</span>
+<span class="w">      </span><span class="nt">repository</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">main</span>
+<span class="w">      </span><span class="nt">architecture</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">x86_64</span>
+<span class="w">    </span><span class="nt">filters</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">patterns</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">include</span><span class="p">:</span>
+<span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;^alpine-base$&quot;</span>
+<span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;^alpine-baselayout$&quot;</span>
+<span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;^alpine-keys$&quot;</span>
+<span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;^apk-tools$&quot;</span>
+<span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;^busybox$&quot;</span>
+<span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;^ca-certificates$&quot;</span>
+<span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;^libc-utils$&quot;</span>
+<span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;^musl$&quot;</span>
+<span class="w">          </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;^ssl_client$&quot;</span>
+<span class="w">      </span><span class="nt">post_processing</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">only_latest_version</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
 </pre></div>
 </div>
 </section>
-<section id="rocky-linux">
-<h3>Rocky Linux<a class="headerlink" href="#rocky-linux" title="Link to this heading"></a></h3>
-<ul class="simple">
-<li><p>Rocky Linux 8, 9</p></li>
-</ul>
-<p><strong>Example:</strong></p>
-<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">repositories</span><span class="p">:</span>
-<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rocky9-baseos</span>
-<span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rpm</span>
-<span class="w">    </span><span class="nt">feed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://dl.rockylinux.org/pub/rocky/9/BaseOS/x86_64/os/</span>
+</section>
+<section id="publishing-alpine-repositories">
+<h2>Publishing Alpine Repositories<a class="headerlink" href="#publishing-alpine-repositories" title="Link to this heading"></a></h2>
+<section id="publish-latest-repository">
+<h3>Publish Latest Repository<a class="headerlink" href="#publish-latest-repository" title="Link to this heading"></a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>chantal<span class="w"> </span>publish<span class="w"> </span>repo<span class="w"> </span>--repo-id<span class="w"> </span>alpine-v3.19-main
+</pre></div>
+</div>
+<p>Published structure:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>/var/www/repos/alpine-v3.19-main/latest/
+└── v3.19/
+    └── main/
+        └── x86_64/
+            ├── APKINDEX.tar.gz
+            ├── alpine-base-3.19.0-r0.apk
+            ├── busybox-1.36.1-r15.apk
+            └── ...
 </pre></div>
 </div>
 </section>
-<section id="almalinux">
-<h3>AlmaLinux<a class="headerlink" href="#almalinux" title="Link to this heading"></a></h3>
-<ul class="simple">
-<li><p>AlmaLinux 8, 9</p></li>
-</ul>
-<p><strong>Example:</strong></p>
-<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">repositories</span><span class="p">:</span>
-<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">alma9-baseos</span>
-<span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">rpm</span>
-<span class="w">    </span><span class="nt">feed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://repo.almalinux.org/almalinux/9/BaseOS/x86_64/os/</span>
+<section id="publish-snapshot">
+<h3>Publish Snapshot<a class="headerlink" href="#publish-snapshot" title="Link to this heading"></a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>chantal<span class="w"> </span>snapshot<span class="w"> </span>create<span class="w"> </span>--repo-id<span class="w"> </span>alpine-v3.19-main<span class="w"> </span>--name<span class="w"> </span><span class="m">2025</span>-01-11
+chantal<span class="w"> </span>publish<span class="w"> </span>snapshot<span class="w"> </span>--snapshot<span class="w"> </span>alpine-v3.19-main-2025-01-11
 </pre></div>
 </div>
+<p>Published structure:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>/var/www/repos/alpine-v3.19-main/snapshots/2025-01-11/
+└── v3.19/
+    └── main/
+        └── x86_64/
+            ├── APKINDEX.tar.gz
+            └── *.apk
+</pre></div>
+</div>
+</section>
+<section id="configure-alpine-linux-client">
+<h3>Configure Alpine Linux Client<a class="headerlink" href="#configure-alpine-linux-client" title="Link to this heading"></a></h3>
+<p>Point Alpine to your mirrored repository:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Replace default repositories with mirror</span>
+cat<span class="w"> </span>&gt;<span class="w"> </span>/etc/apk/repositories<span class="w"> </span><span class="s">&lt;&lt;EOF</span>
+<span class="s">http://mirror.example.com/repos/alpine-v3.19-main/latest/v3.19/main</span>
+<span class="s">http://mirror.example.com/repos/alpine-v3.19-main/latest/v3.19/community</span>
+<span class="s">EOF</span>
+
+<span class="c1"># Update package index</span>
+apk<span class="w"> </span>update
+
+<span class="c1"># Install packages</span>
+apk<span class="w"> </span>add<span class="w"> </span>nginx
+</pre></div>
+</div>
+</section>
+<section id="configure-alpine-with-snapshot">
+<h3>Configure Alpine with Snapshot<a class="headerlink" href="#configure-alpine-with-snapshot" title="Link to this heading"></a></h3>
+<p>Use a specific snapshot for reproducible builds:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Use snapshot repository</span>
+cat<span class="w"> </span>&gt;<span class="w"> </span>/etc/apk/repositories<span class="w"> </span><span class="s">&lt;&lt;EOF</span>
+<span class="s">http://mirror.example.com/repos/alpine-v3.19-main/snapshots/2025-01-11/v3.19/main</span>
+<span class="s">http://mirror.example.com/repos/alpine-v3.19-main/snapshots/2025-01-11/v3.19/community</span>
+<span class="s">EOF</span>
+
+<span class="c1"># Update and install</span>
+apk<span class="w"> </span>update
+apk<span class="w"> </span>add<span class="w"> </span>nginx
+</pre></div>
+</div>
+</section>
+</section>
+<section id="package-metadata">
+<h2>Package Metadata<a class="headerlink" href="#package-metadata" title="Link to this heading"></a></h2>
+<p>Chantal stores comprehensive metadata for each package:</p>
+<ul class="simple">
+<li><p><strong>name</strong> - Package name</p></li>
+<li><p><strong>version</strong> - Package version (with -rN release suffix)</p></li>
+<li><p><strong>architecture</strong> - Package architecture</p></li>
+<li><p><strong>size</strong> - Package size in bytes</p></li>
+<li><p><strong>installed_size</strong> - Installed size in bytes</p></li>
+<li><p><strong>description</strong> - Package description</p></li>
+<li><p><strong>url</strong> - Project URL</p></li>
+<li><p><strong>license</strong> - Package license</p></li>
+<li><p><strong>dependencies</strong> - Runtime dependencies</p></li>
+<li><p><strong>provides</strong> - Virtual packages provided</p></li>
+<li><p><strong>origin</strong> - Origin package name</p></li>
+<li><p><strong>maintainer</strong> - Package maintainer</p></li>
+<li><p><strong>build_time</strong> - Build timestamp</p></li>
+<li><p><strong>checksum</strong> - SHA1 checksum (from APKINDEX)</p></li>
+</ul>
+<p>This metadata is:</p>
+<ul class="simple">
+<li><p>Stored in the database for querying</p></li>
+<li><p>Included in published APKINDEX.tar.gz</p></li>
+<li><p>Available via Chantal CLI commands</p></li>
+</ul>
+</section>
+<section id="alpine-specific-features">
+<h2>Alpine-Specific Features<a class="headerlink" href="#alpine-specific-features" title="Link to this heading"></a></h2>
+<section id="version-format">
+<h3>Version Format<a class="headerlink" href="#version-format" title="Link to this heading"></a></h3>
+<p>Alpine packages use semantic versioning with package releases:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="n">version</span><span class="p">}</span><span class="o">-</span><span class="n">r</span><span class="p">{</span><span class="n">release</span><span class="p">}</span>
+<span class="n">Examples</span><span class="p">:</span>
+<span class="o">-</span> <span class="n">nginx</span><span class="o">-</span><span class="mf">1.24.0</span><span class="o">-</span><span class="n">r15</span>
+<span class="o">-</span> <span class="n">python3</span><span class="o">-</span><span class="mf">3.11.6</span><span class="o">-</span><span class="n">r0</span>
+<span class="o">-</span> <span class="n">musl</span><span class="o">-</span><span class="mf">1.2.4</span><span class="o">-</span><span class="n">r2</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">-rN</span></code> suffix indicates the package release number (rebuild with same upstream version).</p>
+</section>
+<section id="repository-types">
+<h3>Repository Types<a class="headerlink" href="#repository-types" title="Link to this heading"></a></h3>
+<p>Alpine has three repository types:</p>
+<ul class="simple">
+<li><p><strong>main</strong> - Core packages, supported by Alpine team</p></li>
+<li><p><strong>community</strong> - Community-maintained packages</p></li>
+<li><p><strong>testing</strong> - Experimental/testing packages (not recommended for production)</p></li>
+</ul>
+</section>
+<section id="alpine-branches">
+<h3>Alpine Branches<a class="headerlink" href="#alpine-branches" title="Link to this heading"></a></h3>
+<p>Alpine uses versioned branches:</p>
+<ul class="simple">
+<li><p><strong>v3.19</strong> - Current stable (January 2025)</p></li>
+<li><p><strong>v3.18</strong> - Previous stable</p></li>
+<li><p><strong>v3.17</strong> - Older stable</p></li>
+<li><p><strong>edge</strong> - Rolling release (latest development)</p></li>
+</ul>
+<p>Each stable version is supported for ~2 years.</p>
 </section>
 </section>
 <section id="troubleshooting">
 <h2>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Link to this heading"></a></h2>
-<section id="metadata-not-found">
-<h3>Metadata Not Found<a class="headerlink" href="#metadata-not-found" title="Link to this heading"></a></h3>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Error</span><span class="p">:</span> <span class="n">Failed</span> <span class="n">to</span> <span class="n">fetch</span> <span class="n">repomd</span><span class="o">.</span><span class="n">xml</span>
+<section id="apkindex-not-found">
+<h3>APKINDEX Not Found<a class="headerlink" href="#apkindex-not-found" title="Link to this heading"></a></h3>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Error</span><span class="p">:</span> <span class="n">Failed</span> <span class="n">to</span> <span class="n">fetch</span> <span class="n">APKINDEX</span><span class="o">.</span><span class="n">tar</span><span class="o">.</span><span class="n">gz</span>
 </pre></div>
 </div>
 <p><strong>Solutions:</strong></p>
 <ul class="simple">
-<li><p>Check feed URL is correct</p></li>
-<li><p>Ensure URL ends with <code class="docutils literal notranslate"><span class="pre">/</span></code> (e.g., <code class="docutils literal notranslate"><span class="pre">.../os/</span></code> not <code class="docutils literal notranslate"><span class="pre">.../os</span></code>)</p></li>
-<li><p>Verify network connectivity</p></li>
-<li><p>Check SSL certificates if using HTTPS</p></li>
+<li><p>Check feed URL is correct: <code class="docutils literal notranslate"><span class="pre">https://dl-cdn.alpinelinux.org/alpine/</span></code></p></li>
+<li><p>Verify branch, repository, and architecture are valid</p></li>
+<li><p>Check network connectivity</p></li>
+<li><p>Try alternative mirror if main CDN is down</p></li>
 </ul>
 </section>
-<section id="checksum-mismatch">
-<h3>Checksum Mismatch<a class="headerlink" href="#checksum-mismatch" title="Link to this heading"></a></h3>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Error</span><span class="p">:</span> <span class="n">SHA256</span> <span class="n">checksum</span> <span class="n">mismatch</span> <span class="k">for</span> <span class="n">package</span>
+<section id="sha1-checksum-warnings">
+<h3>SHA1 Checksum Warnings<a class="headerlink" href="#sha1-checksum-warnings" title="Link to this heading"></a></h3>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="ne">Warning</span><span class="p">:</span> <span class="n">SHA1</span> <span class="n">mismatch</span> <span class="k">for</span> <span class="n">package</span><span class="p">:</span> <span class="n">expected</span> <span class="n">Q1abc</span><span class="o">...</span><span class="p">,</span> <span class="n">got</span> <span class="n">Q1xyz</span><span class="o">...</span>
 </pre></div>
 </div>
-<p><strong>Solutions:</strong></p>
+<p><strong>This is normal!</strong> Alpine CDN sometimes has stale APKINDEX files. Chantal:</p>
 <ul class="simple">
-<li><p>Corrupted download - retry sync</p></li>
-<li><p>Upstream changed package without updating metadata</p></li>
-<li><p>Network issue - check connection</p></li>
+<li><p>Logs the warning for transparency</p></li>
+<li><p>Continues syncing with the actual package</p></li>
+<li><p>Verifies integrity with SHA256 in storage layer</p></li>
 </ul>
+<p>If you see many warnings, the APKINDEX may be stale. The sync will still work correctly.</p>
 </section>
 <section id="no-packages-after-filtering">
 <h3>No Packages After Filtering<a class="headerlink" href="#no-packages-after-filtering" title="Link to this heading"></a></h3>
@@ -1338,20 +1407,88 @@
 <p><strong>Solutions:</strong></p>
 <ul class="simple">
 <li><p>Check filter patterns are correct</p></li>
-<li><p>Verify architecture filter includes needed architectures</p></li>
+<li><p>Verify you’re not excluding everything</p></li>
 <li><p>Review <code class="docutils literal notranslate"><span class="pre">only_latest_version</span></code> setting</p></li>
 </ul>
 </section>
-</section>
-<section id="future-enhancements">
-<h2>Future Enhancements<a class="headerlink" href="#future-enhancements" title="Link to this heading"></a></h2>
+<section id="architecture-mismatch">
+<h3>Architecture Mismatch<a class="headerlink" href="#architecture-mismatch" title="Link to this heading"></a></h3>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Error</span><span class="p">:</span> <span class="n">Package</span> <span class="n">architecture</span> <span class="s1">&#39;aarch64&#39;</span> <span class="n">doesn</span><span class="s1">&#39;t match configured &#39;</span><span class="n">x86_64</span><span class="s1">&#39;</span>
+</pre></div>
+</div>
+<p><strong>Solutions:</strong></p>
 <ul class="simple">
-<li><p><strong>Modular repositories</strong> - Support for modules.yaml</p></li>
-<li><p><strong>Delta RPMs</strong> - Download only package deltas</p></li>
-<li><p><strong>GPG verification</strong> - Verify package signatures</p></li>
-<li><p><strong>Comps.xml</strong> - Package group metadata</p></li>
-<li><p><strong>Updateinfo.xml</strong> - Security/bug fix advisories</p></li>
-<li><p><strong>Filelists.xml</strong> - File listings for packages</p></li>
+<li><p>Ensure <code class="docutils literal notranslate"><span class="pre">apk.architecture</span></code> matches your target architecture</p></li>
+<li><p>Create separate repositories for different architectures</p></li>
+<li><p>Don’t mix architectures in a single repository</p></li>
+</ul>
+</section>
+</section>
+<section id="integration-with-docker">
+<h2>Integration with Docker<a class="headerlink" href="#integration-with-docker" title="Link to this heading"></a></h2>
+<section id="alpine-base-image-builds">
+<h3>Alpine Base Image Builds<a class="headerlink" href="#alpine-base-image-builds" title="Link to this heading"></a></h3>
+<p>Use mirrored repositories in Dockerfiles for reproducible builds:</p>
+<div class="highlight-dockerfile notranslate"><div class="highlight"><pre><span></span><span class="k">FROM</span><span class="w"> </span><span class="s">alpine:3.19</span>
+
+<span class="c"># Use internal mirror</span>
+<span class="k">RUN</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;http://mirror.internal/repos/alpine-v3.19-main/snapshots/2025-01-11/v3.19/main&quot;</span><span class="w"> </span>&gt;<span class="w"> </span>/etc/apk/repositories<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;http://mirror.internal/repos/alpine-v3.19-community/snapshots/2025-01-11/v3.19/community&quot;</span><span class="w"> </span>&gt;&gt;<span class="w"> </span>/etc/apk/repositories
+
+<span class="c"># Install packages from snapshot</span>
+<span class="k">RUN</span><span class="w"> </span>apk<span class="w"> </span>update<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>apk<span class="w"> </span>add<span class="w"> </span>--no-cache<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>nginx<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>ca-certificates
+
+<span class="k">EXPOSE</span><span class="w"> </span><span class="s">80</span>
+<span class="k">CMD</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;nginx&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;-g&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;daemon off;&quot;</span><span class="p">]</span>
+</pre></div>
+</div>
+</section>
+<section id="multi-architecture-builds">
+<h3>Multi-Architecture Builds<a class="headerlink" href="#multi-architecture-builds" title="Link to this heading"></a></h3>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="c1"># Configure repositories for different architectures</span>
+<span class="nt">repositories</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">alpine-v3.19-main-amd64</span>
+<span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">apk</span>
+<span class="w">    </span><span class="nt">feed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://dl-cdn.alpinelinux.org/alpine/</span>
+<span class="w">    </span><span class="nt">apk</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">branch</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v3.19</span>
+<span class="w">      </span><span class="nt">repository</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">main</span>
+<span class="w">      </span><span class="nt">architecture</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">x86_64</span>
+
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">alpine-v3.19-main-arm64</span>
+<span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">apk</span>
+<span class="w">    </span><span class="nt">feed</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://dl-cdn.alpinelinux.org/alpine/</span>
+<span class="w">    </span><span class="nt">apk</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">branch</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">v3.19</span>
+<span class="w">      </span><span class="nt">repository</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">main</span>
+<span class="w">      </span><span class="nt">architecture</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">aarch64</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="best-practices">
+<h2>Best Practices<a class="headerlink" href="#best-practices" title="Link to this heading"></a></h2>
+<ol class="arabic simple">
+<li><p><strong>Use snapshots for production</strong> - Create dated snapshots for reproducible builds</p></li>
+<li><p><strong>Mirror main and community</strong> - Most Alpine installations need both</p></li>
+<li><p><strong>Filter by patterns</strong> - Only mirror packages you need to reduce storage</p></li>
+<li><p><strong>Keep latest only</strong> - Use <code class="docutils literal notranslate"><span class="pre">only_latest_version:</span> <span class="pre">true</span></code> for most use cases</p></li>
+<li><p><strong>Regular syncing</strong> - Schedule regular syncs to stay current (daily recommended)</p></li>
+<li><p><strong>Ignore SHA1 warnings</strong> - SHA1 mismatches are normal with Alpine CDN</p></li>
+<li><p><strong>Document your mirrors</strong> - Keep notes on which branches and architectures you mirror</p></li>
+<li><p><strong>Test snapshots before production</strong> - Test in staging before promoting</p></li>
+</ol>
+</section>
+<section id="further-reading">
+<h2>Further Reading<a class="headerlink" href="#further-reading" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><a class="reference internal" href="overview.html"><span class="std std-doc">Plugins Overview</span></a> - Plugin architecture</p></li>
+<li><p><a class="reference internal" href="custom-plugins.html"><span class="std std-doc">Custom Plugins</span></a> - Creating custom plugins</p></li>
+<li><p><a class="reference internal" href="../configuration/repositories.html"><span class="std std-doc">Repository Configuration</span></a> - Repository settings</p></li>
+<li><p><a class="reference internal" href="../user-guide/cli-commands.html"><span class="std std-doc">CLI Commands</span></a> - Command reference</p></li>
+<li><p><a class="reference external" href="https://wiki.alpinelinux.org/wiki/Alpine_Package_Keeper">Alpine Linux Documentation</a> - Official APK documentation</p></li>
 </ul>
 </section>
 </section>
@@ -1360,8 +1497,8 @@
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="overview.html" class="btn btn-neutral float-left" title="Plugins Overview" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="helm-plugin.html" class="btn btn-neutral float-right" title="Helm Plugin" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="helm-plugin.html" class="btn btn-neutral float-left" title="Helm Plugin" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="custom-plugins.html" class="btn btn-neutral float-right" title="Creating Custom Plugins" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

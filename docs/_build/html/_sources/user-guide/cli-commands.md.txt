@@ -331,49 +331,137 @@ chantal snapshot delete \
 - `--repo-id`: Repository ID (required)
 - `SNAPSHOT_NAME`: Snapshot name to delete (required)
 
-## Package Management
+## Content Management
 
-### `chantal package list`
+The `content` commands work with all content types (RPM, Helm, APK, etc.) in a unified way.
 
-List packages in a repository.
+### `chantal content list`
+
+List content items from repositories, snapshots, or views.
 
 ```bash
-chantal package list \
-  --repo-id REPO_ID \
-  [--arch x86_64] \
-  [--limit 100]
+# List all content in a repository
+chantal content list --repo-id REPO_ID
+
+# List content in a snapshot
+chantal content list --snapshot-id SNAPSHOT_ID
+
+# List content in a view
+chantal content list --view VIEW_NAME
+
+# Filter by content type
+chantal content list --repo-id REPO_ID --type rpm
+chantal content list --repo-id REPO_ID --type helm
+chantal content list --repo-id REPO_ID --type apk
+
+# Limit results
+chantal content list --repo-id REPO_ID --limit 50
+
+# Output formats
+chantal content list --repo-id REPO_ID --format json
+chantal content list --repo-id REPO_ID --format csv
 ```
 
 **Options:**
-- `--repo-id`: Repository ID (required)
-- `--arch`: Filter by architecture
-- `--limit`: Maximum number of packages to show
-
-### `chantal package search`
-
-Search for packages.
-
-```bash
-chantal package search QUERY \
-  [--repo-id REPO_ID] \
-  [--arch x86_64]
-```
-
-**Options:**
-- `QUERY`: Search query (required)
 - `--repo-id`: Filter by repository ID
-- `--arch`: Filter by architecture
+- `--snapshot-id`: Filter by snapshot ID
+- `--view`: Filter by view name
+- `--type`: Filter by content type (rpm, helm, apk)
+- `--limit`: Maximum number of items to show (default: 100)
+- `--format`: Output format (table, json, csv)
 
-### `chantal package show`
+**Note:** Only one of `--repo-id`, `--snapshot-id`, or `--view` can be specified.
 
-Show package details.
+### `chantal content search`
+
+Search for content by name or version.
 
 ```bash
-# By NEVRA
-chantal package show NAME-VERSION-RELEASE.ARCH
+# Global search
+chantal content search nginx
 
-# By SHA256
-chantal package show SHA256
+# Search in specific repository
+chantal content search nginx --repo-id epel9-latest
+
+# Search in snapshot
+chantal content search nginx --snapshot-id epel9-latest-2025-01-10
+
+# Search in view
+chantal content search nginx --view rhel9-webserver
+
+# Filter by content type
+chantal content search python --type rpm
+chantal content search ingress --type helm
+chantal content search alpine --type apk
+
+# Output as JSON
+chantal content search nginx --format json
+```
+
+**Options:**
+- `QUERY`: Search query (required) - matches name or version
+- `--repo-id`: Search in specific repository
+- `--snapshot-id`: Search in specific snapshot
+- `--view`: Search in specific view
+- `--type`: Filter by content type (rpm, helm, apk)
+- `--format`: Output format (table, json)
+
+**Note:** Only one of `--repo-id`, `--snapshot-id`, or `--view` can be specified.
+
+### `chantal content show`
+
+Show detailed content information.
+
+```bash
+# By SHA256 hash
+chantal content show abc123def456...
+
+# By name (shows all matching items)
+chantal content show nginx
+
+# By name@version (specific version)
+chantal content show nginx@1.20.1
+chantal content show ingress-nginx@4.0.15
+
+# Output as JSON
+chantal content show nginx@1.20.1 --format json
+```
+
+**Options:**
+- `IDENTIFIER`: Content identifier (required)
+  - SHA256 hash (64 hex characters)
+  - Name (e.g., `nginx`)
+  - Name@version (e.g., `nginx@1.20.1`)
+- `--format`: Output format (table, json)
+
+**Example output:**
+```bash
+$ chantal content show nginx@1.20.1
+======================================================================
+Content: nginx 1.20.1
+======================================================================
+
+Basic Information:
+  Name:         nginx
+  Version:      1.20.1
+  Type:         rpm
+  Filename:     nginx-1.20.1-1.el9.x86_64.rpm
+  Architecture: x86_64
+  Release:      1.el9
+
+Storage:
+  Size:         1.23 MB (1,234,567 bytes)
+  SHA256:       abc123def...
+  Pool Path:    pool/ab/c1/abc123def...
+
+Repositories (2):
+  - epel9-latest
+  - epel9-webserver
+
+Snapshots (1):
+  - epel9-latest-2025-01-10
+
+======================================================================
 ```
 
 ## Publishing

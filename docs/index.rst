@@ -35,11 +35,11 @@ Chantal is a Python-based CLI tool for offline repository mirroring, inspired by
 +---------------------+----------------------------------+-------------------+
 | Helm Charts         | Kubernetes Helm repositories     | ✅ **Available**  |
 +---------------------+----------------------------------+-------------------+
+| Alpine APK          | Alpine Linux packages            | ✅ **Available**  |
++---------------------+----------------------------------+-------------------+
 | DEB/APT             | Debian, Ubuntu                   | 🚧 Planned        |
 +---------------------+----------------------------------+-------------------+
 | PyPI                | Python Package Index             | 🚧 Planned        |
-+---------------------+----------------------------------+-------------------+
-| Alpine APK          | Alpine Linux                     | 🚧 Planned        |
 +---------------------+----------------------------------+-------------------+
 | npm/yarn            | Node.js package registries       | 🔬 Research       |
 +---------------------+----------------------------------+-------------------+
@@ -63,7 +63,8 @@ Features
 
   - ✅ **RPM/DNF/YUM** (RHEL, CentOS, Fedora, Rocky, Alma) - *Available now*
   - ✅ **Helm Charts** (Kubernetes chart repositories) - *Available now*
-  - 🚧 **DEB/APT, PyPI, Alpine APK** - *Planned*
+  - ✅ **Alpine APK** (Alpine Linux packages) - *Available now*
+  - 🚧 **DEB/APT, PyPI** - *Planned*
   - 🔬 **npm, RubyGems, NuGet, Go Modules, Terraform** - *Research phase*
 
 - 📦 **Deduplication** - Content-addressed storage (SHA256), packages stored once
@@ -111,6 +112,7 @@ Features
    plugins/overview
    plugins/rpm-plugin
    plugins/helm-plugin
+   plugins/apk-plugin
    plugins/custom-plugins
 
 .. toctree::

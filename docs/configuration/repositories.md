@@ -18,7 +18,7 @@ repositories:
 **Required Fields:**
 - `id`: Unique identifier (alphanumeric, hyphens, underscores)
 - `name`: Human-readable name
-- `type`: Repository type (`rpm`, `helm`, future: `apt`, `pypi`)
+- `type`: Repository type (`rpm`, `helm`, `apk`, future: `apt`, `pypi`)
 - `feed`: Upstream repository URL
 - `enabled`: Whether to include in `--all` operations
 
@@ -59,6 +59,32 @@ repositories:
 - Must point to a directory containing `index.yaml`
 - Supports HTTP and HTTPS
 - May require authentication for private chart repositories
+
+### Alpine APK Repositories
+
+For Alpine Linux package repositories:
+
+```yaml
+repositories:
+  - id: alpine-v3.19-main
+    name: Alpine 3.19 Main
+    type: apk
+    feed: https://dl-cdn.alpinelinux.org/alpine/
+    enabled: true
+    apk:
+      branch: v3.19
+      repository: main
+      architecture: x86_64
+```
+
+**Required APK Configuration:**
+- `apk.branch`: Alpine branch (v3.19, v3.18, edge, etc.)
+- `apk.repository`: Repository type (main, community, testing)
+- `apk.architecture`: Architecture (x86_64, aarch64, armhf, armv7, x86)
+
+**Feed URL Requirements:**
+- Must point to base Alpine mirror (e.g., `https://dl-cdn.alpinelinux.org/alpine/`)
+- APKINDEX location is constructed as: `{feed}/{branch}/{repository}/{architecture}/APKINDEX.tar.gz`
 
 ### APT Repositories (Future)
 
@@ -373,6 +399,70 @@ repositories:
       verify: true
 ```
 
+### Alpine Linux 3.19 (Main + Community)
+
+```yaml
+repositories:
+  - id: alpine-v3.19-main-x86_64
+    name: Alpine 3.19 Main (x86_64)
+    type: apk
+    feed: https://dl-cdn.alpinelinux.org/alpine/
+    enabled: true
+    apk:
+      branch: v3.19
+      repository: main
+      architecture: x86_64
+
+  - id: alpine-v3.19-community-x86_64
+    name: Alpine 3.19 Community (x86_64)
+    type: apk
+    feed: https://dl-cdn.alpinelinux.org/alpine/
+    enabled: true
+    apk:
+      branch: v3.19
+      repository: community
+      architecture: x86_64
+```
+
+### Alpine Linux Edge (Rolling Release)
+
+```yaml
+repositories:
+  - id: alpine-edge-main
+    name: Alpine Edge Main
+    type: apk
+    feed: https://dl-cdn.alpinelinux.org/alpine/
+    enabled: true
+    apk:
+      branch: edge
+      repository: main
+      architecture: x86_64
+```
+
+### Alpine Linux - Container Base (Selective)
+
+```yaml
+repositories:
+  - id: alpine-v3.19-container-base
+    name: Alpine 3.19 - Essential Packages
+    type: apk
+    feed: https://dl-cdn.alpinelinux.org/alpine/
+    enabled: true
+    apk:
+      branch: v3.19
+      repository: main
+      architecture: x86_64
+    filters:
+      patterns:
+        include:
+          - "^alpine-base$"
+          - "^busybox$"
+          - "^musl$"
+          - "^ca-certificates$"
+      post_processing:
+        only_latest_version: true
+```
+
 ## Validation
 
 Chantal validates repository configuration at startup:
@@ -382,7 +472,7 @@ $ chantal repo list
 Error: Configuration validation failed:
   - repositories[0].id: must match pattern ^[a-zA-Z0-9_-]+$
   - repositories[1].feed: invalid URL format
-  - repositories[2].type: must be one of: rpm, helm
+  - repositories[2].type: must be one of: rpm, helm, apk
 ```
 
 ## Best Practices
