@@ -41,6 +41,9 @@ class StorageManager:
         self.temp_path = config.get_temp_path()
         self.published_path = Path(config.published_path)
 
+        # Ensure all storage directories exist
+        self.ensure_directories()
+
     def calculate_sha256(self, file_path: Path) -> str:
         """Calculate SHA256 hash of a file.
 

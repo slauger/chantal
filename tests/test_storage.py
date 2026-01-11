@@ -63,6 +63,35 @@ def test_storage_manager_initialization(temp_storage):
     assert temp_storage.published_path.exists()
 
 
+def test_storage_manager_auto_creates_directories():
+    """Test that StorageManager automatically creates directories on initialization."""
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir = Path(tmpdir)
+        config = StorageConfig(
+            base_path=str(tmpdir / "base"),
+            pool_path=str(tmpdir / "pool"),
+            published_path=str(tmpdir / "published"),
+            temp_path=str(tmpdir / "tmp"),
+        )
+
+        # Verify directories don't exist yet
+        assert not Path(config.pool_path).exists()
+        assert not Path(config.published_path).exists()
+        assert not Path(config.temp_path).exists()
+
+        # Create StorageManager - should auto-create directories
+        storage = StorageManager(config)
+
+        # Verify all directories were created
+        assert storage.pool_path.exists()
+        assert storage.content_pool.exists()
+        assert storage.file_pool.exists()
+        assert storage.temp_path.exists()
+        assert storage.published_path.exists()
+
+
 def test_calculate_sha256(temp_storage, test_file):
     """Test SHA256 calculation."""
     sha256 = temp_storage.calculate_sha256(test_file)
