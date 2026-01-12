@@ -34,11 +34,10 @@ A Python-based CLI tool for offline repository mirroring, inspired by pulp-admin
 - ⚡ **Fast Updates** - Check for updates without downloading (like `dnf check-update`)
 
 **Supported Repository Types:**
-- ✅ **RPM/DNF/YUM** (RHEL, CentOS, Fedora, Rocky, AlmaLinux, EPEL) - Available
-- ✅ **DEB/APT** (Debian, Ubuntu) - Available
-- ✅ **Helm Charts** (Kubernetes, Bitnami, AWS EKS, Prometheus, GitLab) - Available
-- ✅ **Alpine APK** (Alpine Linux, container base images) - Available
-- 🚧 **PyPI**, **npm**, **Go Modules** - Planned
+- ✅ **RPM/DNF/YUM** (RHEL, CentOS, Fedora, Rocky, AlmaLinux, EPEL)
+- ✅ **DEB/APT** (Debian, Ubuntu)
+- ✅ **Helm Charts** (Kubernetes, Bitnami, AWS EKS, Prometheus, GitLab)
+- ✅ **Alpine APK** (Alpine Linux, container base images)
 
 ---
 
@@ -175,7 +174,7 @@ filters:
 ```
 
 **Database:** PostgreSQL or SQLite (SQLAlchemy models)
-**Plugins:** Extensible architecture for repository types (RPM, DEB/APT, Helm, APK, PyPI)
+**Plugins:** Extensible architecture for repository types (RPM, DEB/APT, Helm, APK)
 
 ---
 
@@ -229,60 +228,27 @@ See [Workflows Documentation](https://slauger.github.io/chantal/user-guide/workf
 
 ---
 
-## Status
-
-**🚀 Active Development - v0.1.0**
-
-### Current Release: v0.1.0-dev
-
-**✅ Multi-Ecosystem Support:**
-- Content-addressed storage (SHA256 deduplication)
-- **RPM** repository sync (RHEL, CentOS, Fedora, EPEL, Rocky, AlmaLinux)
-  - Mirror mode: Full metadata mirroring (all repomd.xml types)
-  - Filtered mode: Smart metadata regeneration (updateinfo, filelists, etc.)
-  - Errata/advisory support (updateinfo.xml parsing and filtering)
-- **DEB/APT** repository sync (Debian, Ubuntu)
-  - InRelease/Release parsing and metadata generation
-  - Multi-component and multi-architecture support
-  - Mirror and filtered modes
-- **Helm** chart repositories (Kubernetes, Bitnami, AWS EKS, Prometheus, GitLab)
-- **Alpine APK** repositories (Alpine Linux, container images)
-- Immutable snapshots (all repository types)
-- Views (virtual repositories combining multiple repos)
-- RHEL CDN support (client certificates)
-- Pool management commands (verify, cleanup, orphaned, missing)
-- 102+ tests passing
-
-**🔄 Next Up:**
-- APT/Helm mirror mode enhancements (APKINDEX/index.yaml as RepositoryFile)
-- PyPI repository support
-- GitHub/GitLab release asset mirroring
-- Git repository mirroring
-- Web UI for repository management
-
-**📋 Full Roadmap:** See [ROADMAP.md](ROADMAP.md) for detailed milestone plan and [GitHub Issues](https://github.com/slauger/chantal/issues)
-
----
-
 ## Contributing
 
-Contributions welcome! This is active development.
+Contributions welcome! See [GitHub Issues](https://github.com/slauger/chantal/issues) for planned features and improvements.
 
-1. Check [GitHub Issues](https://github.com/slauger/chantal/issues)
-2. Read the [Architecture Documentation](https://slauger.github.io/chantal/architecture/overview.html)
-3. Submit pull requests
-
-**Development:**
+**Development Setup:**
 ```bash
-# Run tests
+# Clone and install
+git clone https://github.com/slauger/chantal.git
+cd chantal
+pip install -e ".[dev]"
+
+# Run tests (191 tests)
 pytest
 
-# Format code
+# Linting and formatting
+ruff check src/ tests/
 black src/ tests/
-
-# Type checking
 mypy src/
 ```
+
+Read the [Architecture Documentation](https://slauger.github.io/chantal/architecture/overview.html) before contributing.
 
 ---
 
