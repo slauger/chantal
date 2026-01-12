@@ -14,6 +14,7 @@ from chantal.core.storage import StorageManager
 from chantal.db.connection import DatabaseManager
 from chantal.db.models import Repository, Snapshot, View, ViewSnapshot
 from chantal.plugins.apk.publisher import ApkPublisher
+from chantal.plugins.apt.publisher import AptPublisher
 from chantal.plugins.helm.publisher import HelmPublisher
 from chantal.plugins.rpm.publisher import RpmPublisher
 from chantal.plugins.view_publisher import ViewPublisher
@@ -423,6 +424,23 @@ def _publish_single_repository(session, storage, global_config, repo_config, cus
         except Exception as e:
             click.echo(f"\n✗ Publishing failed: {e}", err=True)
             raise
+    elif repo_config.type == "apt":
+        publisher = AptPublisher(storage=storage, config=repo_config)
+        # Publish repository
+        try:
+            publisher.publish_repository(
+                session=session, repository=repository, config=repo_config, target_path=target_path
+            )
+            apt_config = repo_config.apt
+            dists_path = target_path / "dists" / apt_config.distribution
+            click.echo("\n✓ APT repository published successfully!")
+            click.echo(f"  Location: {target_path}")
+            click.echo(f"  Distribution: {apt_config.distribution}")
+            click.echo(f"  Metadata directory: {dists_path}")
+            click.echo(f"  Release file: {dists_path}/Release")
+        except Exception as e:
+            click.echo(f"\n✗ Publishing failed: {e}", err=True)
+            raise
     else:
         click.echo(f"Error: Unsupported repository type: {repo_config.type}")
         return
@@ -500,6 +518,8 @@ def _publish_repository_snapshot(
         # Initialize publisher based on repository type
         if repo_config.type == "rpm":
             publisher = RpmPublisher(storage=storage)
+        elif repo_config.type == "apt":
+            publisher = AptPublisher(storage=storage, config=repo_config)
         else:
             click.echo(f"Error: Unsupported repository type: {repo_config.type}", err=True)
             ctx.exit(1)
@@ -522,15 +542,27 @@ def _publish_repository_snapshot(
             click.echo()
             click.echo("✓ Snapshot published successfully!")
             click.echo(f"  Location: {target_path}")
-            click.echo(f"  Packages directory: {target_path}/Packages")
-            click.echo(f"  Metadata directory: {target_path}/repodata")
-            click.echo()
-            click.echo("Configure your package manager:")
-            click.echo(f"  [rhel9-baseos-snapshot-{snapshot}]")
-            click.echo(f"  name=RHEL 9 BaseOS Snapshot {snapshot}")
-            click.echo(f"  baseurl=file://{target_path}")
-            click.echo("  enabled=1")
-            click.echo("  gpgcheck=0")
+
+            if repo_config.type == "rpm":
+                click.echo(f"  Packages directory: {target_path}/Packages")
+                click.echo(f"  Metadata directory: {target_path}/repodata")
+                click.echo()
+                click.echo("Configure your package manager:")
+                click.echo(f"  [{repository.repo_id}-snapshot-{snapshot}]")
+                click.echo(f"  name={repository.repo_id} Snapshot {snapshot}")
+                click.echo(f"  baseurl=file://{target_path}")
+                click.echo("  enabled=1")
+                click.echo("  gpgcheck=0")
+            elif repo_config.type == "apt":
+                apt_config = repo_config.apt
+                dists_path = target_path / "dists" / apt_config.distribution
+                click.echo(f"  Distribution: {apt_config.distribution}")
+                click.echo(f"  Metadata directory: {dists_path}")
+                click.echo()
+                click.echo("Configure your package manager:")
+                click.echo(
+                    f"  deb [trusted=yes] file://{target_path} {apt_config.distribution} {' '.join(apt_config.components)}"
+                )
 
         except Exception as e:
             click.echo(f"\n✗ Publishing failed: {e}", err=True)

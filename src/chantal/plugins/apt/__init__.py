@@ -7,6 +7,7 @@ Provides support for Debian/Ubuntu APT repositories with mirror mode support.
 """
 
 from chantal.plugins.apt.models import DebMetadata, ReleaseMetadata, SourcesMetadata
+from chantal.plugins.apt.publisher import AptPublisher
 from chantal.plugins.apt.sync import AptSyncPlugin
 
 __all__ = [
@@ -14,4 +15,5 @@ __all__ = [
     "ReleaseMetadata",
     "SourcesMetadata",
     "AptSyncPlugin",
+    "AptPublisher",
 ]
