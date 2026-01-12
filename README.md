@@ -21,7 +21,7 @@ A Python-based CLI tool for offline repository mirroring, inspired by pulp-admin
 
 ## Features
 
-- 🔄 **Unified Mirroring** - Multiple repository types in one tool (RPM, Helm, Alpine APK, and more)
+- 🔄 **Unified Mirroring** - Multiple repository types in one tool (RPM, DEB/APT, Helm, Alpine APK)
 - 📦 **Deduplication** - Content-addressed storage (SHA256), packages stored once
 - 📸 **Snapshots** - Immutable point-in-time repository states for patch management
 - 🔍 **Views** - Virtual repositories combining multiple repos (e.g., BaseOS + AppStream + EPEL)
@@ -35,9 +35,9 @@ A Python-based CLI tool for offline repository mirroring, inspired by pulp-admin
 
 **Supported Repository Types:**
 - ✅ **RPM/DNF/YUM** (RHEL, CentOS, Fedora, Rocky, AlmaLinux, EPEL) - Available
+- ✅ **DEB/APT** (Debian, Ubuntu) - Available
 - ✅ **Helm Charts** (Kubernetes, Bitnami, AWS EKS, Prometheus, GitLab) - Available
 - ✅ **Alpine APK** (Alpine Linux, container base images) - Available
-- 🚧 **DEB/APT** (Debian, Ubuntu) - Planned
 - 🚧 **PyPI**, **npm**, **Go Modules** - Planned
 
 ---
@@ -175,7 +175,7 @@ filters:
 ```
 
 **Database:** PostgreSQL or SQLite (SQLAlchemy models)
-**Plugins:** Extensible architecture for repository types (RPM, Helm, APK, APT, PyPI)
+**Plugins:** Extensible architecture for repository types (RPM, DEB/APT, Helm, APK, PyPI)
 
 ---
 
@@ -241,16 +241,21 @@ See [Workflows Documentation](https://slauger.github.io/chantal/user-guide/workf
   - Mirror mode: Full metadata mirroring (all repomd.xml types)
   - Filtered mode: Smart metadata regeneration (updateinfo, filelists, etc.)
   - Errata/advisory support (updateinfo.xml parsing and filtering)
+- **DEB/APT** repository sync (Debian, Ubuntu)
+  - InRelease/Release parsing and metadata generation
+  - Multi-component and multi-architecture support
+  - Mirror and filtered modes
 - **Helm** chart repositories (Kubernetes, Bitnami, AWS EKS, Prometheus, GitLab)
 - **Alpine APK** repositories (Alpine Linux, container images)
 - Immutable snapshots (all repository types)
 - Views (virtual repositories combining multiple repos)
 - RHEL CDN support (client certificates)
 - Pool management commands (verify, cleanup, orphaned, missing)
-- 85+ tests passing
+- 102+ tests passing
 
 **🔄 Next Up:**
-- APT/DEB repository support (Debian, Ubuntu)
+- APT/Helm mirror mode enhancements (APKINDEX/index.yaml as RepositoryFile)
+- PyPI repository support
 - GitHub/GitLab release asset mirroring
 - Git repository mirroring
 - Web UI for repository management
