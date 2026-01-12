@@ -469,17 +469,17 @@ class AptPublisher(PublisherPlugin):
 
         # Architectures
         architectures = sorted(
-            set(
+            {
                 meta["architecture"]
                 for meta in published_metadata
                 if meta["architecture"] != "source"
-            )
+            }
         )
         if architectures:
             release_lines.append(f"Architectures: {' '.join(architectures)}")
 
         # Components
-        components = sorted(set(meta["component"] for meta in published_metadata))
+        components = sorted({meta["component"] for meta in published_metadata})
         if components:
             release_lines.append(f"Components: {' '.join(components)}")
 

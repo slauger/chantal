@@ -7,7 +7,6 @@ generation and Release file generation.
 
 import gzip
 from pathlib import Path
-from unittest.mock import MagicMock
 
 import pytest
 from sqlalchemy import create_engine
@@ -18,7 +17,6 @@ from chantal.core.storage import StorageManager
 from chantal.db.models import Base, ContentItem, Repository
 from chantal.plugins.apt.models import DebMetadata
 from chantal.plugins.apt.publisher import AptPublisher
-
 
 # Test fixtures
 
@@ -128,9 +126,7 @@ def apt_config():
         type="apt",
         feed="https://example.com/ubuntu",
         mode="mirror",
-        apt=AptConfig(
-            distribution="jammy", components=["main"], architectures=["amd64"]
-        ),
+        apt=AptConfig(distribution="jammy", components=["main"], architectures=["amd64"]),
     )
 
 
@@ -167,9 +163,7 @@ class TestAptPublisher:
 class TestPackagesFileGeneration:
     """Tests for Packages file generation."""
 
-    def test_generate_packages_file_basic(
-        self, db_session, temp_storage, apt_config, test_package
-    ):
+    def test_generate_packages_file_basic(self, db_session, temp_storage, apt_config, test_package):
         """Test generating basic Packages file."""
         publisher = AptPublisher(storage=temp_storage, config=apt_config)
 
@@ -251,9 +245,7 @@ class TestPackagesFileGeneration:
         component_arch_path.mkdir(parents=True, exist_ok=True)
 
         # Generate Packages file
-        publisher._generate_packages_file(
-            packages, component_arch_path, "main", "amd64"
-        )
+        publisher._generate_packages_file(packages, component_arch_path, "main", "amd64")
 
         # Read content
         packages_file = component_arch_path / "Packages"
