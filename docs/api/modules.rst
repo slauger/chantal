@@ -47,15 +47,52 @@ Base Plugins
 RPM Plugin
 ~~~~~~~~~~
 
-.. automodule:: chantal.plugins.rpm
-   :members:
-   :undoc-members:
-   :show-inheritance:
+.. note::
+   RPM plugin documentation is available in the :doc:`../plugins/rpm-plugin` section.
 
-.. automodule:: chantal.plugins.rpm_sync
-   :members:
-   :undoc-members:
-   :show-inheritance:
+   The RPM plugin is implemented in:
+
+   - ``chantal.plugins.rpm.sync`` - RPM repository syncing
+   - ``chantal.plugins.rpm.publisher`` - RPM metadata generation
+   - ``chantal.plugins.rpm.models`` - RPM metadata models
+   - ``chantal.plugins.rpm.parsers`` - Repomd.xml parsing
+
+APT Plugin
+~~~~~~~~~~
+
+.. note::
+   APT plugin documentation is available in the :doc:`../plugins/apt-plugin` section.
+
+   The APT plugin is implemented in:
+
+   - ``chantal.plugins.apt.sync`` - APT repository syncing
+   - ``chantal.plugins.apt.publisher`` - Debian metadata generation
+   - ``chantal.plugins.apt.models`` - Debian package models
+   - ``chantal.plugins.apt.parsers`` - Release/Packages parsing
+
+Helm Plugin
+~~~~~~~~~~~
+
+.. note::
+   Helm plugin documentation is available in the :doc:`../plugins/helm-plugin` section.
+
+   The Helm plugin is implemented in:
+
+   - ``chantal.plugins.helm.sync`` - Helm chart syncing
+   - ``chantal.plugins.helm.publisher`` - index.yaml generation
+   - ``chantal.plugins.helm.models`` - Helm chart models
+
+Alpine APK Plugin
+~~~~~~~~~~~~~~~~~
+
+.. note::
+   Alpine APK plugin documentation is available in the :doc:`../plugins/apk-plugin` section.
+
+   The APK plugin is implemented in:
+
+   - ``chantal.plugins.apk.sync`` - APK package syncing
+   - ``chantal.plugins.apk.publisher`` - APKINDEX generation
+   - ``chantal.plugins.apk.models`` - APK package models
 
 CLI Commands
 ------------

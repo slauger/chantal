@@ -14,10 +14,11 @@ Plugins extend Chantal to support different repository types like RPM, DEB/APT, 
 | Plugin | Type | Status | Description |
 |--------|------|--------|-------------|
 | [RPM](rpm-plugin.md) | Sync + Publisher | ✅ Available | DNF/YUM repositories (RHEL, CentOS, Fedora) |
+| [APT/DEB](apt-plugin.md) | Sync + Publisher | ✅ Available | Debian/Ubuntu APT repositories |
 | [Helm](helm-plugin.md) | Sync + Publisher | ✅ Available | Kubernetes Helm chart repositories |
 | [Alpine APK](apk-plugin.md) | Sync + Publisher | ✅ Available | Alpine Linux package repositories |
-| DEB/APT | Sync + Publisher | 🚧 Planned | Debian/Ubuntu repositories |
 | PyPI | Sync + Publisher | 🚧 Planned | Python Package Index |
+| npm | Sync + Publisher | 🚧 Planned | Node.js package repositories |
 
 ## Plugin Architecture
 
@@ -78,15 +79,19 @@ For DNF/YUM-based distributions (RHEL, CentOS, Fedora, Rocky, Alma).
 
 **See:** [RPM Plugin Documentation](rpm-plugin.md)
 
-### DEB/APT Plugin (Planned)
+### APT/DEB Plugin
 
 For Debian/Ubuntu-based distributions.
 
-**Planned features:**
+**Features:**
 - InRelease/Release parsing
-- Packages.gz generation
-- GPG signature support
-- Multi-architecture support
+- Packages(.gz) parsing and generation
+- Multi-component and multi-architecture support
+- RFC822-format metadata
+- Mirror and filtered modes
+- Content-addressed storage for .deb files
+
+**See:** [APT Plugin Documentation](apt-plugin.md)
 
 ### PyPI Plugin (Planned)
 
@@ -154,5 +159,8 @@ PUBLISHER_PLUGINS = {
 ## Further Reading
 
 - [RPM Plugin](rpm-plugin.md) - RPM/DNF/YUM support
+- [APT Plugin](apt-plugin.md) - Debian/Ubuntu APT support
+- [Helm Plugin](helm-plugin.md) - Kubernetes Helm charts
+- [Alpine APK Plugin](apk-plugin.md) - Alpine Linux packages
 - [Custom Plugins](custom-plugins.md) - Creating your own plugins
 - [Plugin System Architecture](../architecture/plugin-system.md) - Technical details

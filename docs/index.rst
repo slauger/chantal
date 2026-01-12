@@ -33,15 +33,15 @@ Chantal is a Python-based CLI tool for offline repository mirroring, inspired by
 +=====================+==================================+===================+
 | RPM/DNF/YUM         | RHEL, CentOS, Fedora, Rocky, ... | ✅ **Available**  |
 +---------------------+----------------------------------+-------------------+
+| DEB/APT             | Debian, Ubuntu                   | ✅ **Available**  |
++---------------------+----------------------------------+-------------------+
 | Helm Charts         | Kubernetes Helm repositories     | ✅ **Available**  |
 +---------------------+----------------------------------+-------------------+
 | Alpine APK          | Alpine Linux packages            | ✅ **Available**  |
 +---------------------+----------------------------------+-------------------+
-| DEB/APT             | Debian, Ubuntu                   | 🚧 Planned        |
-+---------------------+----------------------------------+-------------------+
 | PyPI                | Python Package Index             | 🚧 Planned        |
 +---------------------+----------------------------------+-------------------+
-| npm/yarn            | Node.js package registries       | 🔬 Research       |
+| npm/yarn            | Node.js package registries       | 🚧 Planned        |
 +---------------------+----------------------------------+-------------------+
 | RubyGems            | Ruby package registry            | 🔬 Research       |
 +---------------------+----------------------------------+-------------------+
@@ -62,10 +62,11 @@ Features
 - 🔄 **Unified Mirroring** - Support for multiple package ecosystems in one tool
 
   - ✅ **RPM/DNF/YUM** (RHEL, CentOS, Fedora, Rocky, Alma) - *Available now*
+  - ✅ **DEB/APT** (Debian, Ubuntu) - *Available now*
   - ✅ **Helm Charts** (Kubernetes chart repositories) - *Available now*
   - ✅ **Alpine APK** (Alpine Linux packages) - *Available now*
-  - 🚧 **DEB/APT, PyPI** - *Planned*
-  - 🔬 **npm, RubyGems, NuGet, Go Modules, Terraform** - *Research phase*
+  - 🚧 **PyPI, npm** - *Planned*
+  - 🔬 **RubyGems, NuGet, Go Modules, Terraform** - *Research phase*
 
 - 📦 **Deduplication** - Content-addressed storage (SHA256), packages stored once
 - 📸 **Snapshots** - Immutable point-in-time repository states for patch management
@@ -111,6 +112,7 @@ Features
 
    plugins/overview
    plugins/rpm-plugin
+   plugins/apt-plugin
    plugins/helm-plugin
    plugins/apk-plugin
    plugins/custom-plugins
