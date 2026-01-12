@@ -2,36 +2,30 @@
 
 This guide will help you get started with Chantal in minutes.
 
-## 1. Initialize Chantal
+## 1. Initialize Database
 
-Create the database and directory structure:
+Initialize the database schema with Alembic:
 
 ```bash
-# Production
-sudo chantal init
+# Initialize database schema
+chantal db init
 
-# Development/Testing
-chantal init
+# Verify database status
+chantal db status
 ```
 
 Output:
 ```
-Chantal initialization...
-Database: postgresql://chantal:***@localhost/chantal
-Storage base path: /var/lib/chantal
-Pool path: /var/lib/chantal/pool
-Published path: /var/www/repos
+Initializing database schema...
+Running Alembic migrations to head revision...
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade  -> abc123, Initial schema
 
-Creating directories...
-  ✓ Created: /var/lib/chantal
-  ✓ Created: /var/lib/chantal/pool
-  ✓ Created: /var/www/repos
-
-Initializing database...
-  ✓ Database schema created
-
-✓ Chantal initialization complete!
+✓ Database schema initialized successfully!
 ```
+
+**Note:** Storage directories (`/var/lib/chantal/pool`, `/var/www/repos`) are created automatically when needed.
 
 ## 2. Configure Repositories
 

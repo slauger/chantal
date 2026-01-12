@@ -18,7 +18,7 @@ repositories:
 **Required Fields:**
 - `id`: Unique identifier (alphanumeric, hyphens, underscores)
 - `name`: Human-readable name
-- `type`: Repository type (`rpm`, `helm`, `apk`, future: `apt`, `pypi`)
+- `type`: Repository type (`rpm`, `apt`, `helm`, `apk`, future: `pypi`, `npm`)
 - `feed`: Upstream repository URL
 - `enabled`: Whether to include in `--all` operations
 
@@ -112,7 +112,7 @@ repositories:
 - Must point to base Alpine mirror (e.g., `https://dl-cdn.alpinelinux.org/alpine/`)
 - APKINDEX location is constructed as: `{feed}/{branch}/{repository}/{architecture}/APKINDEX.tar.gz`
 
-### APT Repositories (Future)
+### APT Repositories
 
 For Debian/Ubuntu-based distributions:
 
@@ -121,14 +121,36 @@ repositories:
   - id: ubuntu-jammy-main
     name: Ubuntu 22.04 - Main
     type: apt
-    feed: http://archive.ubuntu.com/ubuntu/
-    distribution: jammy
-    components: [main, restricted, universe, multiverse]
-    architectures: [amd64, arm64]
+    feed: http://archive.ubuntu.com/ubuntu
     enabled: true
+    mode: mirror
+    apt:
+      distribution: jammy
+      components:
+        - main
+        - restricted
+        - universe
+        - multiverse
+      architectures:
+        - amd64
+        - arm64
+      include_source_packages: false
 ```
 
-**Note:** APT support is planned for v2.0.
+**Required APT Configuration:**
+- `apt.distribution`: APT distribution/suite name (jammy, focal, bookworm, etc.)
+- `apt.components`: Repository components (main, contrib, non-free, etc.)
+- `apt.architectures`: Architectures to sync (amd64, arm64, armhf, i386, all)
+
+**Optional APT Configuration:**
+- `apt.include_source_packages`: Whether to sync source packages (default: false)
+- `mode`: Repository mode (`mirror` or `filtered`)
+
+**Feed URL Requirements:**
+- Must point to APT repository base URL
+- Distribution Release file location: `{feed}/dists/{distribution}/Release`
+
+See [APT Plugin Documentation](../plugins/apt-plugin.md) for detailed examples and configuration options.
 
 ### PyPI Repositories (Future)
 

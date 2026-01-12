@@ -9,11 +9,11 @@ This workflow demonstrates how to use Chantal for monthly patch management.
 ### Step 1: Initial Setup
 
 ```bash
-# Initialize Chantal
-chantal init
+# Initialize database
+chantal db init
 
 # Configure repositories (see configuration guide)
-vim conf.d/rhel9.yaml
+vim /etc/chantal/conf.d/rhel9.yaml
 
 # Sync initial state
 chantal repo sync --all
@@ -75,8 +75,8 @@ For developers who need specific package versions.
 ### Setup
 
 ```bash
-# Initialize
-chantal init
+# Initialize database
+chantal db init
 
 # Sync specific packages
 chantal repo sync --repo-id epel9-development-tools

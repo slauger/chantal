@@ -37,20 +37,55 @@ chantal repo sync --repo-id epel9-vim-latest
 export CHANTAL_CONFIG=./config-dev.yaml
 ```
 
-## Initialize
+## Database Management
 
-### `chantal init`
+### `chantal db init`
 
-Initialize Chantal database and directory structure.
+Initialize the database schema using Alembic migrations.
 
 ```bash
-chantal init
+chantal db init
 ```
 
-Creates:
-- Database schema
-- Pool directory
-- Published directory
+Creates all database tables and applies all migrations to reach the latest schema version.
+
+### `chantal db status`
+
+Show database schema status and pending migrations.
+
+```bash
+chantal db status
+```
+
+### `chantal db current`
+
+Show current database schema version.
+
+```bash
+chantal db current
+```
+
+### `chantal db upgrade`
+
+Upgrade database schema to a specific revision or latest.
+
+```bash
+# Upgrade to latest
+chantal db upgrade
+
+# Upgrade to specific revision
+chantal db upgrade abc123
+```
+
+### `chantal db history`
+
+Show migration history.
+
+```bash
+chantal db history
+```
+
+**Note:** Storage directories (`/var/lib/chantal/pool`, `/var/www/repos`) are created automatically when needed.
 
 ## Repository Management
 

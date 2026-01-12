@@ -400,7 +400,7 @@ class HttpArchivePublisher(PublisherPlugin):
 pytest tests/test_my_plugin.py -v
 
 # Test with real repository
-chantal init
+chantal db init
 chantal repo sync --repo-id test-repo
 
 # Test publishing
