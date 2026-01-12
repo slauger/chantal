@@ -144,7 +144,7 @@ repositories:
 
 **Optional APT Configuration:**
 - `apt.include_source_packages`: Whether to sync source packages (default: false)
-- `mode`: Repository mode (`mirror` or `filtered`)
+- `mode`: Repository mode (currently only `mirror` supported, `filtered` planned for Phase 2)
 
 **Feed URL Requirements:**
 - Must point to APT repository base URL

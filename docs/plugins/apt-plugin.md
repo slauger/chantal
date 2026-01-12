@@ -14,7 +14,7 @@ The APT plugin consists of:
 
 **Repository Modes:**
 - ✅ **Mirror Mode** - Full metadata mirroring (InRelease, Release, Packages)
-- ✅ **Filtered Mode** - Smart metadata regeneration for filtered repos
+- 🚧 **Filtered Mode** - Smart metadata regeneration for filtered repos (planned, see #29)
 - ⏳ **Hosted Mode** - For self-hosted packages (future)
 
 **Package Management:**
@@ -83,37 +83,6 @@ repositories:
       architectures:
         - amd64
         - arm64
-```
-
-### With Filters
-
-```yaml
-repositories:
-  - id: docker-ce-filtered
-    name: Docker CE - Ubuntu Jammy (Filtered)
-    type: apt
-    feed: https://download.docker.com/linux/ubuntu
-    enabled: true
-    mode: filtered
-
-    apt:
-      distribution: jammy
-      components:
-        - stable
-      architectures:
-        - amd64
-      include_source_packages: false
-
-    filters:
-      patterns:
-        include:
-          - "^docker-ce$"
-          - "^docker-ce-cli$"
-          - "^containerd\\.io$"
-          - "^docker-buildx-plugin$"
-          - "^docker-compose-plugin$"
-      post_processing:
-        only_latest_version: true
 ```
 
 ### Mirror Mode (Exact Copy)
@@ -329,43 +298,25 @@ repositories:
       architectures: [amd64, arm64]
 ```
 
-### FILTERED Mode
+### FILTERED Mode (Planned)
 
-Regenerates metadata for filtered package sets.
+**Status:** 🚧 Not yet implemented - planned for Phase 2 (see [Issue #29](https://github.com/slauger/chantal/issues/29))
 
-**Behavior:**
+Will regenerate metadata for filtered package sets.
+
+**Planned Behavior:**
 - Downloads and parses Packages files
 - Applies filters (patterns, architectures, versions)
 - Regenerates Packages and Release files
 - No GPG signatures (requires re-signing)
 - Optimal for curated/filtered repositories
 
-**Use Cases:**
+**Planned Use Cases:**
 - Security-focused repos (only specific packages)
 - Bandwidth optimization (exclude large packages)
 - Version control (only latest versions)
 
-**Example:**
-```yaml
-repositories:
-  - id: ubuntu-security-filtered
-    name: Ubuntu Security Updates (Filtered)
-    type: apt
-    feed: http://security.ubuntu.com/ubuntu
-    mode: filtered
-    apt:
-      distribution: jammy-security
-      components: [main, restricted]
-      architectures: [amd64]
-    filters:
-      patterns:
-        include:
-          - "^linux-.*"
-          - "^openssh-.*"
-          - "^openssl$"
-      post_processing:
-        only_latest_version: true
-```
+**Note:** Currently, only MIRROR mode is available. Use RPM plugin for filtered repositories.
 
 ## Workflow Examples
 
@@ -409,16 +360,16 @@ chantal publish repo --repo-id ubuntu-jammy
 chantal publish snapshot --snapshot $(date +%Y-%m) --repo-id ubuntu-jammy
 ```
 
-### Example 2: Curated Docker Repository
+### Example 2: Docker CE Mirror
 
 ```yaml
 repositories:
-  - id: docker-ce-curated
-    name: Docker CE - Curated
+  - id: docker-ce-ubuntu-jammy
+    name: Docker CE - Ubuntu Jammy
     type: apt
     feed: https://download.docker.com/linux/ubuntu
     enabled: true
-    mode: filtered
+    mode: mirror
 
     apt:
       distribution: jammy
@@ -428,17 +379,6 @@ repositories:
         - amd64
       include_source_packages: false
 
-    filters:
-      patterns:
-        include:
-          - "^docker-ce$"
-          - "^docker-ce-cli$"
-          - "^containerd\\.io$"
-          - "^docker-buildx-plugin$"
-          - "^docker-compose-plugin$"
-      post_processing:
-        only_latest_version: true
-
     retention:
       policy: keep_snapshots
       max_snapshots: 10
@@ -447,17 +387,19 @@ repositories:
 Automated workflow:
 ```bash
 # Sync latest Docker packages
-chantal repo sync --repo-id docker-ce-curated
+chantal repo sync --repo-id docker-ce-ubuntu-jammy
 
 # Create snapshot with current date
-chantal snapshot create docker-ce-curated --name $(date +%Y-%m-%d)
+chantal snapshot create docker-ce-ubuntu-jammy --name $(date +%Y-%m-%d)
 
 # Check what changed
-chantal snapshot diff docker-ce-curated --from-snapshot 2026-01-01 --to-snapshot $(date +%Y-%m-%d)
+chantal snapshot diff docker-ce-ubuntu-jammy --from-snapshot 2026-01-01 --to-snapshot $(date +%Y-%m-%d)
 
 # Publish latest
-chantal publish repo --repo-id docker-ce-curated
+chantal publish repo --repo-id docker-ce-ubuntu-jammy
 ```
+
+**Note:** For filtered Docker repositories (specific packages only), use the RPM plugin with EPEL/CentOS Stream repositories, or wait for APT filtered mode in Phase 2.
 
 ## Troubleshooting
 
