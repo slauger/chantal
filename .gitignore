@@ -61,3 +61,6 @@ venv*/
 
 # Local development files
 .dev/
+
+# Sphinx documentation builds
+docs/_build/
