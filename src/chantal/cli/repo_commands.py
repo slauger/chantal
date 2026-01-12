@@ -11,6 +11,7 @@ from chantal.core.storage import StorageManager
 from chantal.db.connection import DatabaseManager
 from chantal.db.models import Repository, Snapshot, SyncHistory
 from chantal.plugins.apk.sync import ApkSyncer
+from chantal.plugins.apt.sync import AptSyncPlugin
 from chantal.plugins.helm.sync import HelmSyncer
 from chantal.plugins.rpm.sync import CheckUpdatesResult, RpmSyncPlugin
 
@@ -748,6 +749,30 @@ def _sync_single_repository(session, storage, global_config, repo_config):
             click.echo(
                 f"  SHA1 mismatches: {stats['sha1_mismatches']} (stale APKINDEX, integrity verified via SHA256)"
             )
+        return
+    elif repo_config.type == "apt":
+        apt_syncer = AptSyncPlugin(
+            storage=storage,
+            config=repo_config,
+            proxy_config=effective_proxy,
+            ssl_config=effective_ssl,
+        )
+        result = apt_syncer.sync_repository(session, repository)
+
+        # Update last sync timestamp
+        repository.last_sync_at = datetime.now(timezone.utc)
+        session.commit()
+
+        # Display result
+        if result.success:
+            click.echo("\n✓ APT sync completed successfully!")
+            click.echo(f"  Packages downloaded: {result.packages_downloaded}")
+            click.echo(f"  Packages skipped: {result.packages_skipped}")
+            click.echo(f"  Packages total: {result.packages_total}")
+            click.echo(f"  Data transferred: {result.bytes_downloaded / 1024 / 1024:.2f} MB")
+            click.echo(f"  Metadata files: {result.metadata_files_downloaded}")
+        else:
+            click.echo(f"\n✗ APT sync failed: {result.error_message}")
         return
     else:
         click.echo(f"Error: Unsupported repository type: {repo_config.type}")

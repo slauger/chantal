@@ -6,4 +6,12 @@ APT/DEB repository plugin for Chantal.
 Provides support for Debian/Ubuntu APT repositories with mirror mode support.
 """
 
-__all__ = ["DebMetadata", "AptSyncPlugin", "AptPublisher"]
+from chantal.plugins.apt.models import DebMetadata, ReleaseMetadata, SourcesMetadata
+from chantal.plugins.apt.sync import AptSyncPlugin
+
+__all__ = [
+    "DebMetadata",
+    "ReleaseMetadata",
+    "SourcesMetadata",
+    "AptSyncPlugin",
+]
