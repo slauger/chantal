@@ -153,15 +153,14 @@ class AptConfig(BaseModel):
     distribution: str  # Distribution/suite (jammy, bookworm, focal, bullseye, etc.)
     components: list[str] = Field(
         default_factory=lambda: ["main"],
-        description="Repository components (main, restricted, universe, multiverse, contrib, non-free)"
+        description="Repository components (main, restricted, universe, multiverse, contrib, non-free)",
     )
     architectures: list[str] = Field(
         default_factory=lambda: ["amd64"],
-        description="Architectures to mirror (amd64, arm64, i386, armhf, all)"
+        description="Architectures to mirror (amd64, arm64, i386, armhf, all)",
     )
     include_source_packages: bool = Field(
-        default=False,
-        description="Include source packages (.dsc, .orig.tar.gz, etc.)"
+        default=False, description="Include source packages (.dsc, .orig.tar.gz, etc.)"
     )
 
 

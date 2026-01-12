@@ -34,9 +34,7 @@ class TestReleaseFileParsing:
             type="apt",
             feed="https://example.com/repo",
             mode="mirror",
-            apt=AptConfig(
-                distribution="jammy", components=["main"], architectures=["amd64"]
-            ),
+            apt=AptConfig(distribution="jammy", components=["main"], architectures=["amd64"]),
         )
 
         # Build metadata file list
@@ -193,9 +191,7 @@ class TestReleaseFileParsing:
             type="apt",
             feed="https://example.com/repo",
             mode="mirror",
-            apt=AptConfig(
-                distribution="jammy", components=["main"], architectures=["amd64"]
-            ),
+            apt=AptConfig(distribution="jammy", components=["main"], architectures=["amd64"]),
         )
 
         sync_plugin = AptSyncPlugin(
@@ -230,9 +226,7 @@ class TestReleaseFileParsing:
             type="apt",
             feed="https://example.com/repo",
             mode="mirror",
-            apt=AptConfig(
-                distribution="jammy", components=["main"], architectures=["amd64"]
-            ),
+            apt=AptConfig(distribution="jammy", components=["main"], architectures=["amd64"]),
         )
 
         sync_plugin = AptSyncPlugin(
