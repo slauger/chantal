@@ -1,0 +1,35 @@
+# Lynis Security Auditing Tool - Official APT Repository
+# Provides: lynis (security auditing and compliance scanning tool)
+#
+# Official URL: https://packages.cisofy.com/community/lynis/deb/
+# Documentation: https://cisofy.com/documentation/lynis/
+#
+# Note: Community repository is free, enterprise repository requires subscription
+
+repositories:
+  - id: lynis-community
+    name: "Lynis Community - Debian/Ubuntu (all)"
+    type: apt
+    feed: "https://packages.cisofy.com/community/lynis/deb/"
+    enabled: true
+    mode: mirror
+
+    apt:
+      distribution: "stable"  # Works for all Debian/Ubuntu versions
+      components:
+        - main
+      architectures:
+        - amd64
+        - arm64
+        - all  # Architecture-independent packages
+      include_source_packages: false
+
+    retention:
+      policy: keep_latest  # Keep only recent versions
+      keep_count: 3  # Keep last 3 versions for rollback
+
+    # Sync schedule (optional)
+    schedule:
+      enabled: false
+      cron: "0 7 * * 0"  # Weekly on Sunday at 7 AM
+      create_snapshot: true

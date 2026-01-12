@@ -1,0 +1,56 @@
+# GitLab Official APT Repository
+# Provides: gitlab-ce (Community Edition), gitlab-ee (Enterprise Edition)
+#
+# Official URL: https://packages.gitlab.com/gitlab/
+# Documentation: https://about.gitlab.com/install/#ubuntu
+#
+# Note: GitLab uses Ubuntu distribution codenames
+
+repositories:
+  - id: gitlab-ce-ubuntu-jammy
+    name: "GitLab CE - Ubuntu 22.04 Jammy"
+    type: apt
+    feed: "https://packages.gitlab.com/gitlab/gitlab-ce/ubuntu"
+    enabled: true
+    mode: mirror
+
+    apt:
+      distribution: "jammy"  # Ubuntu 22.04
+      components:
+        - main
+      architectures:
+        - amd64
+      include_source_packages: false
+
+    retention:
+      policy: keep_latest  # Keep only recent versions
+      keep_count: 3  # Keep last 3 versions
+
+    # Sync schedule
+    schedule:
+      enabled: false
+      cron: "0 4 * * *"  # Daily at 4 AM
+      create_snapshot: true
+
+---
+
+# GitLab Runner Repository
+repositories:
+  - id: gitlab-runner-ubuntu-jammy
+    name: "GitLab Runner - Ubuntu 22.04 Jammy"
+    type: apt
+    feed: "https://packages.gitlab.com/runner/gitlab-runner/ubuntu"
+    enabled: true
+    mode: mirror
+
+    apt:
+      distribution: "jammy"
+      components:
+        - main
+      architectures:
+        - amd64
+      include_source_packages: false
+
+    retention:
+      policy: keep_latest
+      keep_count: 3

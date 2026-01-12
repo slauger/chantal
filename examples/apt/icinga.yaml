@@ -1,0 +1,54 @@
+# Icinga Official APT Repository
+# Provides: icinga2, icingaweb2, icinga2-ido-mysql, monitoring-plugins
+#
+# Official URL: https://packages.icinga.com/
+# Documentation: https://icinga.com/docs/icinga-2/latest/doc/02-installation/
+#
+# Note: Icinga provides separate repositories per distribution
+
+repositories:
+  - id: icinga-ubuntu-jammy
+    name: "Icinga - Ubuntu 22.04 Jammy"
+    type: apt
+    feed: "https://packages.icinga.com/ubuntu"
+    enabled: true
+    mode: mirror
+
+    apt:
+      distribution: "icinga-jammy"  # Icinga's repository uses "icinga-" prefix
+      components:
+        - main  # Icinga 2 packages
+      architectures:
+        - amd64
+      include_source_packages: false
+
+    retention:
+      policy: mirror  # Keep all versions for rollback
+
+    # Sync schedule (optional)
+    schedule:
+      enabled: false
+      cron: "0 6 * * *"  # Daily at 6 AM
+      create_snapshot: true
+
+---
+
+# Icinga for Debian 12 Bookworm
+repositories:
+  - id: icinga-debian-bookworm
+    name: "Icinga - Debian 12 Bookworm"
+    type: apt
+    feed: "https://packages.icinga.com/debian"
+    enabled: true
+    mode: mirror
+
+    apt:
+      distribution: "icinga-bookworm"
+      components:
+        - main
+      architectures:
+        - amd64
+      include_source_packages: false
+
+    retention:
+      policy: mirror

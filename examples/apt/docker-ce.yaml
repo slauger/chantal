@@ -1,0 +1,70 @@
+# Docker CE Official APT Repository
+# Provides: docker-ce, docker-ce-cli, containerd.io, docker-buildx-plugin, docker-compose-plugin
+#
+# Official URL: https://download.docker.com/linux/
+# Documentation: https://docs.docker.com/engine/install/ubuntu/
+#
+# Note: Docker uses distribution codenames (jammy, focal, etc.)
+
+repositories:
+  - id: docker-ce-ubuntu-jammy
+    name: "Docker CE - Ubuntu 22.04 Jammy (amd64)"
+    type: apt
+    feed: "https://download.docker.com/linux/ubuntu"
+    enabled: true
+    mode: mirror
+
+    apt:
+      distribution: "jammy"  # Ubuntu 22.04 LTS
+      components:
+        - stable  # Docker stable channel
+      architectures:
+        - amd64
+      include_source_packages: false
+
+    retention:
+      policy: mirror
+
+---
+
+# Docker CE for Ubuntu 20.04 Focal
+repositories:
+  - id: docker-ce-ubuntu-focal
+    name: "Docker CE - Ubuntu 20.04 Focal (amd64)"
+    type: apt
+    feed: "https://download.docker.com/linux/ubuntu"
+    enabled: true
+    mode: mirror
+
+    apt:
+      distribution: "focal"  # Ubuntu 20.04 LTS
+      components:
+        - stable
+      architectures:
+        - amd64
+      include_source_packages: false
+
+    retention:
+      policy: mirror
+
+---
+
+# Docker CE for Debian 12 Bookworm
+repositories:
+  - id: docker-ce-debian-bookworm
+    name: "Docker CE - Debian 12 Bookworm (amd64)"
+    type: apt
+    feed: "https://download.docker.com/linux/debian"
+    enabled: true
+    mode: mirror
+
+    apt:
+      distribution: "bookworm"  # Debian 12
+      components:
+        - stable
+      architectures:
+        - amd64
+      include_source_packages: false
+
+    retention:
+      policy: mirror

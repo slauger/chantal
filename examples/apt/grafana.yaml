@@ -1,0 +1,34 @@
+# Grafana Official APT Repository
+# Provides: grafana, grafana-enterprise
+#
+# Official URL: https://apt.grafana.com/
+# Documentation: https://grafana.com/docs/grafana/latest/setup-grafana/installation/debian/
+#
+# Note: Grafana uses a single "stable" distribution
+
+repositories:
+  - id: grafana
+    name: "Grafana Official (Debian/Ubuntu)"
+    type: apt
+    feed: "https://apt.grafana.com"
+    enabled: true
+    mode: mirror
+
+    apt:
+      distribution: "stable"  # Works for all Debian/Ubuntu versions
+      components:
+        - main  # Grafana OSS and Enterprise
+      architectures:
+        - amd64
+        - arm64  # Also available for ARM
+      include_source_packages: false
+
+    retention:
+      policy: keep_latest  # Keep only recent versions
+      keep_count: 5  # Keep last 5 versions
+
+    # Sync schedule (optional)
+    schedule:
+      enabled: false
+      cron: "0 5 * * *"  # Daily at 5 AM
+      create_snapshot: true

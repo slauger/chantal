@@ -1,0 +1,33 @@
+# HashiCorp Official APT Repository
+# Provides: Terraform, Vault, Consul, Nomad, Packer, Vagrant, Boundary, Waypoint
+#
+# Official URL: https://apt.releases.hashicorp.com/
+# Documentation: https://www.hashicorp.com/official-packaging-guide
+#
+# Note: HashiCorp uses a single "any" distribution for all Debian/Ubuntu versions
+
+repositories:
+  - id: hashicorp
+    name: "HashiCorp Official (Debian/Ubuntu)"
+    type: apt
+    feed: "https://apt.releases.hashicorp.com"
+    enabled: true
+    mode: mirror
+
+    apt:
+      distribution: "any"  # Works for all Debian/Ubuntu versions
+      components:
+        - main  # All HashiCorp products
+      architectures:
+        - amd64
+        - arm64  # Also available for ARM
+      include_source_packages: false
+
+    retention:
+      policy: mirror  # Keep all versions
+
+    # Sync schedule (optional)
+    schedule:
+      enabled: false
+      cron: "0 2 * * *"  # Daily at 2 AM
+      create_snapshot: true
