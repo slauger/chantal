@@ -27,7 +27,7 @@ We're making architectural decisions right now. Your input is valuable:
 
 - Read [CONTEXT.md](CONTEXT.md) for full requirements
 - Check [.planning/findings.md](.planning/findings.md) for our tool analysis
-- Review [TODO.md](TODO.md) for our roadmap
+- Review [ROADMAP.md](ROADMAP.md) for our roadmap
 
 **How:** Comment on open issues tagged with `architecture` or `design`.
 
@@ -62,7 +62,7 @@ We'll update this guide when we reach that stage.
 
 - **GitHub Issues**: Bug reports, feature requests
 - **GitHub Discussions**: Questions, ideas, experience sharing
-- **Email**: [TBD] for private/security matters
+- **Email**: simon@lauger.de for private/security matters
 
 ## Code of Conduct
 
@@ -72,10 +72,10 @@ Detailed Code of Conduct coming soon.
 
 ## License
 
-By contributing to Chantal, you agree that your contributions will be licensed under the project's license (TBD).
+By contributing to Chantal, you agree that your contributions will be licensed under the MIT License.
 
 ---
 
 **Current Focus:** Phase 1 - Research & Tool Analysis
 
-See [TODO.md](TODO.md) for current priorities.
+See [ROADMAP.md](ROADMAP.md) for current priorities.
