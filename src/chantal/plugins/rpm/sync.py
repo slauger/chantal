@@ -17,6 +17,7 @@ import requests
 from packaging import version
 from sqlalchemy.orm import Session
 
+from chantal.core.cache import MetadataCache
 from chantal.core.config import ProxyConfig, RepositoryConfig, SSLConfig
 from chantal.core.downloader import DownloadManager
 from chantal.core.storage import StorageManager
@@ -131,6 +132,7 @@ class RpmSyncPlugin:
         config: RepositoryConfig,
         proxy_config: ProxyConfig | None = None,
         ssl_config: SSLConfig | None = None,
+        cache: MetadataCache | None = None,
     ):
         """Initialize RPM sync plugin.
 
@@ -139,11 +141,13 @@ class RpmSyncPlugin:
             config: Repository configuration
             proxy_config: Optional proxy configuration
             ssl_config: Optional SSL/TLS configuration
+            cache: Optional metadata cache instance
         """
         self.storage = storage
         self.config = config
         self.proxy_config = proxy_config
         self.ssl_config = ssl_config
+        self.cache = cache
 
         # Setup download manager with all authentication and SSL/TLS configuration
         self.downloader = DownloadManager(
@@ -167,18 +171,33 @@ class RpmSyncPlugin:
             print(f"Syncing repository: {repository.repo_id}")
             print(f"Feed URL: {self.config.feed}")
 
-            # Step 1: Fetch repomd.xml
+            # Step 1: Fetch repomd.xml (always fresh, contains checksums)
             print("Fetching repomd.xml...")
             repomd_root = parsers.fetch_repomd_xml(self.session, self.config.feed)
 
-            # Step 2: Extract primary.xml.gz location
-            primary_location = parsers.extract_primary_location(repomd_root)
-            print(f"Primary metadata location: {primary_location}")
+            # Step 2: Extract ALL metadata info (including primary.xml.gz)
+            metadata_files = parsers.extract_all_metadata(repomd_root)
 
-            # Step 3: Download and parse primary.xml.gz
+            # Find primary.xml metadata
+            primary_metadata = next(
+                (m for m in metadata_files if m["file_type"] == "primary"), None
+            )
+            if not primary_metadata:
+                raise ValueError("Primary metadata not found in repomd.xml")
+
+            primary_location = primary_metadata["location"]
+            primary_checksum = primary_metadata["checksum"]
+            print(f"Primary metadata: {primary_location} (SHA256: {primary_checksum[:16]}...)")
+
+            # Step 3: Download and parse primary.xml.gz (with cache support)
             print("Fetching primary.xml.gz...")
-            xml_content = parsers.fetch_primary_xml(
-                self.session, self.config.feed, primary_location
+            xml_content = parsers.fetch_metadata_with_cache(
+                session=self.session,
+                base_url=self.config.feed,
+                location=primary_location,
+                checksum=primary_checksum,
+                cache=self.cache,
+                file_type="primary",
             )
             packages = parsers.parse_primary_xml(xml_content)
             print(f"Found {len(packages)} packages in repository")
@@ -592,6 +611,8 @@ class RpmSyncPlugin:
     ) -> None:
         """Download metadata file and store as RepositoryFile.
 
+        Uses metadata cache if enabled to avoid redundant downloads.
+
         Args:
             metadata_info: Metadata file information
             session: Database session
@@ -602,13 +623,46 @@ class RpmSyncPlugin:
             requests.RequestException: On HTTP errors
             ValueError: On checksum mismatch
         """
-        # Download metadata file to temporary location
-        metadata_url = urljoin(base_url + "/", metadata_info.location)
+        # Try cache first (if enabled)
+        if self.cache:
+            cached_file = self.cache.get(metadata_info.checksum, metadata_info.file_type)
+            if cached_file:
+                # Use cached file directly - it's already compressed
+                tmp_path = cached_file
+                cleanup_temp = False  # Don't delete cached file
+            else:
+                # Cache miss - download and cache
+                metadata_url = urljoin(base_url + "/", metadata_info.location)
+                response = self.session.get(metadata_url, timeout=60)
+                response.raise_for_status()
 
-        with tempfile.NamedTemporaryFile(
-            delete=False, suffix=f".{metadata_info.file_type}"
-        ) as tmp_file:
+                # Cache the compressed file
+                try:
+                    cached_file = self.cache.put(
+                        metadata_info.checksum, response.content, metadata_info.file_type
+                    )
+                    tmp_path = cached_file
+                    cleanup_temp = False
+                except Exception as e:
+                    # Cache failed - use temp file
+                    print(f"  → Warning: Failed to cache {metadata_info.file_type}: {e}")
+                    tmp_file = tempfile.NamedTemporaryFile(
+                        delete=False, suffix=f".{metadata_info.file_type}"
+                    )
+                    tmp_file.write(response.content)
+                    tmp_file.flush()
+                    tmp_file.close()
+                    tmp_path = Path(tmp_file.name)
+                    cleanup_temp = True
+        else:
+            # Cache disabled - download to temp file
+            metadata_url = urljoin(base_url + "/", metadata_info.location)
+
+            tmp_file = tempfile.NamedTemporaryFile(
+                delete=False, suffix=f".{metadata_info.file_type}"
+            )
             tmp_path = Path(tmp_file.name)
+            cleanup_temp = True
 
             try:
                 # Download file
@@ -618,56 +672,63 @@ class RpmSyncPlugin:
                 # Write to temp file
                 tmp_file.write(response.content)
                 tmp_file.flush()
+                tmp_file.close()
+            except Exception:
+                tmp_file.close()
+                tmp_path.unlink(missing_ok=True)
+                raise
 
-                # Extract filename from location
-                filename = Path(metadata_info.location).name
+        # Store in pool (using cached or downloaded file)
+        try:
+            # Extract filename from location
+            filename = Path(metadata_info.location).name
 
-                # Add to storage pool using add_repository_file
-                sha256, pool_path, size_bytes = self.storage.add_repository_file(
-                    tmp_path, filename, verify_checksum=True
+            # Add to storage pool using add_repository_file
+            sha256, pool_path, size_bytes = self.storage.add_repository_file(
+                tmp_path, filename, verify_checksum=True
+            )
+
+            # Verify SHA256 matches metadata (if provided)
+            if metadata_info.checksum and sha256 != metadata_info.checksum:
+                raise ValueError(
+                    f"SHA256 mismatch for {metadata_info.file_type}: "
+                    f"expected {metadata_info.checksum}, got {sha256}"
                 )
 
-                # Verify SHA256 matches metadata (if provided)
-                if metadata_info.checksum and sha256 != metadata_info.checksum:
-                    raise ValueError(
-                        f"SHA256 mismatch for {metadata_info.file_type}: "
-                        f"expected {metadata_info.checksum}, got {sha256}"
-                    )
+            # Check if this RepositoryFile already exists
+            existing_file = session.query(RepositoryFile).filter_by(sha256=sha256).first()
 
-                # Check if this RepositoryFile already exists
-                existing_file = session.query(RepositoryFile).filter_by(sha256=sha256).first()
-
-                if existing_file:
-                    # File already exists - just link to repository if not already linked
-                    if repository not in existing_file.repositories:
-                        existing_file.repositories.append(repository)
-                        session.commit()
-                else:
-                    # Create new RepositoryFile record
-                    repo_file = RepositoryFile(
-                        file_category="metadata",
-                        file_type=metadata_info.file_type,
-                        sha256=sha256,
-                        pool_path=pool_path,
-                        size_bytes=size_bytes,
-                        original_path=metadata_info.location,
-                        file_metadata={
-                            "checksum_type": "sha256",
-                            "open_checksum": metadata_info.open_checksum,
-                            "open_size": metadata_info.open_size,
-                        },
-                    )
-                    session.add(repo_file)
+            if existing_file:
+                # File already exists - just link to repository if not already linked
+                if repository not in existing_file.repositories:
+                    existing_file.repositories.append(repository)
                     session.commit()
+            else:
+                # Create new RepositoryFile record
+                repo_file = RepositoryFile(
+                    file_category="metadata",
+                    file_type=metadata_info.file_type,
+                    sha256=sha256,
+                    pool_path=pool_path,
+                    size_bytes=size_bytes,
+                    original_path=metadata_info.location,
+                    file_metadata={
+                        "checksum_type": "sha256",
+                        "open_checksum": metadata_info.open_checksum,
+                        "open_size": metadata_info.open_size,
+                    },
+                )
+                session.add(repo_file)
+                session.commit()
 
-                    # Link to repository
-                    repo_file.repositories.append(repository)
-                    session.commit()
+                # Link to repository
+                repo_file.repositories.append(repository)
+                session.commit()
 
-            finally:
-                # Clean up temp file
-                if tmp_path.exists():
-                    tmp_path.unlink()
+        finally:
+            # Clean up temp file (only if not from cache)
+            if cleanup_temp and tmp_path.exists():
+                tmp_path.unlink()
 
     def _download_installer_file(
         self, session: Session, repository: Repository, base_url: str, file_info: dict[str, str]

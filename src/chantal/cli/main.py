@@ -13,6 +13,7 @@ import click
 from chantal import __version__
 
 # Import command group factories
+from chantal.cli.cache_commands import create_cache_group
 from chantal.cli.content_commands import create_content_group
 from chantal.cli.db_commands import create_db_group
 from chantal.cli.pool_commands import create_pool_group
@@ -94,6 +95,7 @@ def stats(ctx: click.Context, repo_id: str) -> None:
 # ============================================================================
 
 # Register all command groups
+create_cache_group(cli)
 create_db_group(cli)
 create_repo_group(cli)
 create_snapshot_group(cli)

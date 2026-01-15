@@ -9,10 +9,15 @@ This module provides functions for parsing RPM repository metadata files.
 import configparser
 import gzip
 import lzma
+import logging
 import xml.etree.ElementTree as ET
 from urllib.parse import urljoin
 
 import requests
+
+from chantal.core.cache import MetadataCache
+
+logger = logging.getLogger(__name__)
 
 
 def fetch_repomd_xml(session: requests.Session, base_url: str) -> ET.Element:
@@ -160,8 +165,89 @@ def extract_all_metadata(repomd_root: ET.Element) -> list[dict]:
     return metadata_files
 
 
+def fetch_metadata_with_cache(
+    session: requests.Session,
+    base_url: str,
+    location: str,
+    checksum: str,
+    cache: MetadataCache | None = None,
+    file_type: str = "metadata",
+) -> bytes:
+    """Download and decompress metadata file with optional caching.
+
+    Args:
+        session: Requests session (with auth/SSL configured)
+        base_url: Base URL of repository
+        location: Relative path to metadata file (e.g., "repodata/abc-primary.xml.gz")
+        checksum: Expected SHA256 checksum
+        cache: Optional MetadataCache instance
+        file_type: Type hint for logging (e.g., "primary", "updateinfo")
+
+    Returns:
+        Decompressed XML content as bytes
+
+    Raises:
+        requests.RequestException: On HTTP errors
+        ValueError: If compression format is unknown or checksum mismatch
+    """
+    # Try cache first if enabled
+    if cache:
+        cached_file = cache.get(checksum, file_type)
+        if cached_file:
+            # Read cached compressed file
+            compressed_content = cached_file.read_bytes()
+            # Decompress and return
+            return _decompress_metadata(compressed_content, location)
+
+    # Cache miss or disabled - download from upstream
+    metadata_url = urljoin(base_url + "/", location)
+    logger.info(f"Downloading {file_type} from {metadata_url}")
+    response = session.get(metadata_url, timeout=60)
+    response.raise_for_status()
+
+    # Store in cache if enabled (compressed)
+    if cache:
+        try:
+            cache.put(checksum, response.content, file_type)
+        except Exception as e:
+            logger.warning(f"Failed to cache {file_type}: {e}")
+
+    # Decompress and return
+    return _decompress_metadata(response.content, location)
+
+
+def _decompress_metadata(compressed_content: bytes, filename: str) -> bytes:
+    """Decompress metadata file based on extension or magic bytes.
+
+    Args:
+        compressed_content: Compressed file content
+        filename: Filename for extension detection
+
+    Returns:
+        Decompressed content
+
+    Raises:
+        ValueError: If compression format is unknown
+    """
+    # Try extension-based detection first
+    if filename.endswith(".xz"):
+        return lzma.decompress(compressed_content)
+    elif filename.endswith(".gz"):
+        return gzip.decompress(compressed_content)
+
+    # Fallback to magic byte detection
+    if compressed_content[:2] == b"\x1f\x8b":  # gzip magic
+        return gzip.decompress(compressed_content)
+    elif compressed_content[:6] == b"\xfd7zXZ\x00":  # xz magic
+        return lzma.decompress(compressed_content)
+    else:
+        raise ValueError(f"Unknown compression format for {filename}")
+
+
 def fetch_primary_xml(session: requests.Session, base_url: str, primary_location: str) -> bytes:
     """Download and decompress primary.xml.gz or primary.xml.xz.
+
+    DEPRECATED: Use fetch_metadata_with_cache() for cache support.
 
     Args:
         session: Requests session (with auth/SSL configured)
@@ -178,22 +264,7 @@ def fetch_primary_xml(session: requests.Session, base_url: str, primary_location
     primary_url = urljoin(base_url + "/", primary_location)
     response = session.get(primary_url, timeout=60)
     response.raise_for_status()
-
-    # Decompress based on file extension
-    if primary_location.endswith(".xz"):
-        xml_content = lzma.decompress(response.content)
-    elif primary_location.endswith(".gz"):
-        xml_content = gzip.decompress(response.content)
-    else:
-        # Try to auto-detect based on magic bytes
-        if response.content[:2] == b"\x1f\x8b":  # gzip magic
-            xml_content = gzip.decompress(response.content)
-        elif response.content[:6] == b"\xfd7zXZ\x00":  # xz magic
-            xml_content = lzma.decompress(response.content)
-        else:
-            raise ValueError(f"Unknown compression format for {primary_location}")
-
-    return xml_content
+    return _decompress_metadata(response.content, primary_location)
 
 
 def parse_primary_xml(xml_content: bytes) -> list[dict]:

@@ -698,6 +698,25 @@ def _sync_single_repository(session, storage, global_config, repo_config):
     effective_proxy = repo_config.proxy if repo_config.proxy is not None else global_config.proxy
     effective_ssl = repo_config.ssl if repo_config.ssl is not None else global_config.ssl
 
+    # Setup metadata cache (if enabled)
+    cache = None
+    cache_path = global_config.storage.get_cache_path()
+    if cache_path and global_config.cache:
+        # Determine if cache is enabled for this repo
+        cache_enabled = (
+            repo_config.cache_enabled
+            if repo_config.cache_enabled is not None
+            else global_config.cache.enabled
+        )
+        if cache_enabled:
+            from chantal.core.cache import MetadataCache
+
+            cache = MetadataCache(
+                cache_path=cache_path,
+                max_age_hours=global_config.cache.max_age_hours,
+                enabled=True,
+            )
+
     # Initialize sync plugin based on repository type
     if repo_config.type == "rpm":
         sync_plugin = RpmSyncPlugin(
@@ -705,6 +724,7 @@ def _sync_single_repository(session, storage, global_config, repo_config):
             config=repo_config,
             proxy_config=effective_proxy,
             ssl_config=effective_ssl,
+            cache=cache,
         )
     elif repo_config.type == "helm":
         helm_syncer = HelmSyncer(
@@ -815,6 +835,25 @@ def _check_updates_single_repository(session, storage, global_config, repo_confi
     effective_proxy = repo_config.proxy if repo_config.proxy is not None else global_config.proxy
     effective_ssl = repo_config.ssl if repo_config.ssl is not None else global_config.ssl
 
+    # Setup metadata cache (if enabled)
+    cache = None
+    cache_path = global_config.storage.get_cache_path()
+    if cache_path and global_config.cache:
+        # Determine if cache is enabled for this repo
+        cache_enabled = (
+            repo_config.cache_enabled
+            if repo_config.cache_enabled is not None
+            else global_config.cache.enabled
+        )
+        if cache_enabled:
+            from chantal.core.cache import MetadataCache
+
+            cache = MetadataCache(
+                cache_path=cache_path,
+                max_age_hours=global_config.cache.max_age_hours,
+                enabled=True,
+            )
+
     # Initialize sync plugin based on repository type
     if repo_config.type == "rpm":
         sync_plugin = RpmSyncPlugin(
@@ -822,6 +861,7 @@ def _check_updates_single_repository(session, storage, global_config, repo_confi
             config=repo_config,
             proxy_config=effective_proxy,
             ssl_config=effective_ssl,
+            cache=cache,
         )
     else:
         click.echo(f"Error: Unsupported repository type: {repo_config.type}")

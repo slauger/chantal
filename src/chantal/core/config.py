@@ -304,6 +304,9 @@ class RepositoryConfig(BaseModel):
     # Per-repository SSL/TLS override (overrides global ssl config)
     ssl: SSLConfig | None = None
 
+    # Metadata cache override (None = use global cache.enabled setting)
+    cache_enabled: bool | None = None
+
     # Plugin-specific configuration
     apk: ApkConfig | None = None  # APK-specific config (branch, repository, architecture)
     apt: AptConfig | None = None  # APT-specific config (distribution, components, architectures)
@@ -342,6 +345,21 @@ class DatabaseConfig(BaseModel):
     echo: bool = False  # SQLAlchemy echo (verbose SQL logging)
 
 
+class CacheConfig(BaseModel):
+    """Metadata cache configuration."""
+
+    enabled: bool = False  # Global default
+    max_age_hours: int | None = None  # Optional TTL for cache invalidation
+
+    @field_validator("max_age_hours")
+    @classmethod
+    def validate_max_age(cls, v: int | None) -> int | None:
+        """Validate max_age_hours."""
+        if v is not None and v < 1:
+            raise ValueError("max_age_hours must be at least 1")
+        return v
+
+
 class StorageConfig(BaseModel):
     """Storage paths configuration."""
 
@@ -349,6 +367,7 @@ class StorageConfig(BaseModel):
     pool_path: str | None = None  # Defaults to {base_path}/pool
     published_path: str = "/var/www/repos"
     temp_path: str | None = None  # Defaults to {base_path}/tmp
+    cache_path: str | None = None  # Metadata cache directory (None = cache disabled)
 
     def get_pool_path(self) -> Path:
         """Get pool path (with default)."""
@@ -361,6 +380,12 @@ class StorageConfig(BaseModel):
         if self.temp_path:
             return Path(self.temp_path)
         return Path(self.base_path) / "tmp"
+
+    def get_cache_path(self) -> Path | None:
+        """Get cache path (None if caching disabled)."""
+        if self.cache_path:
+            return Path(self.cache_path)
+        return None
 
 
 class ViewConfig(BaseModel):
@@ -454,6 +479,7 @@ class GlobalConfig(BaseModel):
 
     database: DatabaseConfig = Field(default_factory=DatabaseConfig)
     storage: StorageConfig = Field(default_factory=StorageConfig)
+    cache: CacheConfig | None = Field(default_factory=CacheConfig)
     proxy: ProxyConfig | None = None
     ssl: SSLConfig | None = None
     download: DownloadConfig | None = Field(default_factory=DownloadConfig)
