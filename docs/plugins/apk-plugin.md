@@ -22,7 +22,71 @@ The APK plugin consists of:
 - ✅ Package deduplication via content-addressed storage
 - ✅ Snapshot support
 - ✅ Multi-architecture support (x86_64, aarch64, armhf, armv7, x86)
+- ✅ **Mirror Mode** - Byte-for-byte identical repositories with snapshot versioning
 - 🚧 Package signing/verification - Planned
+
+## Repository Modes
+
+The APK plugin supports **mirror mode** for byte-for-byte identical repository copies.
+
+### Mirror Mode (Default)
+
+**Status:** ✅ Available
+
+In mirror mode, Chantal stores the original `APKINDEX.tar.gz` metadata file in the content-addressed pool as a `RepositoryFile`. When publishing, the original metadata is hardlinked from the pool to the published directory.
+
+**Benefits:**
+- Byte-for-byte identical to upstream repository
+- Snapshot versioning of metadata (track APKINDEX changes over time)
+- Metadata deduplication across repositories and snapshots
+- Historical tracking of metadata changes
+
+**How it works:**
+
+1. **Sync Process:**
+   - Downloads APKINDEX.tar.gz from upstream
+   - Stores APKINDEX.tar.gz in content-addressed pool by SHA256
+   - Creates RepositoryFile database record
+   - Links metadata to repository/snapshot
+
+2. **Publish Process:**
+   - Queries RepositoryFile for stored APKINDEX.tar.gz
+   - Hardlinks original APKINDEX.tar.gz from pool to published directory
+   - Creates hardlinks for all .apk package files
+   - Result: Byte-for-byte identical copy of upstream
+
+**Example:**
+
+```yaml
+repositories:
+  - id: alpine-v3.19-main
+    name: Alpine 3.19 Main
+    type: apk
+    feed: https://dl-cdn.alpinelinux.org/alpine/
+    enabled: true
+    apk:
+      branch: v3.19
+      repository: main
+      architecture: x86_64
+    # Mirror mode is automatic - no additional config needed
+```
+
+**Use Cases:**
+- Offline/air-gapped environments requiring exact upstream mirrors
+- Compliance requirements for unmodified upstream metadata
+- Snapshot versioning for reproducible builds
+- Bandwidth optimization (metadata reused across snapshots)
+
+### Dynamic Generation Mode (Fallback)
+
+If no `RepositoryFile` is found (e.g., for older repositories or filtered repositories), Chantal falls back to dynamic APKINDEX.tar.gz generation from database metadata.
+
+This mode:
+- Generates APKINDEX.tar.gz from ApkMetadata in database
+- Allows filtered repositories (subset of packages)
+- Supports post-processing (e.g., only latest versions)
+
+**Note:** For filtered repositories (pattern-based package selection), dynamic generation is used automatically.
 
 ## Configuration
 

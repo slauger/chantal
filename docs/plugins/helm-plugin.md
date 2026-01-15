@@ -20,8 +20,68 @@ The Helm plugin consists of:
 - ✅ Metadata generation (index.yaml)
 - ✅ Chart deduplication via content-addressed storage
 - ✅ Snapshot support
+- ✅ **Mirror Mode** - Byte-for-byte identical repositories with snapshot versioning
 - 🚧 Chart signing/verification - Planned
 - 🚧 OCI registry support - Planned
+
+## Repository Modes
+
+The Helm plugin supports **mirror mode** for byte-for-byte identical repository copies.
+
+### Mirror Mode (Default)
+
+**Status:** ✅ Available
+
+In mirror mode, Chantal stores the original `index.yaml` metadata file in the content-addressed pool as a `RepositoryFile`. When publishing, the original metadata is hardlinked from the pool to the published directory.
+
+**Benefits:**
+- Byte-for-byte identical to upstream repository
+- Snapshot versioning of metadata (track index.yaml changes over time)
+- Metadata deduplication across repositories and snapshots
+- Historical tracking of metadata changes
+
+**How it works:**
+
+1. **Sync Process:**
+   - Downloads index.yaml from upstream
+   - Stores index.yaml in content-addressed pool by SHA256
+   - Creates RepositoryFile database record
+   - Links metadata to repository/snapshot
+
+2. **Publish Process:**
+   - Queries RepositoryFile for stored index.yaml
+   - Hardlinks original index.yaml from pool to published directory
+   - Creates hardlinks for all chart .tgz files
+   - Result: Byte-for-byte identical copy of upstream
+
+**Example:**
+
+```yaml
+repositories:
+  - id: ingress-nginx
+    name: Ingress NGINX Helm Charts
+    type: helm
+    feed: https://kubernetes.github.io/ingress-nginx
+    enabled: true
+    # Mirror mode is automatic - no additional config needed
+```
+
+**Use Cases:**
+- Offline/air-gapped environments requiring exact upstream mirrors
+- Compliance requirements for unmodified upstream metadata
+- Snapshot versioning for reproducible deployments
+- Bandwidth optimization (metadata reused across snapshots)
+
+### Dynamic Generation Mode (Fallback)
+
+If no `RepositoryFile` is found (e.g., for older repositories or filtered repositories), Chantal falls back to dynamic index.yaml generation from database metadata.
+
+This mode:
+- Generates index.yaml from HelmMetadata in database
+- Allows filtered repositories (subset of charts)
+- Supports post-processing (e.g., only latest versions)
+
+**Note:** For filtered repositories (pattern-based chart selection), dynamic generation is used automatically.
 
 ## Configuration
 
