@@ -85,7 +85,7 @@ def create_repo_group(cli: click.Group) -> click.Group:
                             "type": repo_config.type,
                             "feed": repo_config.feed,
                             "enabled": repo_config.enabled,
-                            "package_count": len(db_repo.packages) if db_repo else 0,
+                            "package_count": len(db_repo.content_items) if db_repo else 0,
                             "last_sync": (
                                 db_repo.last_sync_at.isoformat()
                                 if db_repo and db_repo.last_sync_at

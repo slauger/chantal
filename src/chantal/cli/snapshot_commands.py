@@ -678,7 +678,7 @@ def _create_view_snapshot(
             click.echo(f"  [{view_repo.order + 1}/{len(view.view_repositories)}] {repo.repo_id}...")
 
             # Get packages
-            packages = list(repo.packages)
+            packages = list(repo.content_items)
             if not packages:
                 click.echo(f"      Warning: Repository '{repo.repo_id}' has no packages (skipped)")
                 continue

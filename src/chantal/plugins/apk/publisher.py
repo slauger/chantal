@@ -182,7 +182,7 @@ class ApkPublisher(PublisherPlugin):
 
         if apkindex_file:
             # Mirror mode: Hardlink APKINDEX.tar.gz from pool
-            pool_path = self.storage.pool_root / apkindex_file.pool_path
+            pool_path = self.storage.pool_path / apkindex_file.pool_path
             target_file = arch_path / "APKINDEX.tar.gz"
 
             if target_file.exists():

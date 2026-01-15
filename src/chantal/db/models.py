@@ -196,6 +196,27 @@ class ContentItem(Base):
         return f"<ContentItem(type='{self.content_type}', name='{self.name}', version='{self.version}', sha256='{self.sha256[:8]}...')>"
 
     @property
+    def epoch(self) -> str | None:
+        """Get epoch from content metadata (RPM-specific)."""
+        if self.content_type == "rpm":
+            return self.content_metadata.get("epoch")
+        return None
+
+    @property
+    def release(self) -> str | None:
+        """Get release from content metadata (RPM-specific)."""
+        if self.content_type == "rpm":
+            return self.content_metadata.get("release")
+        return None
+
+    @property
+    def arch(self) -> str | None:
+        """Get architecture from content metadata (RPM/DEB-specific)."""
+        if self.content_type in ("rpm", "deb"):
+            return self.content_metadata.get("arch")
+        return None
+
+    @property
     def nevra(self) -> str | None:
         """Get NEVRA string for RPM packages (Name-Epoch:Version-Release.Arch).
 

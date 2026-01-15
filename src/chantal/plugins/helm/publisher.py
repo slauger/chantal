@@ -171,7 +171,7 @@ class HelmPublisher(PublisherPlugin):
 
         if index_file:
             # Mirror mode: Hardlink index.yaml from pool
-            pool_path = self.storage.pool_root / index_file.pool_path
+            pool_path = self.storage.pool_path / index_file.pool_path
             target_file = target_path / "index.yaml"
 
             if target_file.exists():

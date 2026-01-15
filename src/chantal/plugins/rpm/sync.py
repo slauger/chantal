@@ -796,8 +796,8 @@ class RpmSyncPlugin:
                 )
 
             # Store in pool via StorageManager
-            pool_path = self.storage.add_repository_file(
-                Path(tmp_file_path), filename=Path(file_path).name, sha256=actual_sha256
+            stored_sha256, pool_path, _ = self.storage.add_repository_file(
+                Path(tmp_file_path), filename=Path(file_path).name
             )
 
             # Create RepositoryFile record
@@ -846,8 +846,8 @@ class RpmSyncPlugin:
             sha256_hash = hashlib.sha256(treeinfo_content.encode()).hexdigest()
 
             # Store in pool
-            pool_path = self.storage.add_repository_file(
-                Path(tmp_path), filename=".treeinfo", sha256=sha256_hash
+            stored_sha256, pool_path, _ = self.storage.add_repository_file(
+                Path(tmp_path), filename=".treeinfo"
             )
 
             # Create RepositoryFile record

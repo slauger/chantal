@@ -7,6 +7,7 @@ The metadata is stored as JSON in the ContentItem.content_metadata field.
 """
 
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -81,13 +82,13 @@ class HelmMetadata(BaseModel):
 
         populate_by_name = True  # Allow both 'appVersion' and 'app_version'
 
-    def to_index_entry(self) -> dict:
+    def to_index_entry(self) -> dict[str, Any]:
         """Convert to Helm index.yaml entry format.
 
         Returns:
             dict: Helm index.yaml compatible dictionary
         """
-        entry = {
+        entry: dict[str, Any] = {
             "name": self.name,
             "version": self.version,
         }

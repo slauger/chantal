@@ -11,6 +11,7 @@ import hashlib
 import os
 import shutil
 from pathlib import Path
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -327,7 +328,7 @@ class StorageManager:
 
         return files_removed, bytes_freed
 
-    def get_pool_statistics(self, session: Session) -> dict[str, any]:
+    def get_pool_statistics(self, session: Session) -> dict[str, Any]:
         """Get storage pool statistics.
 
         Args:
@@ -364,9 +365,10 @@ class StorageManager:
 
         # Deduplication savings
         # If we have more packages in DB than files in pool, we saved space
-        if stats["total_files_pool"] > 0:
-            potential_size = stats["total_size_db"]  # Size if no dedup
-            actual_size = stats["total_size_pool"]  # Actual pool size
+        total_files_pool: int = stats["total_files_pool"]  # type: ignore[assignment]
+        if total_files_pool > 0:
+            potential_size: int = stats["total_size_db"]  # type: ignore[assignment]
+            actual_size: int = stats["total_size_pool"]  # type: ignore[assignment]
             stats["deduplication_savings"] = potential_size - actual_size
 
         return stats
