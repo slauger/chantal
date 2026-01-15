@@ -575,6 +575,10 @@ class RpmSyncPlugin:
                     arch=pkg_meta["arch"],
                     summary=pkg_meta.get("summary"),
                     description=pkg_meta.get("description"),
+                    provides=pkg_meta.get("provides"),
+                    requires=pkg_meta.get("requires"),
+                    conflicts=pkg_meta.get("conflicts"),
+                    obsoletes=pkg_meta.get("obsoletes"),
                 )
 
                 # Add to database as ContentItem

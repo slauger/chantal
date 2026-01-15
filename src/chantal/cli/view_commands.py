@@ -36,7 +36,7 @@ def create_view_group(cli: click.Group) -> click.Group:
         "--format", "output_format", type=click.Choice(["table", "json"]), default="table"
     )
     @click.pass_context
-    def view_list(ctx, output_format):
+    def view_list(ctx: click.Context, output_format: str) -> None:
         """List all configured views."""
         config: GlobalConfig = ctx.obj["config"]
 
@@ -86,7 +86,7 @@ def create_view_group(cli: click.Group) -> click.Group:
         "--format", "output_format", type=click.Choice(["table", "json"]), default="table"
     )
     @click.pass_context
-    def view_show(ctx, name, output_format):
+    def view_show(ctx: click.Context, name: str, output_format: str) -> None:
         """Show detailed information about a view."""
         config: GlobalConfig = ctx.obj["config"]
 
