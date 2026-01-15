@@ -191,12 +191,8 @@ class AptSyncPlugin:
                 print("\n=== Applying Filters (Filtered Mode) ===")
                 all_packages = self._apply_filters(all_packages, self.config)
                 print(f"After filtering: {len(all_packages)} packages")
-                print(
-                    "⚠️  WARNING: Filtered mode will regenerate metadata without GPG signatures!"
-                )
-                print(
-                    "    Clients must use [trusted=yes] or Acquire::AllowInsecureRepositories=1"
-                )
+                print("⚠️  WARNING: Filtered mode will regenerate metadata without GPG signatures!")
+                print("    Clients must use [trusted=yes] or Acquire::AllowInsecureRepositories=1")
 
             # Download filtered packages
             for pkg in all_packages:

@@ -50,9 +50,7 @@ class TestZstdDecompression:
         compressed = cctx.compress(self.TEST_XML)
 
         # Decompress with full path
-        decompressed = _decompress_metadata(
-            compressed, "repodata/abc123-primary.xml.zst"
-        )
+        decompressed = _decompress_metadata(compressed, "repodata/abc123-primary.xml.zst")
         assert decompressed == self.TEST_XML
 
     def test_decompress_gzip_still_works(self) -> None:

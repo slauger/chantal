@@ -125,7 +125,9 @@ class HelmPublisher(PublisherPlugin):
             os.link(pool_path, target_file)
 
         # Publish metadata files (index.yaml) from RepositoryFile or generate
-        self._publish_metadata_files(session, repository, target_path, config, charts, snapshot=snapshot)
+        self._publish_metadata_files(
+            session, repository, target_path, config, charts, snapshot=snapshot
+        )
 
         logger.info(f"Published {len(charts)} charts to {target_path}")
 
@@ -176,7 +178,9 @@ class HelmPublisher(PublisherPlugin):
                 target_file.unlink()
 
             os.link(pool_path, target_file)
-            logger.info(f"Published index.yaml from pool (mirror mode): {index_file.sha256[:16]}...")
+            logger.info(
+                f"Published index.yaml from pool (mirror mode): {index_file.sha256[:16]}..."
+            )
         else:
             # Fallback: Generate index.yaml from charts
             logger.info("No index.yaml in pool, generating from charts")

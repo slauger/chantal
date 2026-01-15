@@ -178,9 +178,7 @@ class MetadataConfig(BaseModel):
         """Validate compression format."""
         valid_formats = ["auto", "gzip", "zstandard", "bzip2", "none"]
         if v not in valid_formats:
-            raise ValueError(
-                f"Invalid compression format: {v}. Must be one of {valid_formats}"
-            )
+            raise ValueError(f"Invalid compression format: {v}. Must be one of {valid_formats}")
         return v
 
 

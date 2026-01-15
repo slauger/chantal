@@ -122,9 +122,7 @@ class TestComponentFiltering:
             ),
         )
 
-        sync_plugin = AptSyncPlugin(
-            storage=None, config=config, proxy_config=None, ssl_config=None
-        )
+        sync_plugin = AptSyncPlugin(storage=None, config=config, proxy_config=None, ssl_config=None)
         filtered = sync_plugin._apply_filters(sample_packages, config)
 
         # Should only include packages from 'main' component
@@ -149,9 +147,7 @@ class TestComponentFiltering:
             ),
         )
 
-        sync_plugin = AptSyncPlugin(
-            storage=None, config=config, proxy_config=None, ssl_config=None
-        )
+        sync_plugin = AptSyncPlugin(storage=None, config=config, proxy_config=None, ssl_config=None)
         filtered = sync_plugin._apply_filters(sample_packages, config)
 
         # Should exclude packages from 'universe' component
@@ -176,9 +172,7 @@ class TestPriorityFiltering:
             ),
         )
 
-        sync_plugin = AptSyncPlugin(
-            storage=None, config=config, proxy_config=None, ssl_config=None
-        )
+        sync_plugin = AptSyncPlugin(storage=None, config=config, proxy_config=None, ssl_config=None)
         filtered = sync_plugin._apply_filters(sample_packages, config)
 
         # Should only include packages with 'important' priority
@@ -199,9 +193,7 @@ class TestPriorityFiltering:
             ),
         )
 
-        sync_plugin = AptSyncPlugin(
-            storage=None, config=config, proxy_config=None, ssl_config=None
-        )
+        sync_plugin = AptSyncPlugin(storage=None, config=config, proxy_config=None, ssl_config=None)
         filtered = sync_plugin._apply_filters(sample_packages, config)
 
         # Should exclude packages with 'optional' priority
@@ -224,9 +216,7 @@ class TestPatternFiltering:
             filters=FilterConfig(patterns=PatternFilterConfig(include=["^nginx.*", "^apache.*"])),
         )
 
-        sync_plugin = AptSyncPlugin(
-            storage=None, config=config, proxy_config=None, ssl_config=None
-        )
+        sync_plugin = AptSyncPlugin(storage=None, config=config, proxy_config=None, ssl_config=None)
         filtered = sync_plugin._apply_filters(sample_packages, config)
 
         # Should only include nginx and apache2
@@ -246,9 +236,7 @@ class TestPatternFiltering:
             filters=FilterConfig(patterns=PatternFilterConfig(exclude=["^nginx$", "^emacs$"])),
         )
 
-        sync_plugin = AptSyncPlugin(
-            storage=None, config=config, proxy_config=None, ssl_config=None
-        )
+        sync_plugin = AptSyncPlugin(storage=None, config=config, proxy_config=None, ssl_config=None)
         filtered = sync_plugin._apply_filters(sample_packages, config)
 
         # Should exclude nginx and emacs
@@ -273,9 +261,7 @@ class TestPostProcessingFiltering:
             filters=FilterConfig(post_processing=PostProcessingConfig(only_latest_version=True)),
         )
 
-        sync_plugin = AptSyncPlugin(
-            storage=None, config=config, proxy_config=None, ssl_config=None
-        )
+        sync_plugin = AptSyncPlugin(storage=None, config=config, proxy_config=None, ssl_config=None)
         filtered = sync_plugin._apply_filters(sample_packages, config)
 
         # Should keep only 1 nginx (latest version 1.20.0-1)
@@ -314,9 +300,7 @@ class TestCombinedFiltering:
             ),
         )
 
-        sync_plugin = AptSyncPlugin(
-            storage=None, config=config, proxy_config=None, ssl_config=None
-        )
+        sync_plugin = AptSyncPlugin(storage=None, config=config, proxy_config=None, ssl_config=None)
         filtered = sync_plugin._apply_filters(sample_packages, config)
 
         # Should include only nginx and vim from main component
@@ -340,9 +324,7 @@ class TestCombinedFiltering:
             ),
         )
 
-        sync_plugin = AptSyncPlugin(
-            storage=None, config=config, proxy_config=None, ssl_config=None
-        )
+        sync_plugin = AptSyncPlugin(storage=None, config=config, proxy_config=None, ssl_config=None)
         filtered = sync_plugin._apply_filters(sample_packages, config)
 
         # Should include latest nginx and apache2
@@ -370,9 +352,7 @@ class TestNoFiltering:
             filters=None,  # No filters
         )
 
-        sync_plugin = AptSyncPlugin(
-            storage=None, config=config, proxy_config=None, ssl_config=None
-        )
+        sync_plugin = AptSyncPlugin(storage=None, config=config, proxy_config=None, ssl_config=None)
         filtered = sync_plugin._apply_filters(sample_packages, config)
 
         # Should return all packages unchanged

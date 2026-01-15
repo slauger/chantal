@@ -205,7 +205,10 @@ class RpmPublisher(PublisherPlugin):
         return "gzip"
 
     def _generate_primary_xml(
-        self, packages: list[ContentItem], repodata_path: Path, compression: CompressionFormat = "gzip"
+        self,
+        packages: list[ContentItem],
+        repodata_path: Path,
+        compression: CompressionFormat = "gzip",
     ) -> Path:
         """Generate primary.xml metadata file with configurable compression.
 

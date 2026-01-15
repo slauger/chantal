@@ -83,7 +83,9 @@ class ApkPublisher(PublisherPlugin):
 
         # Publish packages and metadata
         # For snapshots, we use repository_files from the snapshot
-        self._publish_packages(packages, target_path, config, session, repository, snapshot=snapshot)
+        self._publish_packages(
+            packages, target_path, config, session, repository, snapshot=snapshot
+        )
 
     def unpublish(self, target_path: Path) -> None:
         """Remove published APK repository.
@@ -187,7 +189,9 @@ class ApkPublisher(PublisherPlugin):
                 target_file.unlink()
 
             os.link(pool_path, target_file)
-            logger.info(f"Published APKINDEX.tar.gz from pool (mirror mode): {apkindex_file.sha256[:16]}...")
+            logger.info(
+                f"Published APKINDEX.tar.gz from pool (mirror mode): {apkindex_file.sha256[:16]}..."
+            )
         else:
             # Fallback: Generate APKINDEX.tar.gz from packages
             logger.info("No APKINDEX.tar.gz in pool, generating from packages")

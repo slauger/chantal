@@ -282,9 +282,7 @@ class TestHelmPublisherMirrorMode:
         # Cleanup
         tmp_path.unlink(missing_ok=True)
 
-    def test_publish_metadata_fallback_to_generation(
-        self, temp_storage, db_session, repository
-    ):
+    def test_publish_metadata_fallback_to_generation(self, temp_storage, db_session, repository):
         """Test fallback to dynamic generation when no RepositoryFile exists."""
         # Create a sample chart
         chart_metadata = HelmMetadata(

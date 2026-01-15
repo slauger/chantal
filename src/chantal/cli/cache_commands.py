@@ -121,7 +121,9 @@ def create_cache_group(cli: click.Group) -> click.Group:
 
         # Display stats
         click.echo(f"Cache directory: {cache_path}")
-        click.echo(f"Status: {'Enabled' if config.cache and config.cache.enabled else 'Disabled (global)'}")
+        click.echo(
+            f"Status: {'Enabled' if config.cache and config.cache.enabled else 'Disabled (global)'}"
+        )
         if config.cache and config.cache.max_age_hours:
             click.echo(f"Max age: {config.cache.max_age_hours} hours")
         click.echo()
@@ -161,7 +163,9 @@ def create_cache_group(cli: click.Group) -> click.Group:
             return
 
         # List cache files
-        cache_files = sorted(cache_path.glob("*.xml.gz"), key=lambda p: p.stat().st_mtime, reverse=True)
+        cache_files = sorted(
+            cache_path.glob("*.xml.gz"), key=lambda p: p.stat().st_mtime, reverse=True
+        )
 
         if not cache_files:
             click.echo("Cache is empty")

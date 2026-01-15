@@ -428,7 +428,9 @@ class ApkSyncer:
                 repo_file.repositories.append(repository)
                 session.commit()
 
-                logger.info(f"Stored APKINDEX.tar.gz in pool: {sha256[:16]}... ({size_bytes} bytes)")
+                logger.info(
+                    f"Stored APKINDEX.tar.gz in pool: {sha256[:16]}... ({size_bytes} bytes)"
+                )
 
         finally:
             # Clean up temp file
