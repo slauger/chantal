@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 
 from chantal.core.config import RepositoryConfig
 from chantal.core.storage import StorageManager
-from chantal.db.models import ContentItem, Repository, Snapshot
+from chantal.db.models import ContentItem, Repository, RepositoryFile, Snapshot
 from chantal.plugins.base import PublisherPlugin
 from chantal.plugins.helm.models import HelmMetadata
 
@@ -59,7 +59,7 @@ class HelmPublisher(PublisherPlugin):
         charts = self._get_repository_charts(session, repository)
 
         # Publish charts and metadata
-        self._publish_charts(charts, target_path, config)
+        self._publish_charts(charts, target_path, config, session, repository)
 
     def publish_snapshot(
         self,
@@ -82,7 +82,7 @@ class HelmPublisher(PublisherPlugin):
         charts = self._get_snapshot_charts(session, snapshot)
 
         # Publish charts and metadata
-        self._publish_charts(charts, target_path, config)
+        self._publish_charts(charts, target_path, config, session, repository, snapshot=snapshot)
 
     def unpublish(self, target_path: Path) -> None:
         """Remove published Helm repository.
@@ -94,14 +94,23 @@ class HelmPublisher(PublisherPlugin):
             shutil.rmtree(target_path)
 
     def _publish_charts(
-        self, charts: list[ContentItem], target_path: Path, config: RepositoryConfig
+        self,
+        charts: list[ContentItem],
+        target_path: Path,
+        config: RepositoryConfig,
+        session: Session,
+        repository: Repository,
+        snapshot: Snapshot | None = None,
     ) -> None:
-        """Publish charts and generate index.yaml.
+        """Publish charts and index.yaml.
 
         Args:
             charts: List of ContentItem instances (type=helm)
             target_path: Target directory
             config: Repository configuration
+            session: Database session
+            repository: Repository model instance
+            snapshot: Optional snapshot model instance (for snapshot publishing)
         """
         target_path.mkdir(parents=True, exist_ok=True)
 
@@ -115,10 +124,63 @@ class HelmPublisher(PublisherPlugin):
                 target_file.unlink()
             os.link(pool_path, target_file)
 
-        # Generate index.yaml
-        self._generate_index_yaml(charts, target_path, config)
+        # Publish metadata files (index.yaml) from RepositoryFile or generate
+        self._publish_metadata_files(session, repository, target_path, config, charts, snapshot=snapshot)
 
         logger.info(f"Published {len(charts)} charts to {target_path}")
+
+    def _publish_metadata_files(
+        self,
+        session: Session,
+        repository: Repository,
+        target_path: Path,
+        config: RepositoryConfig,
+        charts: list[ContentItem],
+        snapshot: Snapshot | None = None,
+    ) -> None:
+        """Publish index.yaml from RepositoryFile or generate it.
+
+        For mirror mode, this hardlinks the index.yaml from pool.
+        If not found, falls back to generating index.yaml.
+
+        Args:
+            session: Database session
+            repository: Repository model instance
+            target_path: Target directory for index.yaml
+            config: Repository configuration
+            charts: List of charts (for fallback generation)
+            snapshot: Optional snapshot model instance
+        """
+        # Find index.yaml RepositoryFile
+        index_file = None
+
+        if snapshot:
+            # For snapshots, get repository_files from snapshot
+            for repo_file in snapshot.repository_files:
+                if repo_file.file_type == "index" and repo_file.file_category == "metadata":
+                    index_file = repo_file
+                    break
+        else:
+            # For repositories, get repository_files from repository
+            for repo_file in repository.repository_files:
+                if repo_file.file_type == "index" and repo_file.file_category == "metadata":
+                    index_file = repo_file
+                    break
+
+        if index_file:
+            # Mirror mode: Hardlink index.yaml from pool
+            pool_path = self.storage.pool_root / index_file.pool_path
+            target_file = target_path / "index.yaml"
+
+            if target_file.exists():
+                target_file.unlink()
+
+            os.link(pool_path, target_file)
+            logger.info(f"Published index.yaml from pool (mirror mode): {index_file.sha256[:16]}...")
+        else:
+            # Fallback: Generate index.yaml from charts
+            logger.info("No index.yaml in pool, generating from charts")
+            self._generate_index_yaml(charts, target_path, config)
 
     def _generate_index_yaml(
         self, charts: list[ContentItem], target_path: Path, config: RepositoryConfig
