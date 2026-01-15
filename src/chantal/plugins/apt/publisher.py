@@ -168,6 +168,14 @@ class AptPublisher(PublisherPlugin):
         # In mirror mode, publish all metadata files (Release, InRelease, etc.)
         if mode == RepositoryMode.MIRROR:
             self._publish_metadata_files(repository_files, dists_path)
+        elif mode == RepositoryMode.FILTERED:
+            # Filtered mode: Do not publish GPG signatures
+            print("\n⚠️  WARNING: Filtered mode - Publishing without GPG signatures!")
+            print("    Regenerating metadata based on filtered packages.")
+            print("    Clients must use [trusted=yes] or Acquire::AllowInsecureRepositories=1")
+            print(
+                "    Example: deb [trusted=yes] http://mirror/ubuntu jammy main restricted universe multiverse"
+            )
 
         # Generate Release file (always generated, even in mirror mode for completeness)
         self._generate_release_file(dists_path, published_metadata, repository_files, mode)

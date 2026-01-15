@@ -148,7 +148,8 @@ class AptSyncPlugin:
             existing_packages = self._get_existing_packages(session)
             print(f"Already have {len(existing_packages)} packages in pool")
 
-            # Download packages for each Packages file
+            # Collect all packages from Packages files
+            all_packages = []
             for metadata_info in metadata_files:
                 # Only process Packages files (not Sources)
                 if metadata_info.file_type != "Packages":
@@ -180,36 +181,49 @@ class AptSyncPlugin:
                     continue
 
                 print(f"  Found {len(packages)} packages")
-                packages_total += len(packages)
+                all_packages.extend(packages)
 
-                # Download each package
-                for pkg in packages:
-                    pkg_name = f"{pkg.package}_{pkg.version}_{pkg.architecture}"
+            packages_total = len(all_packages)
+            print(f"\nTotal packages found: {packages_total}")
 
-                    # Check if already in pool
-                    if pkg.sha256 in existing_packages:
-                        print(f"    → {pkg_name}: already in pool")
-                        packages_skipped += 1
+            # Apply filters if repository mode is filtered
+            if repository.mode == "filtered":
+                print("\n=== Applying Filters (Filtered Mode) ===")
+                all_packages = self._apply_filters(all_packages, self.config)
+                print(f"After filtering: {len(all_packages)} packages")
+                print(
+                    "⚠️  WARNING: Filtered mode will regenerate metadata without GPG signatures!"
+                )
+                print(
+                    "    Clients must use [trusted=yes] or Acquire::AllowInsecureRepositories=1"
+                )
 
-                        # Link existing package to this repository if not already linked
-                        existing_pkg = existing_packages[pkg.sha256]
-                        if repository not in existing_pkg.repositories:
-                            existing_pkg.repositories.append(repository)
-                            session.commit()
-                        continue
+            # Download filtered packages
+            for pkg in all_packages:
+                pkg_name = f"{pkg.package}_{pkg.version}_{pkg.architecture}"
 
-                    # Download package
-                    try:
-                        pkg_url = urljoin(self.config.feed + "/", pkg.filename)
-                        downloaded_bytes = self._download_package(pkg_url, pkg, session, repository)
-                        packages_downloaded += 1
-                        bytes_downloaded += downloaded_bytes
-                        print(
-                            f"    → {pkg_name}: downloaded {downloaded_bytes / 1024 / 1024:.2f} MB"
-                        )
-                    except Exception as e:
-                        logger.error(f"Failed to download {pkg_name}: {e}")
-                        print(f"    → {pkg_name}: ERROR - {e}")
+                # Check if already in pool
+                if pkg.sha256 in existing_packages:
+                    print(f"  → {pkg_name}: already in pool")
+                    packages_skipped += 1
+
+                    # Link existing package to this repository if not already linked
+                    existing_pkg = existing_packages[pkg.sha256]
+                    if repository not in existing_pkg.repositories:
+                        existing_pkg.repositories.append(repository)
+                        session.commit()
+                    continue
+
+                # Download package
+                try:
+                    pkg_url = urljoin(self.config.feed + "/", pkg.filename)
+                    downloaded_bytes = self._download_package(pkg_url, pkg, session, repository)
+                    packages_downloaded += 1
+                    bytes_downloaded += downloaded_bytes
+                    print(f"  → {pkg_name}: downloaded {downloaded_bytes / 1024 / 1024:.2f} MB")
+                except Exception as e:
+                    logger.error(f"Failed to download {pkg_name}: {e}")
+                    print(f"  → {pkg_name}: ERROR - {e}")
 
             # Sync complete
             print("\n=== Sync Complete ===")
@@ -697,3 +711,97 @@ class AptSyncPlugin:
 
         # Return full path to file in pool
         return self.storage.pool_path / repo_file.pool_path
+
+    def _apply_filters(
+        self, packages: list[DebMetadata], config: RepositoryConfig
+    ) -> list[DebMetadata]:
+        """Apply filters to package list.
+
+        Args:
+            packages: List of package metadata entries
+            config: Repository configuration with filters
+
+        Returns:
+            Filtered package list
+        """
+        if not config.filters:
+            return packages
+
+        filtered = packages
+
+        # Component filters (DebFilterConfig)
+        if config.filters.deb and config.filters.deb.components:
+            if config.filters.deb.components.include:
+                filtered = [
+                    p
+                    for p in filtered
+                    if p.component and p.component in config.filters.deb.components.include
+                ]
+            if config.filters.deb.components.exclude:
+                filtered = [
+                    p
+                    for p in filtered
+                    if not (p.component and p.component in config.filters.deb.components.exclude)
+                ]
+
+        # Priority filters (DebFilterConfig)
+        if config.filters.deb and config.filters.deb.priorities:
+            if config.filters.deb.priorities.include:
+                filtered = [
+                    p
+                    for p in filtered
+                    if p.priority and p.priority in config.filters.deb.priorities.include
+                ]
+            if config.filters.deb.priorities.exclude:
+                filtered = [
+                    p
+                    for p in filtered
+                    if not (p.priority and p.priority in config.filters.deb.priorities.exclude)
+                ]
+
+        # Pattern filters (include/exclude by package name)
+        if config.filters.patterns:
+            if config.filters.patterns.include:
+                import re
+
+                include_patterns = [re.compile(p) for p in config.filters.patterns.include]
+                filtered = [
+                    p
+                    for p in filtered
+                    if any(pattern.match(p.package) for pattern in include_patterns)
+                ]
+
+            if config.filters.patterns.exclude:
+                import re
+
+                exclude_patterns = [re.compile(p) for p in config.filters.patterns.exclude]
+                filtered = [
+                    p
+                    for p in filtered
+                    if not any(pattern.match(p.package) for pattern in exclude_patterns)
+                ]
+
+        # Post-processing: only_latest_version
+        if config.filters.post_processing and config.filters.post_processing.only_latest_version:
+            from packaging import version as pkg_version
+
+            # Group by (package name, architecture)
+            by_name_arch = {}
+            for pkg in filtered:
+                key = (pkg.package, pkg.architecture)
+                if key not in by_name_arch:
+                    by_name_arch[key] = pkg
+                else:
+                    # Compare versions
+                    try:
+                        if pkg_version.parse(pkg.version) > pkg_version.parse(
+                            by_name_arch[key].version
+                        ):
+                            by_name_arch[key] = pkg
+                    except Exception:
+                        # Version parsing failed - keep first one
+                        pass
+
+            filtered = list(by_name_arch.values())
+
+        return filtered

@@ -14,7 +14,7 @@ The APT plugin consists of:
 
 **Repository Modes:**
 - ✅ **Mirror Mode** - Full metadata mirroring (InRelease, Release, Packages)
-- 🚧 **Filtered Mode** - Smart metadata regeneration for filtered repos (planned, see #29)
+- ✅ **Filtered Mode** - Smart metadata regeneration for filtered repos (without GPG signing)
 - ⏳ **Hosted Mode** - For self-hosted packages (future)
 
 **Package Management:**
@@ -37,10 +37,10 @@ The APT plugin consists of:
 - ✅ Dependency metadata (Depends, Recommends, Suggests, Conflicts, etc.)
 
 **Planned:**
+- 🚧 GPG signature generation for filtered mode
 - 🚧 Translation files (i18n)
 - 🚧 Contents indices
 - 🚧 diff/Index support
-- 🚧 GPG signature generation
 - 🚧 Source package syncing
 
 ## Configuration
@@ -298,25 +298,130 @@ repositories:
       architectures: [amd64, arm64]
 ```
 
-### FILTERED Mode (Planned)
+### FILTERED Mode
 
-**Status:** 🚧 Not yet implemented - planned for Phase 2 (see [Issue #29](https://github.com/slauger/chantal/issues/29))
+**Status:** ✅ Available (v0.2.0) - without GPG signing
 
-Will regenerate metadata for filtered package sets.
+Regenerates metadata for filtered package sets based on configured filters.
 
-**Planned Behavior:**
-- Downloads and parses Packages files
-- Applies filters (patterns, architectures, versions)
-- Regenerates Packages and Release files
-- No GPG signatures (requires re-signing)
+**Behavior:**
+- Downloads and parses upstream Packages files
+- Applies configured filters:
+  - Component filtering (main, contrib, non-free, etc.)
+  - Priority filtering (required, important, standard, optional)
+  - Pattern-based filtering (regex include/exclude)
+  - Version filtering (only latest versions)
+- Regenerates Packages and Release files based on filtered packages
+- **No GPG signatures** - publishes without InRelease/Release.gpg
 - Optimal for curated/filtered repositories
 
-**Planned Use Cases:**
+**Use Cases:**
 - Security-focused repos (only specific packages)
 - Bandwidth optimization (exclude large packages)
 - Version control (only latest versions)
+- Curated package sets for specific use cases
 
-**Note:** Currently, only MIRROR mode is available. Use RPM plugin for filtered repositories.
+**Client Configuration:**
+
+⚠️ **IMPORTANT:** Since filtered repositories regenerate metadata, GPG signatures from upstream become invalid. Clients must explicitly trust the repository.
+
+**Option 1: Per-repository trust (recommended)**
+```
+deb [trusted=yes] http://mirror.example.com/repos/ubuntu-filtered jammy main
+```
+
+**Option 2: Global insecure repository allow**
+```bash
+# /etc/apt/apt.conf.d/99allow-insecure
+APT::Get::AllowUnauthenticated "true";
+Acquire::AllowInsecureRepositories "true";
+```
+
+**Example Configuration:**
+
+```yaml
+repositories:
+  - id: ubuntu-jammy-webservers
+    name: Ubuntu 22.04 - Web Servers Only
+    type: apt
+    feed: http://archive.ubuntu.com/ubuntu
+    enabled: true
+    mode: filtered  # Enable filtered mode
+
+    apt:
+      distribution: jammy
+      components:
+        - main
+        - universe
+      architectures:
+        - amd64
+
+    filters:
+      # Component filtering
+      deb:
+        components:
+          include: [main]  # Only main component
+        priorities:
+          include: [important, optional]  # Skip required/standard
+
+      # Pattern-based filtering
+      patterns:
+        include:
+          - "^nginx.*"
+          - "^apache2.*"
+          - "^php.*"
+        exclude:
+          - ".*-dbg$"  # Exclude debug packages
+          - ".*-doc$"  # Exclude documentation packages
+
+      # Post-processing
+      post_processing:
+        only_latest_version: true  # Keep only latest version of each package
+```
+
+**Workflow:**
+
+```bash
+# Sync with filters applied
+chantal repo sync --repo-id ubuntu-jammy-webservers
+
+# Publish filtered repository
+chantal publish repo --repo-id ubuntu-jammy-webservers
+```
+
+Output:
+```
+=== Applying Filters (Filtered Mode) ===
+After filtering: 45 packages
+⚠️  WARNING: Filtered mode will regenerate metadata without GPG signatures!
+    Clients must use [trusted=yes] or Acquire::AllowInsecureRepositories=1
+```
+
+**Filtering Options:**
+
+See [Filters Configuration](../configuration/filters.md) for complete documentation on available filters:
+
+- **Component Filters** - Filter by APT component (main, universe, contrib, non-free)
+- **Priority Filters** - Filter by package priority (required, important, standard, optional)
+- **Pattern Filters** - Regex-based include/exclude by package name
+- **Post-Processing** - Keep only latest versions, limit to N versions
+
+**Limitations:**
+
+- No GPG signature generation - requires manual GPG signing setup (future feature)
+- Clients must explicitly trust the repository
+- Dependency resolution must be handled by client (APT)
+- Some tools may refuse to work with unsigned repositories
+
+**Comparison with Mirror Mode:**
+
+| Feature | Mirror Mode | Filtered Mode |
+|---------|------------|--------------|
+| GPG Signatures | ✅ Preserved | ❌ Not published |
+| Package Filtering | ❌ All packages | ✅ Configurable |
+| Metadata Source | Upstream | Regenerated |
+| Client Trust | Automatic (GPG) | Manual (trusted=yes) |
+| Use Case | Exact mirrors | Curated subsets |
 
 ## Workflow Examples
 
@@ -399,7 +504,7 @@ chantal snapshot diff docker-ce-ubuntu-jammy --from-snapshot 2026-01-01 --to-sna
 chantal publish repo --repo-id docker-ce-ubuntu-jammy
 ```
 
-**Note:** For filtered Docker repositories (specific packages only), use the RPM plugin with EPEL/CentOS Stream repositories, or wait for APT filtered mode in Phase 2.
+**Note:** For filtered Docker repositories (specific packages only), use filtered mode with pattern-based filtering (see FILTERED Mode section above).
 
 ## Troubleshooting
 
