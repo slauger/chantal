@@ -24,6 +24,7 @@ class DebMetadata(BaseModel):
     sha256: str = Field(..., description="SHA256 checksum")
 
     # Optional fields with defaults
+    component: str | None = Field(None, description="Repository component (main, contrib, non-free)")
     description: str | None = Field(None, description="Short description")
     long_description: str | None = Field(None, description="Long description (multiple lines)")
     section: str | None = Field(None, description="Package section (admin, devel, libs, etc.)")

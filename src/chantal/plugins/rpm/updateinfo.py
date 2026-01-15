@@ -131,9 +131,12 @@ class UpdateInfoParser:
         # Parse package list
         packages = self._parse_pkglist(update_elem)
 
+        # Get title, use empty string as fallback
+        title = (title_elem.text if title_elem is not None else "") or ""
+
         return Update(
             update_id=id_elem.text,
-            title=title_elem.text if title_elem is not None else "",
+            title=title,
             update_type=update_type,
             status=status,
             issued_date=issued_elem.get("date", "") if issued_elem is not None else "",
@@ -154,7 +157,7 @@ class UpdateInfoParser:
         Returns:
             List of UpdatePackage objects
         """
-        packages = []
+        packages: list[UpdatePackage] = []
 
         pkglist_elem = update_elem.find("pkglist")
         if pkglist_elem is None:
@@ -171,7 +174,7 @@ class UpdateInfoParser:
                     arch = pkg_elem.get("arch")
 
                     filename_elem = pkg_elem.find("filename")
-                    filename = filename_elem.text if filename_elem is not None else ""
+                    filename = (filename_elem.text if filename_elem is not None else "") or ""
 
                     if name and version and release and arch:
                         packages.append(
