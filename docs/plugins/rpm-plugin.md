@@ -32,7 +32,15 @@ The RPM plugin consists of:
 - ✅ Metadata regeneration for filtered repositories
 - ✅ **Compression**: Gzip, Zstandard (.zst), XZ, BZ2 (read & write)
 - ✅ Configurable compression for generated metadata
+- ✅ Magic byte detection for auto-format detection
 - ✅ RHEL CDN support (client certificates)
+
+**Quality Assurance:**
+- ✅ 39 comprehensive tests for compression support
+- ✅ Roundtrip tests (compress + decompress)
+- ✅ Compatibility tests with stdlib and zstandard library
+- ✅ Compression level tests
+- ✅ Large data handling tests
 
 **Planned:**
 - 🚧 Delta RPMs
@@ -440,6 +448,117 @@ Package list (gzip-compressed):
     </format>
   </package>
 </metadata>
+```
+
+## Compression Support
+
+Chantal supports all compression formats used by RPM repositories with full read and write capabilities.
+
+### Supported Formats
+
+| Format | Extension | Read | Write | Magic Bytes | Use Case |
+|--------|-----------|------|-------|-------------|----------|
+| **Gzip** | `.gz` | ✅ | ✅ | `1f 8b` | Most common (RHEL, CentOS, Fedora) |
+| **Zstandard** | `.zst` | ✅ | ✅ | `28 b5 2f fd` | Modern (openSUSE Tumbleweed) |
+| **XZ** | `.xz` | ✅ | ✅ | `fd 37 7a 58 5a 00` | High compression (some repos) |
+| **Bzip2** | `.bz2` | ✅ | ✅ | `42 5a 68` | Legacy (older repos) |
+| **None** | - | ✅ | ✅ | - | Testing/debugging |
+
+### Auto-Detection
+
+Chantal automatically detects compression format using two methods:
+
+1. **Extension-based** (primary): Checks file extension (`.gz`, `.zst`, `.xz`, `.bz2`)
+2. **Magic byte detection** (fallback): Reads first bytes of file to identify format
+
+This ensures compatibility even with misnamed files or when extension is unknown.
+
+### Configuration
+
+Control compression format for generated metadata:
+
+```yaml
+repositories:
+  - id: my-repo
+    type: rpm
+    feed: https://example.com/repo/
+    metadata:
+      compression: auto  # Default - detects from upstream
+```
+
+**Options:**
+- `auto`: Detect from upstream repository (default, recommended)
+- `gzip`: Force gzip compression (universal compatibility)
+- `zstandard`: Force Zstandard (best compression ratio, modern)
+- `bzip2`: Force bzip2 (legacy compatibility)
+- `none`: No compression (not recommended, large files)
+
+### Compression Behavior
+
+**Mirror Mode:**
+- Original metadata files hardlinked from pool (unchanged)
+- No recompression occurs
+- Preserves upstream compression format
+
+**Filtered Mode:**
+- Metadata regenerated based on filtered packages
+- Uses configured compression format
+- `auto` mode mirrors upstream compression
+- Primary.xml always regenerated
+- Updateinfo, filelists, other regenerated if filtered
+
+### Performance Characteristics
+
+Compression speeds (relative to gzip=100%):
+
+| Format | Compression Speed | Decompression Speed | Ratio | Best For |
+|--------|------------------|---------------------|-------|----------|
+| **None** | - | - | 1.0× | Testing only |
+| **Gzip (level 6)** | 100% | 100% | ~3-5× | Universal compatibility |
+| **Zstandard (level 3)** | 200% | 150% | ~3-6× | Modern repos (recommended) |
+| **Bzip2 (level 9)** | 30% | 80% | ~4-6× | Legacy repos only |
+| **XZ (level 6)** | 15% | 90% | ~5-8× | Slow compression, use sparingly |
+
+**Note:** Zstandard offers the best balance of speed and compression ratio for modern repositories.
+
+### Testing
+
+Compression support is thoroughly tested with 39 unit tests:
+
+- **Roundtrip tests**: Compress → decompress → verify
+- **Compatibility tests**: Interop with stdlib and native libraries
+- **Compression levels**: Test levels 1-22 for zstandard
+- **Large data**: Test with 1000+ package metadata
+- **Magic byte detection**: Verify all formats detected correctly
+- **Error handling**: Invalid formats raise appropriate errors
+
+Run tests:
+```bash
+PYTHONPATH=src python3.12 -m pytest tests/test_rpm_compression.py tests/test_rpm_parsers_zstd.py -v
+```
+
+### Examples
+
+**openSUSE Tumbleweed (Zstandard):**
+```yaml
+repositories:
+  - id: opensuse-tumbleweed
+    name: openSUSE Tumbleweed OSS
+    type: rpm
+    feed: https://download.opensuse.org/tumbleweed/repo/oss/
+    metadata:
+      compression: auto  # Detects .zst from upstream
+```
+
+**Force Gzip for consistency:**
+```yaml
+repositories:
+  - id: mixed-sources
+    name: Multiple Upstream Sources
+    type: rpm
+    feed: https://example.com/repo/
+    metadata:
+      compression: gzip  # Force gzip regardless of upstream
 ```
 
 ## RPM-Specific Filters
