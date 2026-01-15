@@ -225,6 +225,47 @@ repositories:
 
 ## Per-Repository Settings
 
+### Metadata Cache Override
+
+Override global cache settings (RPM repositories only):
+
+```yaml
+# Global config - cache disabled by default
+cache:
+  enabled: false
+  max_age_hours: 24
+
+repositories:
+  # Enable cache only for RHEL (large metadata files)
+  - id: rhel9-baseos
+    type: rpm
+    feed: https://cdn.redhat.com/...
+    cache_enabled: true  # Override global default
+
+  # EPEL uses global default (disabled)
+  - id: epel9-latest
+    type: rpm
+    feed: https://dl.fedoraproject.org/pub/epel/9/...
+    # cache_enabled not set = uses global cache.enabled (false)
+```
+
+**How it works:**
+- Metadata files (primary.xml.gz, updateinfo.xml.gz, etc.) are cached by SHA256 checksum
+- Cache is validated via checksums from repomd.xml (always fetched fresh)
+- Deduplication: Same metadata files shared across repositories
+- TTL-based expiration with `max_age_hours` (optional)
+
+**Performance improvement:**
+- Without cache: ~5-10s per sync (RHEL BaseOS)
+- With cache hit: ~0.5s per sync (90-95% faster)
+
+**Cache management:**
+```bash
+chantal cache stats   # Show cache statistics
+chantal cache clear   # Clear all cached files
+chantal cache list    # List cached metadata
+```
+
 ### Proxy Override
 
 Override global proxy settings:

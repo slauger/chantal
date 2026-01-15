@@ -17,6 +17,12 @@ storage:
   base_path: /var/lib/chantal
   pool_path: /var/lib/chantal/pool
   published_path: /var/www/repos
+  cache_path: /var/lib/chantal/cache  # Optional: Metadata cache directory
+
+# Metadata cache configuration (optional)
+cache:
+  enabled: false      # Global default (per-repo override possible)
+  max_age_hours: 24   # Optional: Cache TTL in hours
 
 # Global HTTP proxy (optional)
 proxy:
