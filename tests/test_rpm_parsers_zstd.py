@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import zstandard as zstd
 import pytest
+import zstandard as zstd
 
 from chantal.plugins.rpm.parsers import _decompress_metadata
 

@@ -2,18 +2,18 @@
 
 from __future__ import annotations
 
-import gzip
 import bz2
+import gzip
+
 import pytest
 import zstandard as zstd
 
 from chantal.plugins.rpm.compression import (
-    CompressionFormat,
-    detect_compression,
+    add_compression_extension,
     compress_file,
     decompress_file,
+    detect_compression,
     get_extension,
-    add_compression_extension,
 )
 
 
