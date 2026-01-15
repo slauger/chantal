@@ -114,7 +114,7 @@ class AptPublisher(PublisherPlugin):
         self,
         packages: list[ContentItem],
         target_path: Path,
-        repository_files: list[RepositoryFile] = None,
+        repository_files: list[RepositoryFile] | None = None,
         mode: str = RepositoryMode.MIRROR,
     ) -> None:
         """Publish content items and generate metadata.

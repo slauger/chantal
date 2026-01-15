@@ -52,7 +52,7 @@ def create_repo_group(cli: click.Group) -> click.Group:
         help="Filter by repository type",
     )
     @click.pass_context
-    def repo_list(ctx: click.Context, output_format: str, repo_type: str = None) -> None:
+    def repo_list(ctx: click.Context, output_format: str, repo_type: str | None = None) -> None:
         """List configured repositories.
 
         Shows all repositories from config with their current sync status.
