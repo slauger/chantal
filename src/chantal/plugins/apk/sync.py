@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 from chantal.core.config import ProxyConfig, RepositoryConfig, SSLConfig
 from chantal.core.downloader import DownloadManager
 from chantal.core.storage import StorageManager
-from chantal.db.models import ContentItem, Repository
+from chantal.db.models import ContentItem, Repository, RepositoryFile
 from chantal.plugins.apk.models import ApkMetadata
 
 logger = logging.getLogger(__name__)
@@ -96,6 +96,9 @@ class ApkSyncer:
 
         # Fetch and parse APKINDEX
         index_data = self._fetch_apkindex(index_url, config)
+
+        # Store APKINDEX.tar.gz as RepositoryFile for mirror mode
+        self._store_apkindex_file(index_url, config, session, repository)
 
         # Parse packages from APKINDEX
         all_packages = self._parse_apkindex(index_data)
@@ -355,6 +358,81 @@ class ApkSyncer:
                 filtered = list(by_name.values())
 
         return filtered
+
+    def _store_apkindex_file(
+        self,
+        index_url: str,
+        config: RepositoryConfig,
+        session: Session,
+        repository: Repository,
+    ) -> None:
+        """Download and store APKINDEX.tar.gz as RepositoryFile for mirror mode.
+
+        Args:
+            index_url: URL to APKINDEX.tar.gz
+            config: Repository configuration
+            session: Database session
+            repository: Repository model instance
+        """
+        logger.info("Storing APKINDEX.tar.gz as RepositoryFile")
+
+        # Download APKINDEX.tar.gz
+        response = self.session.get(index_url, timeout=30)
+        response.raise_for_status()
+
+        # Write to temporary file
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".tar.gz") as tmp:
+            tmp.write(response.content)
+            tmp_path = Path(tmp.name)
+
+        try:
+            # Add to storage pool
+            sha256, pool_path, size_bytes = self.storage.add_repository_file(
+                tmp_path, "APKINDEX.tar.gz", verify_checksum=True
+            )
+
+            # Check if this RepositoryFile already exists
+            existing_file = session.query(RepositoryFile).filter_by(sha256=sha256).first()
+
+            if existing_file:
+                # File already exists - just link to repository if not already linked
+                if repository not in existing_file.repositories:
+                    existing_file.repositories.append(repository)
+                    session.commit()
+                logger.debug(f"APKINDEX.tar.gz already exists in pool: {sha256[:16]}...")
+            else:
+                # Extract relative path from URL for original_path
+                # Format: {branch}/{repository}/{architecture}/APKINDEX.tar.gz
+                apk_config = config.apk
+                if apk_config:
+                    original_path = f"{apk_config.branch}/{apk_config.repository}/{apk_config.architecture}/APKINDEX.tar.gz"
+                else:
+                    original_path = "APKINDEX.tar.gz"
+
+                # Create new RepositoryFile record
+                repo_file = RepositoryFile(
+                    file_category="metadata",
+                    file_type="apkindex",
+                    sha256=sha256,
+                    pool_path=pool_path,
+                    size_bytes=size_bytes,
+                    original_path=original_path,
+                    file_metadata={
+                        "checksum_type": "sha256",
+                    },
+                )
+                session.add(repo_file)
+                session.commit()
+
+                # Link to repository
+                repo_file.repositories.append(repository)
+                session.commit()
+
+                logger.info(f"Stored APKINDEX.tar.gz in pool: {sha256[:16]}... ({size_bytes} bytes)")
+
+        finally:
+            # Clean up temp file
+            tmp_path.unlink(missing_ok=True)
 
     def _download_package(
         self,
