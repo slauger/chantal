@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import bz2
 import gzip
-from pathlib import Path
 from typing import Literal
 
 import zstandard as zstd

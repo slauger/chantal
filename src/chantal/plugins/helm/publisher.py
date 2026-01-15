@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 
 from chantal.core.config import RepositoryConfig
 from chantal.core.storage import StorageManager
-from chantal.db.models import ContentItem, Repository, RepositoryFile, Snapshot
+from chantal.db.models import ContentItem, Repository, Snapshot
 from chantal.plugins.base import PublisherPlugin
 from chantal.plugins.helm.models import HelmMetadata
 

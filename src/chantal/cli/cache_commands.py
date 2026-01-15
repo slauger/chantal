@@ -2,8 +2,6 @@ from __future__ import annotations
 
 """Cache management commands."""
 
-from pathlib import Path
-
 import click
 
 from chantal.core.cache import MetadataCache
@@ -77,14 +75,14 @@ def create_cache_group(cli: click.Group) -> click.Group:
 
         # Clear cache
         if repo_id:
-            click.echo(f"Note: Per-repository clearing not yet implemented")
-            click.echo(f"Clearing all cache entries instead...")
+            click.echo("Note: Per-repository clearing not yet implemented")
+            click.echo("Clearing all cache entries instead...")
 
         files_deleted = cache_manager.clear()
         size_mb = stats.total_size_bytes / (1024 * 1024)
 
         click.echo()
-        click.echo(f"✓ Cache cleared successfully!")
+        click.echo("✓ Cache cleared successfully!")
         click.echo(f"  Files deleted: {files_deleted}")
         click.echo(f"  Space freed: {size_mb:.2f} MB")
 

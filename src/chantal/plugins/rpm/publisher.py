@@ -24,7 +24,6 @@ from chantal.plugins.rpm.compression import (
     CompressionFormat,
     add_compression_extension,
     compress_file,
-    detect_compression_from_repomd,
 )
 from chantal.plugins.rpm.updateinfo import (
     UpdateInfoFilter,
@@ -656,8 +655,9 @@ class RpmPublisher(PublisherPlugin):
                 with gzip.open(filelists_path, "rb") as f:
                     tree = ET.parse(f)
             elif filelists_path.suffix == ".zst":
-                import zstandard as zstd
                 import io
+
+                import zstandard as zstd
 
                 with open(filelists_path, "rb") as f:
                     dctx = zstd.ZstdDecompressor()
@@ -790,8 +790,9 @@ class RpmPublisher(PublisherPlugin):
                 with gzip.open(other_path, "rb") as f:
                     tree = ET.parse(f)
             elif other_path.suffix == ".zst":
-                import zstandard as zstd
                 import io
+
+                import zstandard as zstd
 
                 with open(other_path, "rb") as f:
                     dctx = zstd.ZstdDecompressor()

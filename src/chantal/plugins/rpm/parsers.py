@@ -9,8 +9,8 @@ This module provides functions for parsing RPM repository metadata files.
 import bz2
 import configparser
 import gzip
-import lzma
 import logging
+import lzma
 import xml.etree.ElementTree as ET
 from urllib.parse import urljoin
 

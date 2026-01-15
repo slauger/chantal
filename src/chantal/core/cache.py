@@ -9,7 +9,6 @@ to avoid repeated downloads of large metadata files.
 
 import hashlib
 import logging
-import shutil
 import time
 from dataclasses import dataclass
 from pathlib import Path
