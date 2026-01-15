@@ -20,6 +20,12 @@ from chantal.core.config import RepositoryConfig
 from chantal.core.storage import StorageManager
 from chantal.db.models import ContentItem, Repository, RepositoryFile, RepositoryMode, Snapshot
 from chantal.plugins.base import PublisherPlugin
+from chantal.plugins.rpm.compression import (
+    CompressionFormat,
+    add_compression_extension,
+    compress_file,
+    detect_compression_from_repomd,
+)
 from chantal.plugins.rpm.updateinfo import (
     UpdateInfoFilter,
     UpdateInfoGenerator,
@@ -70,7 +76,7 @@ class RpmPublisher(PublisherPlugin):
         repository_files = repository.repository_files
 
         # Publish packages and metadata
-        self._publish_packages(packages, target_path, repository_files, repository.mode)
+        self._publish_packages(packages, target_path, repository_files, repository.mode, config)
 
     def publish_snapshot(
         self,
@@ -97,7 +103,7 @@ class RpmPublisher(PublisherPlugin):
         repository_files = snapshot.repository_files
 
         # Publish packages and metadata
-        self._publish_packages(packages, target_path, repository_files, repository.mode)
+        self._publish_packages(packages, target_path, repository_files, repository.mode, config)
 
     def unpublish(self, target_path: Path) -> None:
         """Remove published RPM repository.
@@ -114,6 +120,7 @@ class RpmPublisher(PublisherPlugin):
         target_path: Path,
         repository_files: list[RepositoryFile] = None,
         mode: str = RepositoryMode.MIRROR,
+        config: RepositoryConfig | None = None,
     ) -> None:
         """Publish content items and generate metadata.
 
@@ -122,9 +129,20 @@ class RpmPublisher(PublisherPlugin):
             target_path: Target directory
             repository_files: List of repository files (metadata) to publish
             mode: Repository mode (mirror/filtered/hosted)
+            config: Repository configuration (for metadata compression settings)
         """
         if repository_files is None:
             repository_files = []
+
+        # Determine compression format
+        compression: CompressionFormat = "gzip"  # default
+        if config and config.metadata:
+            compression_setting = config.metadata.compression
+            if compression_setting == "auto":
+                # Detect from upstream metadata files
+                compression = self._detect_upstream_compression(repository_files)
+            else:
+                compression = compression_setting  # type: ignore
 
         # Create directory structure
         target_path.mkdir(parents=True, exist_ok=True)
@@ -151,7 +169,7 @@ class RpmPublisher(PublisherPlugin):
             )
 
         # Generate primary.xml (always generated)
-        primary_xml_path = self._generate_primary_xml(packages, repodata_path)
+        primary_xml_path = self._generate_primary_xml(packages, repodata_path, compression)
 
         # Add primary to published metadata list
         published_metadata.append(("primary", primary_xml_path))
@@ -165,15 +183,40 @@ class RpmPublisher(PublisherPlugin):
         if kickstart_files:
             self._publish_kickstart_files(kickstart_files, target_path)
 
-    def _generate_primary_xml(self, packages: list[ContentItem], repodata_path: Path) -> Path:
-        """Generate primary.xml.gz metadata file.
+    def _detect_upstream_compression(
+        self, repository_files: list[RepositoryFile]
+    ) -> CompressionFormat:
+        """Detect compression format used in upstream repository.
+
+        Args:
+            repository_files: List of repository files from upstream
+
+        Returns:
+            Detected compression format (defaults to gzip if not detected)
+        """
+        # Check primary metadata file
+        for rf in repository_files:
+            if rf.file_type == "primary":
+                from chantal.plugins.rpm.compression import detect_compression
+
+                detected = detect_compression(rf.relative_path)
+                if detected and detected != "none":
+                    return detected
+        # Fallback to gzip
+        return "gzip"
+
+    def _generate_primary_xml(
+        self, packages: list[ContentItem], repodata_path: Path, compression: CompressionFormat = "gzip"
+    ) -> Path:
+        """Generate primary.xml metadata file with configurable compression.
 
         Args:
             packages: List of content items
             repodata_path: Path to repodata directory
+            compression: Compression format (gzip, zstandard, bzip2, none)
 
         Returns:
-            Path to generated primary.xml.gz
+            Path to generated primary.xml file (with compression)
         """
         # Create primary.xml
         metadata = ET.Element("metadata")
@@ -240,16 +283,21 @@ class RpmPublisher(PublisherPlugin):
         ET.indent(tree, space="  ")
         tree.write(primary_xml_path, encoding="UTF-8", xml_declaration=True)
 
-        # Gzip it
-        primary_xml_gz_path = repodata_path / "primary.xml.gz"
+        # Compress with configured format
+        compressed_filename = add_compression_extension("primary.xml", compression)
+        primary_xml_compressed_path = repodata_path / compressed_filename
+
         with open(primary_xml_path, "rb") as f_in:
-            with gzip.open(primary_xml_gz_path, "wb") as f_out:
-                shutil.copyfileobj(f_in, f_out)
+            xml_data = f_in.read()
+            compressed_data = compress_file(xml_data, compression)
+
+        with open(primary_xml_compressed_path, "wb") as f_out:
+            f_out.write(compressed_data)
 
         # Remove uncompressed version
         primary_xml_path.unlink()
 
-        return primary_xml_gz_path
+        return primary_xml_compressed_path
 
     def _publish_metadata_files(
         self, repository_files: list[RepositoryFile], repodata_path: Path
@@ -362,13 +410,24 @@ class RpmPublisher(PublisherPlugin):
                 file_sha256 = hashlib.sha256(file_data).hexdigest()
                 file_size = len(file_data)
 
-            # Calculate checksum of uncompressed file (if gzipped)
+            # Calculate checksum of uncompressed file (if compressed)
             try:
                 if file_path.suffix == ".gz":
                     with gzip.open(file_path, "rb") as f:
                         open_data = f.read()
                         open_sha256 = hashlib.sha256(open_data).hexdigest()
                         open_size = len(open_data)
+                elif file_path.suffix == ".zst":
+                    import zstandard as zstd
+
+                    dctx = zstd.ZstdDecompressor()
+                    open_data = dctx.decompress(file_data)
+                    open_sha256 = hashlib.sha256(open_data).hexdigest()
+                    open_size = len(open_data)
+                elif file_path.suffix == ".bz2":
+                    open_data = bz2.decompress(file_data)
+                    open_sha256 = hashlib.sha256(open_data).hexdigest()
+                    open_size = len(open_data)
                 else:
                     # Not compressed
                     open_sha256 = file_sha256
@@ -484,6 +543,16 @@ class RpmPublisher(PublisherPlugin):
                 with open(tmp_xml_path, "rb") as f_in:
                     with gzip.open(filtered_updateinfo_path, "wb") as f_out:
                         shutil.copyfileobj(f_in, f_out)
+            elif updateinfo_path.suffix == ".zst":
+                import zstandard as zstd
+
+                with open(tmp_xml_path, "rb") as f_in:
+                    xml_data = f_in.read()
+                    cctx = zstd.ZstdCompressor()
+                    compressed_data = cctx.compress(xml_data)
+
+                with open(filtered_updateinfo_path, "wb") as f_out:
+                    f_out.write(compressed_data)
             else:
                 # No compression
                 shutil.copy(tmp_xml_path, filtered_updateinfo_path)
@@ -586,6 +655,14 @@ class RpmPublisher(PublisherPlugin):
             elif filelists_path.suffix == ".gz":
                 with gzip.open(filelists_path, "rb") as f:
                     tree = ET.parse(f)
+            elif filelists_path.suffix == ".zst":
+                import zstandard as zstd
+                import io
+
+                with open(filelists_path, "rb") as f:
+                    dctx = zstd.ZstdDecompressor()
+                    decompressed = dctx.decompress(f.read())
+                    tree = ET.parse(io.BytesIO(decompressed))
             else:
                 tree = ET.parse(filelists_path)
 
@@ -634,6 +711,16 @@ class RpmPublisher(PublisherPlugin):
                 with open(tmp_xml_path, "rb") as f_in:
                     with gzip.open(filtered_filelists_path, "wb") as f_out:
                         shutil.copyfileobj(f_in, f_out)
+            elif filelists_path.suffix == ".zst":
+                import zstandard as zstd
+
+                with open(tmp_xml_path, "rb") as f_in:
+                    xml_data = f_in.read()
+                    cctx = zstd.ZstdCompressor()
+                    compressed_data = cctx.compress(xml_data)
+
+                with open(filtered_filelists_path, "wb") as f_out:
+                    f_out.write(compressed_data)
             else:
                 # No compression
                 shutil.copy(tmp_xml_path, filtered_filelists_path)
@@ -702,6 +789,14 @@ class RpmPublisher(PublisherPlugin):
             elif other_path.suffix == ".gz":
                 with gzip.open(other_path, "rb") as f:
                     tree = ET.parse(f)
+            elif other_path.suffix == ".zst":
+                import zstandard as zstd
+                import io
+
+                with open(other_path, "rb") as f:
+                    dctx = zstd.ZstdDecompressor()
+                    decompressed = dctx.decompress(f.read())
+                    tree = ET.parse(io.BytesIO(decompressed))
             else:
                 tree = ET.parse(other_path)
 
@@ -750,6 +845,16 @@ class RpmPublisher(PublisherPlugin):
                 with open(tmp_xml_path, "rb") as f_in:
                     with gzip.open(filtered_other_path, "wb") as f_out:
                         shutil.copyfileobj(f_in, f_out)
+            elif other_path.suffix == ".zst":
+                import zstandard as zstd
+
+                with open(tmp_xml_path, "rb") as f_in:
+                    xml_data = f_in.read()
+                    cctx = zstd.ZstdCompressor()
+                    compressed_data = cctx.compress(xml_data)
+
+                with open(filtered_other_path, "wb") as f_out:
+                    f_out.write(compressed_data)
             else:
                 # No compression
                 shutil.copy(tmp_xml_path, filtered_other_path)

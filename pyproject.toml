@@ -42,6 +42,9 @@ dependencies = [
     "requests>=2.31.0",
     "urllib3>=2.1.0",
 
+    # Compression
+    "zstandard>=0.22.0",
+
     # Progress & UI
     "tqdm>=4.66.0",
     "rich>=13.7.0",

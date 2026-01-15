@@ -14,6 +14,7 @@ import xml.etree.ElementTree as ET
 from urllib.parse import urljoin
 
 import requests
+import zstandard as zstd
 
 from chantal.core.cache import MetadataCache
 
@@ -234,12 +235,18 @@ def _decompress_metadata(compressed_content: bytes, filename: str) -> bytes:
         return lzma.decompress(compressed_content)
     elif filename.endswith(".gz"):
         return gzip.decompress(compressed_content)
+    elif filename.endswith(".zst"):
+        dctx = zstd.ZstdDecompressor()
+        return dctx.decompress(compressed_content)
 
     # Fallback to magic byte detection
     if compressed_content[:2] == b"\x1f\x8b":  # gzip magic
         return gzip.decompress(compressed_content)
     elif compressed_content[:6] == b"\xfd7zXZ\x00":  # xz magic
         return lzma.decompress(compressed_content)
+    elif compressed_content[:4] == b"\x28\xb5\x2f\xfd":  # zstandard magic
+        dctx = zstd.ZstdDecompressor()
+        return dctx.decompress(compressed_content)
     else:
         raise ValueError(f"Unknown compression format for {filename}")
 

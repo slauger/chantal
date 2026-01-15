@@ -164,6 +164,26 @@ class AptConfig(BaseModel):
     )
 
 
+class MetadataConfig(BaseModel):
+    """Metadata generation configuration (RPM, APT, etc.)."""
+
+    compression: Literal["auto", "gzip", "zstandard", "bzip2", "none"] = Field(
+        default="auto",
+        description="Compression format for generated metadata. 'auto' uses same as upstream.",
+    )
+
+    @field_validator("compression")
+    @classmethod
+    def validate_compression(cls, v: str) -> str:
+        """Validate compression format."""
+        valid_formats = ["auto", "gzip", "zstandard", "bzip2", "none"]
+        if v not in valid_formats:
+            raise ValueError(
+                f"Invalid compression format: {v}. Must be one of {valid_formats}"
+            )
+        return v
+
+
 class PatternFilterConfig(BaseModel):
     """Pattern-based filters (regex)."""
 
@@ -310,6 +330,10 @@ class RepositoryConfig(BaseModel):
     # Plugin-specific configuration
     apk: ApkConfig | None = None  # APK-specific config (branch, repository, architecture)
     apt: AptConfig | None = None  # APT-specific config (distribution, components, architectures)
+    metadata: MetadataConfig | None = Field(
+        default_factory=lambda: MetadataConfig(),
+        description="Metadata generation configuration (compression, etc.)",
+    )
 
     @field_validator("type")
     @classmethod
