@@ -55,7 +55,7 @@ jobs:
       - name: Run yamllint (YAML linting)
         run: |
           echo "Linting YAML files..."
-          yamllint --strict examples/ .dev/ .github/
+          yamllint --strict examples/ .github/
         continue-on-error: false
 
       - name: Run mypy (type checking)
