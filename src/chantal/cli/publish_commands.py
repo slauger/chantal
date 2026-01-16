@@ -8,8 +8,9 @@ from datetime import datetime
 from pathlib import Path
 
 import click
+from sqlalchemy.orm import Session
 
-from chantal.core.config import GlobalConfig
+from chantal.core.config import GlobalConfig, RepositoryConfig
 from chantal.core.storage import StorageManager
 from chantal.db.connection import DatabaseManager
 from chantal.db.models import Repository, Snapshot, View, ViewSnapshot
@@ -82,16 +83,20 @@ def create_publish_group(cli: click.Group) -> click.Group:
 
                 for repo_config in repos_to_publish:
                     click.echo(f"--- Publishing {repo_config.id} ---")
-                    _publish_single_repository(session, storage, config, repo_config, target)
+                    _publish_single_repository(
+                        session, storage, config, repo_config, Path(target) if target else None
+                    )
                     click.echo()
             else:
                 # Publish single repository
-                repo_config = next((r for r in config.repositories if r.id == repo_id), None)
-                if not repo_config:
+                single_repo = next((r for r in config.repositories if r.id == repo_id), None)
+                if not single_repo:
                     click.echo(f"Error: Repository '{repo_id}' not found in configuration")
                     raise click.Abort()
 
-                _publish_single_repository(session, storage, config, repo_config, target)
+                _publish_single_repository(
+                    session, storage, config, single_repo, Path(target) if target else None
+                )
         finally:
             session.close()
 
@@ -275,8 +280,10 @@ def create_publish_group(cli: click.Group) -> click.Group:
 
                     # Shorten path if needed
                     path = snapshot.published_path
-                    if len(path) > 48:
+                    if path and len(path) > 48:
                         path = "..." + path[-45:]
+                    elif not path:
+                        path = ""
 
                     click.echo(f"{snapshot.name:<35} {repo_name:<25} {path:<50}")
 
@@ -358,7 +365,13 @@ def create_publish_group(cli: click.Group) -> click.Group:
     return publish
 
 
-def _publish_single_repository(session, storage, global_config, repo_config, custom_target=None):
+def _publish_single_repository(
+    session: Session,
+    storage: StorageManager,
+    global_config: GlobalConfig,
+    repo_config: RepositoryConfig,
+    custom_target: Path | None = None,
+) -> None:
     """Helper function to publish a single repository."""
     # Get repository from database
     repository = session.query(Repository).filter_by(repo_id=repo_config.id).first()

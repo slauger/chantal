@@ -141,7 +141,7 @@ class RpmPublisher(PublisherPlugin):
                 # Detect from upstream metadata files
                 compression = self._detect_upstream_compression(repository_files)
             else:
-                compression = compression_setting  # type: ignore
+                compression = compression_setting
 
         # Create directory structure
         target_path.mkdir(parents=True, exist_ok=True)
@@ -198,7 +198,7 @@ class RpmPublisher(PublisherPlugin):
             if rf.file_type == "primary":
                 from chantal.plugins.rpm.compression import detect_compression
 
-                detected = detect_compression(rf.relative_path)
+                detected = detect_compression(rf.original_path)
                 if detected and detected != "none":
                     return detected
         # Fallback to gzip
@@ -420,7 +420,7 @@ class RpmPublisher(PublisherPlugin):
                         open_sha256 = hashlib.sha256(open_data).hexdigest()
                         open_size = len(open_data)
                 elif file_path.suffix == ".zst":
-                    import zstandard as zstd
+                    import zstandard as zstd  # type: ignore[import-not-found]
 
                     dctx = zstd.ZstdDecompressor()
                     open_data = dctx.decompress(file_data)
@@ -499,7 +499,7 @@ class RpmPublisher(PublisherPlugin):
                 updateinfo_index = i
                 break
 
-        if not updateinfo_entry:
+        if not updateinfo_entry or updateinfo_index is None:
             # No updateinfo to filter
             return published_metadata
 
@@ -546,7 +546,7 @@ class RpmPublisher(PublisherPlugin):
                     with gzip.open(filtered_updateinfo_path, "wb") as f_out:
                         shutil.copyfileobj(f_in, f_out)
             elif updateinfo_path.suffix == ".zst":
-                import zstandard as zstd
+                import zstandard as zstd  # type: ignore[import-not-found]
 
                 with open(tmp_xml_path, "rb") as f_in:
                     xml_data = f_in.read()
@@ -633,7 +633,7 @@ class RpmPublisher(PublisherPlugin):
                 filelists_index = i
                 break
 
-        if not filelists_entry:
+        if not filelists_entry or filelists_index is None:
             # No filelists to filter
             return published_metadata
 
@@ -660,7 +660,7 @@ class RpmPublisher(PublisherPlugin):
             elif filelists_path.suffix == ".zst":
                 import io
 
-                import zstandard as zstd
+                import zstandard as zstd  # type: ignore[import-not-found]
 
                 with open(filelists_path, "rb") as f:
                     dctx = zstd.ZstdDecompressor()
@@ -715,7 +715,7 @@ class RpmPublisher(PublisherPlugin):
                     with gzip.open(filtered_filelists_path, "wb") as f_out:
                         shutil.copyfileobj(f_in, f_out)
             elif filelists_path.suffix == ".zst":
-                import zstandard as zstd
+                import zstandard as zstd  # type: ignore[import-not-found]
 
                 with open(tmp_xml_path, "rb") as f_in:
                     xml_data = f_in.read()
@@ -768,7 +768,7 @@ class RpmPublisher(PublisherPlugin):
                 other_index = i
                 break
 
-        if not other_entry:
+        if not other_entry or other_index is None:
             # No other to filter
             return published_metadata
 
@@ -795,7 +795,7 @@ class RpmPublisher(PublisherPlugin):
             elif other_path.suffix == ".zst":
                 import io
 
-                import zstandard as zstd
+                import zstandard as zstd  # type: ignore[import-not-found]
 
                 with open(other_path, "rb") as f:
                     dctx = zstd.ZstdDecompressor()
@@ -850,7 +850,7 @@ class RpmPublisher(PublisherPlugin):
                     with gzip.open(filtered_other_path, "wb") as f_out:
                         shutil.copyfileobj(f_in, f_out)
             elif other_path.suffix == ".zst":
-                import zstandard as zstd
+                import zstandard as zstd  # type: ignore[import-not-found]
 
                 with open(tmp_xml_path, "rb") as f_in:
                     xml_data = f_in.read()

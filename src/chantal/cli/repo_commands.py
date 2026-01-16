@@ -5,8 +5,9 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 import click
+from sqlalchemy.orm import Session
 
-from chantal.core.config import GlobalConfig
+from chantal.core.config import GlobalConfig, RepositoryConfig
 from chantal.core.storage import StorageManager
 from chantal.db.connection import DatabaseManager
 from chantal.db.models import Repository, Snapshot, SyncHistory
@@ -264,12 +265,12 @@ def create_repo_group(cli: click.Group) -> click.Group:
                     click.echo()
             else:
                 # Sync single repository
-                repo_config = next((r for r in config.repositories if r.id == repo_id), None)
-                if not repo_config:
+                single_repo = next((r for r in config.repositories if r.id == repo_id), None)
+                if not single_repo:
                     click.echo(f"Error: Repository '{repo_id}' not found in configuration")
                     raise click.Abort()
 
-                _sync_single_repository(session, storage, config, repo_config)
+                _sync_single_repository(session, storage, config, single_repo)
         finally:
             session.close()
 
@@ -677,7 +678,12 @@ def create_repo_group(cli: click.Group) -> click.Group:
     return repo
 
 
-def _sync_single_repository(session, storage, global_config, repo_config):
+def _sync_single_repository(
+    session: Session,
+    storage: StorageManager,
+    global_config: GlobalConfig,
+    repo_config: RepositoryConfig,
+) -> Repository:
     """Helper function to sync a single repository."""
     # Get or create repository in database
     repository = session.query(Repository).filter_by(repo_id=repo_config.id).first()
@@ -745,7 +751,7 @@ def _sync_single_repository(session, storage, global_config, repo_config):
         click.echo(f"  Charts updated: {stats['charts_updated']}")
         click.echo(f"  Charts skipped: {stats['charts_skipped']}")
         click.echo(f"  Data transferred: {stats['bytes_downloaded'] / 1024 / 1024:.2f} MB")
-        return
+        return repository
     elif repo_config.type == "apk":
         apk_syncer = ApkSyncer(
             storage=storage,
@@ -769,7 +775,7 @@ def _sync_single_repository(session, storage, global_config, repo_config):
             click.echo(
                 f"  SHA1 mismatches: {stats['sha1_mismatches']} (stale APKINDEX, integrity verified via SHA256)"
             )
-        return
+        return repository
     elif repo_config.type == "apt":
         apt_syncer = AptSyncPlugin(
             storage=storage,
@@ -793,10 +799,10 @@ def _sync_single_repository(session, storage, global_config, repo_config):
             click.echo(f"  Metadata files: {result.metadata_files_downloaded}")
         else:
             click.echo(f"\n✗ APT sync failed: {result.error_message}")
-        return
+        return repository
     else:
         click.echo(f"Error: Unsupported repository type: {repo_config.type}")
-        return
+        raise click.Abort()
 
     # Perform sync
     result = sync_plugin.sync_repository(session, repository)
@@ -815,8 +821,15 @@ def _sync_single_repository(session, storage, global_config, repo_config):
     else:
         click.echo(f"\n✗ Sync failed: {result.error_message}", err=True)
 
+    return repository
 
-def _check_updates_single_repository(session, storage, global_config, repo_config):
+
+def _check_updates_single_repository(
+    session: Session,
+    storage: StorageManager,
+    global_config: GlobalConfig,
+    repo_config: RepositoryConfig,
+) -> CheckUpdatesResult:
     """Helper function to check updates for a single repository."""
     # Get or create repository in database
     repository = session.query(Repository).filter_by(repo_id=repo_config.id).first()

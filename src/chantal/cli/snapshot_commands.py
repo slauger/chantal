@@ -367,7 +367,7 @@ def create_snapshot_group(cli: click.Group) -> click.Group:
             click.echo(f"Packages: {snapshot.package_count}")
 
             # Unpublish if needed
-            if snapshot.is_published:
+            if snapshot.is_published and snapshot.published_path:
                 published_path = Path(snapshot.published_path)
                 if published_path.exists():
                     click.echo(f"Unpublishing from: {published_path}")
