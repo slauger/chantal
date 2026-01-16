@@ -52,6 +52,12 @@ jobs:
           black --check --diff src/chantal/ tests/
         continue-on-error: false
 
+      - name: Run yamllint (YAML linting)
+        run: |
+          echo "Linting YAML files..."
+          yamllint examples/ .dev/ .github/
+        continue-on-error: false
+
       - name: Run mypy (type checking)
         run: |
           echo "Running mypy type checker..."

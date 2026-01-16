@@ -40,11 +40,11 @@ repositories:
         # Keep only latest version to reduce mirror size
         only_latest_version: true
 
-    # Optional: Mirror only specific packages to reduce size
-    # Uncomment and customize if you don't need the full EPEL repository
-    # filters:
-    #   patterns:
-    #     include:
+  # Optional: Mirror only specific packages to reduce size
+  # Uncomment and customize if you don't need the full EPEL repository
+  # filters:
+  #   patterns:
+  #     include:
     #       - "^htop-.*"              # Interactive process viewer
     #       - "^tmux-.*"              # Terminal multiplexer
     #       - "^ansible-.*"           # Automation platform
@@ -82,14 +82,14 @@ repositories:
       post_processing:
         only_latest_version: true
 
-  # ============================================================================
-  # EPEL 9 Modular - Module streams for EPEL 9
-  # ============================================================================
-  #
-  # EPEL Modular provides alternative versions of packages using module streams.
-  # Similar to AppStream modules in RHEL.
-  #
-  # - id: epel9-modular
+# ============================================================================
+# EPEL 9 Modular - Module streams for EPEL 9
+# ============================================================================
+#
+# EPEL Modular provides alternative versions of packages using module streams.
+# Similar to AppStream modules in RHEL.
+#
+# - id: epel9-modular
   #   name: "EPEL 9 Modular (x86_64)"
   #   type: rpm
   #   feed: https://dl.fedoraproject.org/pub/epel/9/Modular/x86_64/

@@ -76,13 +76,13 @@ repositories:
       post_processing:
         only_latest_version: true
 
-  # ============================================================================
-  # PostgreSQL Common - Shared packages for all versions
-  # ============================================================================
-  #
-  # The common repository contains packages that work across all PostgreSQL versions.
-  #
-  # - id: postgresql-common-el9
+# ============================================================================
+# PostgreSQL Common - Shared packages for all versions
+# ============================================================================
+#
+# The common repository contains packages that work across all PostgreSQL versions.
+#
+# - id: postgresql-common-el9
   #   name: "PostgreSQL Common (EL9/x86_64)"
   #   type: rpm
   #   feed: https://download.postgresql.org/pub/repos/yum/common/redhat/rhel-9-x86_64/

@@ -41,11 +41,11 @@ repositories:
       client_key: /etc/pki/entitlement/YOUR_CERT_ID-key.pem
       verify: true
 
-    # Example filter: Mirror only specific packages (reduces storage)
-    # Uncomment and customize based on your needs
-    # filters:
-    #   patterns:
-    #     include:
+  # Example filter: Mirror only specific packages (reduces storage)
+  # Uncomment and customize based on your needs
+  # filters:
+  #   patterns:
+  #     include:
     #       - "^kernel-.*"           # All kernel packages
     #       - "^systemd-.*"          # SystemD packages
     #       - "^glibc-.*"            # GNU C Library
@@ -85,10 +85,10 @@ repositories:
       client_key: /etc/pki/entitlement/YOUR_CERT_ID-key.pem
       verify: true
 
-    # Example: Mirror only web server packages
-    # filters:
-    #   patterns:
-    #     include:
+  # Example: Mirror only web server packages
+  # filters:
+  #   patterns:
+  #     include:
     #       - "^nginx-.*"            # Nginx web server
     #       - "^httpd-.*"            # Apache HTTP server
     #       - "^mod_.*"              # Apache modules
@@ -129,10 +129,10 @@ repositories:
       client_key: /etc/pki/entitlement/YOUR_CERT_ID-key.pem
       verify: true
 
-    # Example: Mirror only Python development packages
-    # filters:
-    #   patterns:
-    #     include:
+  # Example: Mirror only Python development packages
+  # filters:
+  #   patterns:
+  #     include:
     #       - "^python3-devel$"
     #       - "^python3-.*-devel$"
     #   metadata:
@@ -141,12 +141,12 @@ repositories:
     #   rpm:
     #     exclude_source_rpms: true
 
-  # ============================================================================
-  # RHEL 9 Supplementary - Additional packages (limited support)
-  # ============================================================================
-  #
-  # Supplementary provides additional packages that may not be fully supported
-  # or have different support lifecycles than the main RHEL channels.
+# ============================================================================
+# RHEL 9 Supplementary - Additional packages (limited support)
+# ============================================================================
+#
+# Supplementary provides additional packages that may not be fully supported
+# or have different support lifecycles than the main RHEL channels.
   #
   # Content Type: RPM
   # Update Frequency: As needed

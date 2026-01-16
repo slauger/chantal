@@ -50,12 +50,12 @@ repositories:
       client_key: /etc/pki/entitlement/YOUR_CERT_ID-key.pem
       verify: true
 
-  # ============================================================================
-  # Additional RHEL 8 Channels (commented out - enable as needed)
-  # ============================================================================
+# ============================================================================
+# Additional RHEL 8 Channels (commented out - enable as needed)
+# ============================================================================
 
-  # Supplementary - Additional packages (limited support)
-  # - id: rhel8-supplementary
+# Supplementary - Additional packages (limited support)
+# - id: rhel8-supplementary
   #   name: "RHEL 8 Supplementary (x86_64)"
   #   type: rpm
   #   feed: https://cdn.redhat.com/content/dist/rhel8/8/x86_64/supplementary/os
