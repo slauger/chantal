@@ -56,9 +56,9 @@ jobs:
         run: |
           echo "Running mypy type checker..."
           mypy src/chantal/ --ignore-missing-imports
-        continue-on-error: true
-        # Note: MyPy has 85 pre-existing type errors that need to be fixed
-        #       Set to continue-on-error: true until these are resolved
+        continue-on-error: false
+        # Type checking is now enforced - all code must pass mypy
+        # See CONTRIBUTING.md for type annotation guidelines
 
       - name: Run pytest
         run: |
