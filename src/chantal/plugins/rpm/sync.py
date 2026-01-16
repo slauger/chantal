@@ -735,7 +735,11 @@ class RpmSyncPlugin:
                 tmp_path.unlink()
 
     def _download_installer_file(
-        self, session: Session, repository: Repository, base_url: str, file_info: dict[str, str | None]
+        self,
+        session: Session,
+        repository: Repository,
+        base_url: str,
+        file_info: dict[str, str | None],
     ) -> None:
         """Download and store installer file.
 
