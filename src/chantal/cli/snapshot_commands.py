@@ -11,7 +11,7 @@ import click
 
 from chantal.core.config import GlobalConfig
 from chantal.db.connection import DatabaseManager
-from chantal.db.models import ContentItem, Repository, Snapshot, View, ViewSnapshot
+from chantal.db.models import Repository, Snapshot, View, ViewSnapshot
 
 # Click context settings to enable -h as alias for --help
 CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
