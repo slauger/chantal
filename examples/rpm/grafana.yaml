@@ -31,8 +31,8 @@ repositories:
       patterns:
         include:
           - "^grafana-[0-9].*"       # Grafana core (OSS)
-          # Optional: Include Grafana Enterprise if you have license
-          # - "^grafana-enterprise-.*"
+            # Optional: Include Grafana Enterprise if you have license
+            # - "^grafana-enterprise-.*"
         exclude:
           - ".*-debuginfo$"
           - ".*-debugsource$"
@@ -42,7 +42,7 @@ repositories:
       rpm:
         exclude_source_rpms: true
       post_processing:
-        # Keep only latest version (Grafana updates frequently)
+            # Keep only latest version (Grafana updates frequently)
         only_latest_version: true
 
 

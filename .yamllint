@@ -20,6 +20,10 @@ rules:
   comments:
     min-spaces-from-content: 1
 
+  # Comment indentation - disable for documentation examples
+  # Many example files have commented-out YAML blocks that don't need strict indentation
+  comments-indentation: disable
+
   # Document start - don't require '---' at start
   document-start: disable
 

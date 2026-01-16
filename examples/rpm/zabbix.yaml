@@ -76,18 +76,18 @@ repositories:
 #   type: rpm
 #   feed: https://repo.zabbix.com/non-supported/rhel/9/x86_64/
 #   enabled: false
-  #
-  #   filters:
-  #     patterns:
-  #       include:
-  #         - "^zabbix-.*"
-  #     metadata:
-  #       architectures:
-  #         include: ["x86_64", "noarch"]
-  #     rpm:
-  #       exclude_source_rpms: true
-  #     post_processing:
-  #       only_latest_version: true
+#
+#   filters:
+#     patterns:
+#       include:
+#         - "^zabbix-.*"
+#     metadata:
+#       architectures:
+#         include: ["x86_64", "noarch"]
+#     rpm:
+#       exclude_source_rpms: true
+#     post_processing:
+#       only_latest_version: true
 
 
 # ==============================================================================

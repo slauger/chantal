@@ -35,9 +35,9 @@ repositories:
           - "^icingaweb2-.*"           # Icinga Web 2 interface
           - "^icinga-php-.*"           # PHP libraries
           - "^icingacli-.*"            # CLI tools
-          # Plugins (optional - uncomment if needed)
-          # - "^monitoring-plugins-.*"  # Standard monitoring plugins
-          # - "^nagios-plugins-.*"      # Nagios-compatible plugins
+            # Plugins (optional - uncomment if needed)
+            # - "^monitoring-plugins-.*"  # Standard monitoring plugins
+            # - "^nagios-plugins-.*"      # Nagios-compatible plugins
         exclude:
           - ".*-debuginfo$"
           - ".*-debugsource$"

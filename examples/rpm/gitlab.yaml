@@ -44,12 +44,12 @@ repositories:
       rpm:
         exclude_source_rpms: true
       post_processing:
-        # Keep only latest version (GitLab is large, ~1GB per version)
+            # Keep only latest version (GitLab is large, ~1GB per version)
         only_latest_version: true
 
   # Publishing suggestion: Use snapshots for version control
   # Example: Create monthly snapshots after GitLab releases
-  #   chantal snapshot create --repo-id gitlab-ce-el9 --name 2025-01
+#   chantal snapshot create --repo-id gitlab-ce-el9 --name 2025-01
 
   # ============================================================================
   # GitLab EE - Enterprise Edition (Requires license for premium features)

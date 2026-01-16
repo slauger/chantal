@@ -43,8 +43,8 @@ repositories:
   # Optional: Mirror only specific packages to reduce size
   # Uncomment and customize if you don't need the full EPEL repository
   # filters:
-  #   patterns:
-  #     include:
+#   patterns:
+#     include:
     #       - "^htop-.*"              # Interactive process viewer
     #       - "^tmux-.*"              # Terminal multiplexer
     #       - "^ansible-.*"           # Automation platform
@@ -90,60 +90,60 @@ repositories:
 # Similar to AppStream modules in RHEL.
 #
 # - id: epel9-modular
-  #   name: "EPEL 9 Modular (x86_64)"
-  #   type: rpm
-  #   feed: https://dl.fedoraproject.org/pub/epel/9/Modular/x86_64/
-  #   enabled: false
-  #
-  #   filters:
-  #     metadata:
-  #       architectures:
-  #         include: ["x86_64", "noarch"]
-  #     rpm:
-  #       exclude_source_rpms: true
-  #     post_processing:
-  #       only_latest_version: true
+#   name: "EPEL 9 Modular (x86_64)"
+#   type: rpm
+#   feed: https://dl.fedoraproject.org/pub/epel/9/Modular/x86_64/
+#   enabled: false
+#
+#   filters:
+#     metadata:
+#       architectures:
+#         include: ["x86_64", "noarch"]
+#     rpm:
+#       exclude_source_rpms: true
+#     post_processing:
+#       only_latest_version: true
 
   # ============================================================================
   # EPEL 8 Modular - Module streams for EPEL 8
   # ============================================================================
-  #
+#
   # - id: epel8-modular
-  #   name: "EPEL 8 Modular (x86_64)"
-  #   type: rpm
-  #   feed: https://dl.fedoraproject.org/pub/epel/8/Modular/x86_64/
-  #   enabled: false
-  #
-  #   filters:
-  #     metadata:
-  #       architectures:
-  #         include: ["x86_64", "noarch"]
-  #     rpm:
-  #       exclude_source_rpms: true
-  #     post_processing:
-  #       only_latest_version: true
+#   name: "EPEL 8 Modular (x86_64)"
+#   type: rpm
+#   feed: https://dl.fedoraproject.org/pub/epel/8/Modular/x86_64/
+#   enabled: false
+#
+#   filters:
+#     metadata:
+#       architectures:
+#         include: ["x86_64", "noarch"]
+#     rpm:
+#       exclude_source_rpms: true
+#     post_processing:
+#       only_latest_version: true
 
   # ============================================================================
   # EPEL Next (for CentOS Stream users)
   # ============================================================================
-  #
+#
   # EPEL Next tracks CentOS Stream more closely and may include newer packages.
   # Only needed if you're using CentOS Stream.
-  #
+#
   # - id: epel9-next
-  #   name: "EPEL 9 Next (x86_64)"
-  #   type: rpm
-  #   feed: https://dl.fedoraproject.org/pub/epel/next/9/Everything/x86_64/
-  #   enabled: false
-  #
-  #   filters:
-  #     metadata:
-  #       architectures:
-  #         include: ["x86_64", "noarch"]
-  #     rpm:
-  #       exclude_source_rpms: true
-  #     post_processing:
-  #       only_latest_version: true
+#   name: "EPEL 9 Next (x86_64)"
+#   type: rpm
+#   feed: https://dl.fedoraproject.org/pub/epel/next/9/Everything/x86_64/
+#   enabled: false
+#
+#   filters:
+#     metadata:
+#       architectures:
+#         include: ["x86_64", "noarch"]
+#     rpm:
+#       exclude_source_rpms: true
+#     post_processing:
+#       only_latest_version: true
 
 
 # ==============================================================================

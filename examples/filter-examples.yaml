@@ -56,9 +56,9 @@ repositories:
           include:
             - "Applications/Internet"
             - "System Environment/Base"
-            # exclude:
-            #   - "Development/Libraries"
-            #   - "Documentation"
+              # exclude:
+              #   - "Development/Libraries"
+              #   - "Documentation"
 
         # License filtering (compliance!)
         licenses:
@@ -67,15 +67,15 @@ repositories:
             - "GPLv2"
             - "MIT"
             - "Apache"
-            # exclude:
-            #   - "Proprietary"
+              # exclude:
+              #   - "Proprietary"
 
         # Vendor filtering
         vendors:
           include:
             - "nginx, Inc."
-            # exclude:
-            #   - "Third Party"
+              # exclude:
+              #   - "Third Party"
 
         # Epoch filtering (advanced RPM versioning)
         epochs:

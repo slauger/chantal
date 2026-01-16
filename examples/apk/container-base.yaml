@@ -24,17 +24,17 @@ repositories:
           - "^apk-tools$"
           - "^busybox$"
           - "^busybox-binsh$"
-          # C library and utilities
+            # C library and utilities
           - "^musl$"
           - "^musl-utils$"
           - "^libc-utils$"
-          # SSL/TLS support
+            # SSL/TLS support
           - "^ca-certificates$"
           - "^ca-certificates-bundle$"
           - "^ssl_client$"
           - "^libcrypto3$"
           - "^libssl3$"
-          # Package management
+            # Package management
           - "^zlib$"
       post_processing:
         only_latest_version: true
@@ -65,7 +65,7 @@ repositories:
           - "^libcrypto3$"
           - "^libssl3$"
           - "^zlib$"
-          # Additional common tools
+            # Additional common tools
           - "^curl$"
           - "^wget$"
           - "^tar$"
