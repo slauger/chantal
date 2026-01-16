@@ -5,12 +5,13 @@ from __future__ import annotations
 import json
 import shutil
 from pathlib import Path
+from typing import Any
 
 import click
 
 from chantal.core.config import GlobalConfig
 from chantal.db.connection import DatabaseManager
-from chantal.db.models import Repository, Snapshot, View, ViewSnapshot
+from chantal.db.models import ContentItem, Repository, Snapshot, View, ViewSnapshot
 
 # Click context settings to enable -h as alias for --help
 CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
@@ -869,7 +870,7 @@ def _show_view_snapshot_content(
             ctx.exit(1)
 
         # Collect all packages from all snapshots
-        repositories_data = []
+        repositories_data: list[dict[str, Any]] = []
         all_packages = []
 
         for snapshot_id in view_snapshot.snapshot_ids:
