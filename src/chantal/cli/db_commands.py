@@ -43,7 +43,10 @@ def create_db_group(cli: click.Group) -> click.Group:
         try:
             migrations.init_database(config.database.url)
             current = migrations.get_current_revision(config.database.url)
-            click.echo(f"✓ Database initialized to revision: {current[:8]}")
+            if current:
+                click.echo(f"✓ Database initialized to revision: {current[:8]}")
+            else:
+                click.echo("✓ Database initialized")
         except Exception as e:
             click.echo(f"✗ Database initialization failed: {e}", err=True)
             ctx.exit(1)
@@ -75,7 +78,10 @@ def create_db_group(cli: click.Group) -> click.Group:
         try:
             migrations.upgrade_database(config.database.url, revision)
             new_current = migrations.get_current_revision(config.database.url)
-            click.echo(f"✓ Database upgraded to revision: {new_current[:8]}")
+            if new_current:
+                click.echo(f"✓ Database upgraded to revision: {new_current[:8]}")
+            else:
+                click.echo("✓ Database upgraded")
         except Exception as e:
             click.echo(f"✗ Upgrade failed: {e}", err=True)
             ctx.exit(1)

@@ -50,10 +50,10 @@ repositories:
           - "^terraform-.*"        # Infrastructure as Code
           - "^vault-.*"            # Secrets Management
           - "^consul-.*"           # Service Mesh
-          # Uncomment additional tools as needed:
-          # - "^nomad-.*"          # Workload Orchestrator
-          # - "^packer-.*"         # Image Builder
-          # - "^vagrant-.*"        # Development Environments
+            # Uncomment additional tools as needed:
+            # - "^nomad-.*"          # Workload Orchestrator
+            # - "^packer-.*"         # Image Builder
+            # - "^vagrant-.*"        # Development Environments
       metadata:
         architectures:
           include: ["x86_64"]

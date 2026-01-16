@@ -40,7 +40,7 @@ repositories:
       rpm:
         exclude_source_rpms: true
       post_processing:
-        # Keep only latest version (runners should stay up-to-date)
+            # Keep only latest version (runners should stay up-to-date)
         only_latest_version: true
 
   # ============================================================================

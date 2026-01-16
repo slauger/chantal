@@ -1,0 +1,43 @@
+---
+# yamllint configuration for Chantal project
+extends: default
+
+rules:
+  # Line length - allow longer lines for URLs and long strings
+  line-length:
+    max: 120
+    level: warning
+
+  # Indentation - 2 spaces is standard for YAML
+  indentation:
+    spaces: 2
+    indent-sequences: true
+
+  # Allow duplicate keys in examples (sometimes useful for demonstration)
+  key-duplicates: enable
+
+  # Comments - require space after '#'
+  comments:
+    min-spaces-from-content: 1
+
+  # Comment indentation - disable for documentation examples
+  # Many example files have commented-out YAML blocks that don't need strict indentation
+  comments-indentation: disable
+
+  # Document start - don't require '---' at start
+  document-start: disable
+
+  # Truthy values - allow yes/no/on/off
+  truthy:
+    allowed-values: ['true', 'false', 'yes', 'no', 'on', 'off']
+    check-keys: false
+
+ignore: |
+  venv/
+  venv*/
+  .venv/
+  __pycache__/
+  *.egg-info/
+  .dev/dev-storage/
+  build/
+  dist/

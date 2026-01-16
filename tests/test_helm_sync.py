@@ -256,7 +256,7 @@ class TestHelmPublisherMirrorMode:
 
         # Publish
         publisher = HelmPublisher(storage=temp_storage)
-        target_path = temp_storage.base_path / "published"
+        target_path = temp_storage.published_path
         target_path.mkdir(parents=True, exist_ok=True)
 
         repo_config = RepositoryConfig(
@@ -295,8 +295,11 @@ class TestHelmPublisherMirrorMode:
 
         chart = ContentItem(
             content_type="helm",
+            name="nginx",
+            version="1.0.0",
             filename="nginx-1.0.0.tgz",
             sha256="abc123def456",
+            pool_path="ab/c1/abc123def456_nginx-1.0.0.tgz",
             size_bytes=1024,
             content_metadata=chart_metadata.model_dump(mode="json"),
         )
@@ -305,7 +308,7 @@ class TestHelmPublisherMirrorMode:
 
         # Publish (no RepositoryFile exists, should generate)
         publisher = HelmPublisher(storage=temp_storage)
-        target_path = temp_storage.base_path / "published"
+        target_path = temp_storage.published_path
         target_path.mkdir(parents=True, exist_ok=True)
 
         repo_config = RepositoryConfig(
@@ -369,7 +372,7 @@ class TestHelmPublisherMirrorMode:
 
         # Publish snapshot
         publisher = HelmPublisher(storage=temp_storage)
-        target_path = temp_storage.base_path / "published"
+        target_path = temp_storage.published_path
         target_path.mkdir(parents=True, exist_ok=True)
 
         repo_config = RepositoryConfig(
@@ -427,7 +430,7 @@ class TestHelmIntegration:
 
         # Publish
         publisher = HelmPublisher(storage=temp_storage)
-        target_path = temp_storage.base_path / "published"
+        target_path = temp_storage.published_path
         target_path.mkdir(parents=True, exist_ok=True)
 
         publisher._publish_metadata_files(

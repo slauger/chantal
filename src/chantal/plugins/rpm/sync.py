@@ -575,6 +575,10 @@ class RpmSyncPlugin:
                     arch=pkg_meta["arch"],
                     summary=pkg_meta.get("summary"),
                     description=pkg_meta.get("description"),
+                    provides=pkg_meta.get("provides"),
+                    requires=pkg_meta.get("requires"),
+                    conflicts=pkg_meta.get("conflicts"),
+                    obsoletes=pkg_meta.get("obsoletes"),
                 )
 
                 # Add to database as ContentItem
@@ -731,7 +735,11 @@ class RpmSyncPlugin:
                 tmp_path.unlink()
 
     def _download_installer_file(
-        self, session: Session, repository: Repository, base_url: str, file_info: dict[str, str]
+        self,
+        session: Session,
+        repository: Repository,
+        base_url: str,
+        file_info: dict[str, str | None],
     ) -> None:
         """Download and store installer file.
 
@@ -742,7 +750,11 @@ class RpmSyncPlugin:
             file_info: Dict with path, file_type, sha256
         """
         file_path = file_info["path"]
+        if file_path is None:
+            raise ValueError("file_info['path'] cannot be None")
         file_type = file_info["file_type"]
+        if file_type is None:
+            raise ValueError("file_info['file_type'] cannot be None")
         expected_sha256 = file_info.get("sha256")
 
         file_url = urljoin(base_url, file_path)
@@ -796,8 +808,8 @@ class RpmSyncPlugin:
                 )
 
             # Store in pool via StorageManager
-            pool_path = self.storage.add_repository_file(
-                Path(tmp_file_path), filename=Path(file_path).name, sha256=actual_sha256
+            stored_sha256, pool_path, _ = self.storage.add_repository_file(
+                Path(tmp_file_path), filename=Path(file_path).name
             )
 
             # Create RepositoryFile record
@@ -846,8 +858,8 @@ class RpmSyncPlugin:
             sha256_hash = hashlib.sha256(treeinfo_content.encode()).hexdigest()
 
             # Store in pool
-            pool_path = self.storage.add_repository_file(
-                Path(tmp_path), filename=".treeinfo", sha256=sha256_hash
+            stored_sha256, pool_path, _ = self.storage.add_repository_file(
+                Path(tmp_path), filename=".treeinfo"
             )
 
             # Create RepositoryFile record

@@ -114,7 +114,7 @@ class AptPublisher(PublisherPlugin):
         self,
         packages: list[ContentItem],
         target_path: Path,
-        repository_files: list[RepositoryFile] = None,
+        repository_files: list[RepositoryFile] | None = None,
         mode: str = RepositoryMode.MIRROR,
     ) -> None:
         """Publish content items and generate metadata.
@@ -191,7 +191,7 @@ class AptPublisher(PublisherPlugin):
         Returns:
             Dictionary mapping (component, architecture) to list of packages
         """
-        grouped = {}
+        grouped: dict[tuple[str, str], list[ContentItem]] = {}
 
         for package in packages:
             component = package.content_metadata.get("component", "main")

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import shutil
 from pathlib import Path
+from typing import Any
 
 import click
 
@@ -367,7 +368,7 @@ def create_snapshot_group(cli: click.Group) -> click.Group:
             click.echo(f"Packages: {snapshot.package_count}")
 
             # Unpublish if needed
-            if snapshot.is_published:
+            if snapshot.is_published and snapshot.published_path:
                 published_path = Path(snapshot.published_path)
                 if published_path.exists():
                     click.echo(f"Unpublishing from: {published_path}")
@@ -678,7 +679,7 @@ def _create_view_snapshot(
             click.echo(f"  [{view_repo.order + 1}/{len(view.view_repositories)}] {repo.repo_id}...")
 
             # Get packages
-            packages = list(repo.packages)
+            packages = list(repo.content_items)
             if not packages:
                 click.echo(f"      Warning: Repository '{repo.repo_id}' has no packages (skipped)")
                 continue
@@ -869,7 +870,7 @@ def _show_view_snapshot_content(
             ctx.exit(1)
 
         # Collect all packages from all snapshots
-        repositories_data = []
+        repositories_data: list[dict[str, Any]] = []
         all_packages = []
 
         for snapshot_id in view_snapshot.snapshot_ids:

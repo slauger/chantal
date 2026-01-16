@@ -54,7 +54,7 @@ jobs:
             # Tag with major on git tags (e.g., v1.0.0 -> 1)
             type=semver,pattern={{major}}
             # Tag with git SHA for traceability
-            type=sha,prefix={{branch}}-
+            type=sha
           labels: |
             org.opencontainers.image.title=Chantal
             org.opencontainers.image.description=Unified offline repository mirroring for RPM and APT

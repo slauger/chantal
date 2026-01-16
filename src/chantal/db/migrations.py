@@ -74,7 +74,8 @@ def get_head_revision(database_url: str) -> str:
     """
     config = get_alembic_config(database_url)
     script = ScriptDirectory.from_config(config)
-    return script.get_current_head()
+    head = script.get_current_head()
+    return head if head is not None else ""
 
 
 def get_pending_migrations(database_url: str) -> list[tuple[str, str]]:
@@ -122,7 +123,7 @@ def get_migration_history(database_url: str) -> list[tuple[str, str, bool]]:
 
     # Get all revisions using iterate_revisions (oldest to newest)
     history = []
-    for rev in script.iterate_revisions():
+    for rev in script.iterate_revisions("heads", "base"):
         if current is None:
             # No migrations applied yet
             is_applied = False

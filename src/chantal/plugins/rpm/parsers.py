@@ -365,7 +365,7 @@ def parse_primary_xml(xml_content: bytes) -> list[dict]:
                 "epoch": version_elem.get("epoch"),
                 "arch": arch_elem.text,
                 "sha256": checksum_elem.text,
-                "size_bytes": int(size_elem.get("package")) if size_elem is not None else 0,
+                "size_bytes": int(size_elem.get("package") or "0") if size_elem is not None else 0,
                 "location": location_elem.get("href"),
                 "summary": summary_elem.text if summary_elem is not None else None,
                 "description": desc_elem.text if desc_elem is not None else None,
@@ -386,14 +386,14 @@ def parse_primary_xml(xml_content: bytes) -> list[dict]:
     return packages
 
 
-def parse_treeinfo(content: str) -> list[dict[str, str]]:
+def parse_treeinfo(content: str) -> list[dict[str, str | None]]:
     """Parse .treeinfo and extract installer file metadata.
 
     Args:
         content: .treeinfo file content (INI format)
 
     Returns:
-        List of dicts with keys: path, file_type, sha256
+        List of dicts with keys: path, file_type, sha256 (sha256 can be None)
     """
     parser = configparser.ConfigParser()
     parser.read_string(content)

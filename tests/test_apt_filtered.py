@@ -243,7 +243,7 @@ class TestPatternFiltering:
         package_names = {p.package for p in filtered}
         assert "nginx" not in package_names
         assert "emacs" not in package_names
-        assert len(filtered) == 4  # apache2, postgresql-14, vim
+        assert len(filtered) == 3  # apache2, postgresql-14, vim
 
 
 class TestPostProcessingFiltering:

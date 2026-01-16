@@ -25,13 +25,13 @@ repositories:
           - "^automake$"
           - "^libtool$"
           - "^pkgconf$"
-          # Headers and development libraries
+            # Headers and development libraries
           - "^linux-headers$"
           - "^musl-dev$"
           - "^libc-dev$"
           - "^openssl-dev$"
           - "^zlib-dev$"
-          # Version control
+            # Version control
           - "^git$"
           - "^git-lfs$"
       post_processing:

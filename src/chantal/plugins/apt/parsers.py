@@ -140,6 +140,14 @@ def parse_packages_file(content: str) -> list[DebMetadata]:
             )
             continue
 
+        # Type narrowing: After the check above, these are guaranteed to be str
+        assert package is not None
+        assert version is not None
+        assert architecture is not None
+        assert filename is not None
+        assert size_str is not None
+        assert sha256 is not None
+
         # Parse size as integer
         try:
             size = int(size_str)
@@ -211,6 +219,7 @@ def parse_packages_file(content: str) -> list[DebMetadata]:
                 filename=filename,
                 size=size,
                 sha256=sha256,
+                component=None,  # Will be set by sync plugin based on metadata source
                 description=description,
                 long_description=long_description,
                 section=stanza.get("Section"),

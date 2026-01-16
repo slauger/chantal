@@ -11,6 +11,7 @@ import os
 import shutil
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 import yaml
 from sqlalchemy.orm import Session
@@ -171,7 +172,7 @@ class HelmPublisher(PublisherPlugin):
 
         if index_file:
             # Mirror mode: Hardlink index.yaml from pool
-            pool_path = self.storage.pool_root / index_file.pool_path
+            pool_path = self.storage.pool_path / index_file.pool_path
             target_file = target_path / "index.yaml"
 
             if target_file.exists():
@@ -197,19 +198,20 @@ class HelmPublisher(PublisherPlugin):
             config: Repository configuration
         """
         # Build index structure
-        index = {
+        index: dict[str, Any] = {
             "apiVersion": "v1",
             "entries": {},
             "generated": datetime.utcnow().isoformat() + "Z",
         }
+        entries: dict[str, list[dict[str, Any]]] = index["entries"]
 
         # Group charts by name
         for chart in charts:
             metadata = HelmMetadata(**chart.content_metadata)
             name = metadata.name
 
-            if name not in index["entries"]:
-                index["entries"][name] = []
+            if name not in entries:
+                entries[name] = []
 
             # Convert metadata to index entry
             entry = metadata.to_index_entry()
@@ -224,7 +226,7 @@ class HelmPublisher(PublisherPlugin):
             # Update digest with actual SHA256
             entry["digest"] = f"sha256:{chart.sha256}"
 
-            index["entries"][name].append(entry)
+            entries[name].append(entry)
 
         # Write index.yaml
         index_path = target_path / "index.yaml"

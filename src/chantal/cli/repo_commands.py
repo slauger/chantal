@@ -5,8 +5,9 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 import click
+from sqlalchemy.orm import Session
 
-from chantal.core.config import GlobalConfig
+from chantal.core.config import GlobalConfig, RepositoryConfig
 from chantal.core.storage import StorageManager
 from chantal.db.connection import DatabaseManager
 from chantal.db.models import Repository, Snapshot, SyncHistory
@@ -52,7 +53,7 @@ def create_repo_group(cli: click.Group) -> click.Group:
         help="Filter by repository type",
     )
     @click.pass_context
-    def repo_list(ctx: click.Context, output_format: str, repo_type: str = None) -> None:
+    def repo_list(ctx: click.Context, output_format: str, repo_type: str | None = None) -> None:
         """List configured repositories.
 
         Shows all repositories from config with their current sync status.
@@ -85,7 +86,7 @@ def create_repo_group(cli: click.Group) -> click.Group:
                             "type": repo_config.type,
                             "feed": repo_config.feed,
                             "enabled": repo_config.enabled,
-                            "package_count": len(db_repo.packages) if db_repo else 0,
+                            "package_count": len(db_repo.content_items) if db_repo else 0,
                             "last_sync": (
                                 db_repo.last_sync_at.isoformat()
                                 if db_repo and db_repo.last_sync_at
@@ -264,12 +265,12 @@ def create_repo_group(cli: click.Group) -> click.Group:
                     click.echo()
             else:
                 # Sync single repository
-                repo_config = next((r for r in config.repositories if r.id == repo_id), None)
-                if not repo_config:
+                single_repo = next((r for r in config.repositories if r.id == repo_id), None)
+                if not single_repo:
                     click.echo(f"Error: Repository '{repo_id}' not found in configuration")
                     raise click.Abort()
 
-                _sync_single_repository(session, storage, config, repo_config)
+                _sync_single_repository(session, storage, config, single_repo)
         finally:
             session.close()
 
@@ -677,7 +678,12 @@ def create_repo_group(cli: click.Group) -> click.Group:
     return repo
 
 
-def _sync_single_repository(session, storage, global_config, repo_config):
+def _sync_single_repository(
+    session: Session,
+    storage: StorageManager,
+    global_config: GlobalConfig,
+    repo_config: RepositoryConfig,
+) -> Repository:
     """Helper function to sync a single repository."""
     # Get or create repository in database
     repository = session.query(Repository).filter_by(repo_id=repo_config.id).first()
@@ -726,6 +732,23 @@ def _sync_single_repository(session, storage, global_config, repo_config):
             ssl_config=effective_ssl,
             cache=cache,
         )
+        rpm_result = sync_plugin.sync_repository(session, repository)
+
+        # Display result
+        if rpm_result.success:
+            # Update last sync timestamp
+            repository.last_sync_at = datetime.now(timezone.utc)
+            session.commit()
+
+            click.echo("\n✓ Sync completed successfully!")
+            click.echo(f"  Total packages: {rpm_result.packages_total}")
+            click.echo(f"  Downloaded: {rpm_result.packages_downloaded}")
+            click.echo(f"  Skipped (already in pool): {rpm_result.packages_skipped}")
+            click.echo(f"  Data transferred: {rpm_result.bytes_downloaded / 1024 / 1024:.2f} MB")
+        else:
+            click.echo(f"\n✗ Sync failed: {rpm_result.error_message}", err=True)
+
+        return repository
     elif repo_config.type == "helm":
         helm_syncer = HelmSyncer(
             storage=storage,
@@ -745,7 +768,7 @@ def _sync_single_repository(session, storage, global_config, repo_config):
         click.echo(f"  Charts updated: {stats['charts_updated']}")
         click.echo(f"  Charts skipped: {stats['charts_skipped']}")
         click.echo(f"  Data transferred: {stats['bytes_downloaded'] / 1024 / 1024:.2f} MB")
-        return
+        return repository
     elif repo_config.type == "apk":
         apk_syncer = ApkSyncer(
             storage=storage,
@@ -769,7 +792,7 @@ def _sync_single_repository(session, storage, global_config, repo_config):
             click.echo(
                 f"  SHA1 mismatches: {stats['sha1_mismatches']} (stale APKINDEX, integrity verified via SHA256)"
             )
-        return
+        return repository
     elif repo_config.type == "apt":
         apt_syncer = AptSyncPlugin(
             storage=storage,
@@ -777,46 +800,34 @@ def _sync_single_repository(session, storage, global_config, repo_config):
             proxy_config=effective_proxy,
             ssl_config=effective_ssl,
         )
-        result = apt_syncer.sync_repository(session, repository)
+        apt_result = apt_syncer.sync_repository(session, repository)
 
         # Update last sync timestamp
         repository.last_sync_at = datetime.now(timezone.utc)
         session.commit()
 
         # Display result
-        if result.success:
+        if apt_result.success:
             click.echo("\n✓ APT sync completed successfully!")
-            click.echo(f"  Packages downloaded: {result.packages_downloaded}")
-            click.echo(f"  Packages skipped: {result.packages_skipped}")
-            click.echo(f"  Packages total: {result.packages_total}")
-            click.echo(f"  Data transferred: {result.bytes_downloaded / 1024 / 1024:.2f} MB")
-            click.echo(f"  Metadata files: {result.metadata_files_downloaded}")
+            click.echo(f"  Packages downloaded: {apt_result.packages_downloaded}")
+            click.echo(f"  Packages skipped: {apt_result.packages_skipped}")
+            click.echo(f"  Packages total: {apt_result.packages_total}")
+            click.echo(f"  Data transferred: {apt_result.bytes_downloaded / 1024 / 1024:.2f} MB")
+            click.echo(f"  Metadata files: {apt_result.metadata_files_downloaded}")
         else:
-            click.echo(f"\n✗ APT sync failed: {result.error_message}")
-        return
+            click.echo(f"\n✗ APT sync failed: {apt_result.error_message}")
+        return repository
     else:
         click.echo(f"Error: Unsupported repository type: {repo_config.type}")
-        return
-
-    # Perform sync
-    result = sync_plugin.sync_repository(session, repository)
-
-    # Display result
-    if result.success:
-        # Update last sync timestamp
-        repository.last_sync_at = datetime.now(timezone.utc)
-        session.commit()
-
-        click.echo("\n✓ Sync completed successfully!")
-        click.echo(f"  Total packages: {result.packages_total}")
-        click.echo(f"  Downloaded: {result.packages_downloaded}")
-        click.echo(f"  Skipped (already in pool): {result.packages_skipped}")
-        click.echo(f"  Data transferred: {result.bytes_downloaded / 1024 / 1024:.2f} MB")
-    else:
-        click.echo(f"\n✗ Sync failed: {result.error_message}", err=True)
+        raise click.Abort()
 
 
-def _check_updates_single_repository(session, storage, global_config, repo_config):
+def _check_updates_single_repository(
+    session: Session,
+    storage: StorageManager,
+    global_config: GlobalConfig,
+    repo_config: RepositoryConfig,
+) -> CheckUpdatesResult:
     """Helper function to check updates for a single repository."""
     # Get or create repository in database
     repository = session.query(Repository).filter_by(repo_id=repo_config.id).first()

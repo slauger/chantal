@@ -9,6 +9,7 @@ This module implements syncing for Helm chart repositories.
 import logging
 import tempfile
 from pathlib import Path
+from typing import Any
 from urllib.parse import urljoin
 
 import yaml
@@ -167,7 +168,7 @@ class HelmSyncer:
 
         return stats
 
-    def _fetch_index(self, url: str, config: RepositoryConfig) -> dict:
+    def _fetch_index(self, url: str, config: RepositoryConfig) -> dict[str, Any]:
         """Fetch and parse index.yaml.
 
         Args:
@@ -196,7 +197,8 @@ class HelmSyncer:
 
         content = re.sub(r"[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F-\x9F]", "", content)
 
-        return yaml.safe_load(content)
+        result: dict[str, Any] = yaml.safe_load(content)
+        return result
 
     def _parse_index(self, index_data: dict) -> list[dict]:
         """Parse chart entries from index.yaml.
@@ -374,4 +376,4 @@ class HelmSyncer:
 
         logger.debug(f"Stored chart in pool: {pool_path}")
 
-        return pool_path, sha256, size
+        return Path(pool_path), sha256, size

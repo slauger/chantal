@@ -117,7 +117,7 @@ class RpmPublisher(PublisherPlugin):
         self,
         packages: list[ContentItem],
         target_path: Path,
-        repository_files: list[RepositoryFile] = None,
+        repository_files: list[RepositoryFile] | None = None,
         mode: str = RepositoryMode.MIRROR,
         config: RepositoryConfig | None = None,
     ) -> None:
@@ -141,7 +141,7 @@ class RpmPublisher(PublisherPlugin):
                 # Detect from upstream metadata files
                 compression = self._detect_upstream_compression(repository_files)
             else:
-                compression = compression_setting  # type: ignore
+                compression = compression_setting
 
         # Create directory structure
         target_path.mkdir(parents=True, exist_ok=True)
@@ -198,7 +198,7 @@ class RpmPublisher(PublisherPlugin):
             if rf.file_type == "primary":
                 from chantal.plugins.rpm.compression import detect_compression
 
-                detected = detect_compression(rf.relative_path)
+                detected = detect_compression(rf.original_path)
                 if detected and detected != "none":
                     return detected
         # Fallback to gzip
@@ -499,7 +499,7 @@ class RpmPublisher(PublisherPlugin):
                 updateinfo_index = i
                 break
 
-        if not updateinfo_entry:
+        if not updateinfo_entry or updateinfo_index is None:
             # No updateinfo to filter
             return published_metadata
 
@@ -633,7 +633,7 @@ class RpmPublisher(PublisherPlugin):
                 filelists_index = i
                 break
 
-        if not filelists_entry:
+        if not filelists_entry or filelists_index is None:
             # No filelists to filter
             return published_metadata
 
@@ -768,7 +768,7 @@ class RpmPublisher(PublisherPlugin):
                 other_index = i
                 break
 
-        if not other_entry:
+        if not other_entry or other_index is None:
             # No other to filter
             return published_metadata
 

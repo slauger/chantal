@@ -41,7 +41,7 @@ repositories:
       rpm:
         exclude_source_rpms: true
       post_processing:
-        # Keep latest version only (Docker updates frequently)
+            # Keep latest version only (Docker updates frequently)
         only_latest_version: true
 
   # ============================================================================

@@ -3,10 +3,10 @@ name: Lint and Type Check
 on:
   push:
     branches:
-      - '**'
+      - main  # Only run on pushes to main (direct commits)
   pull_request:
     branches:
-      - main
+      - main  # Run on all PRs targeting main
 
 jobs:
   lint-and-type-check:
@@ -52,13 +52,19 @@ jobs:
           black --check --diff src/chantal/ tests/
         continue-on-error: false
 
+      - name: Run yamllint (YAML linting)
+        run: |
+          echo "Linting YAML files..."
+          yamllint --strict examples/ .github/
+        continue-on-error: false
+
       - name: Run mypy (type checking)
         run: |
           echo "Running mypy type checker..."
           mypy src/chantal/ --ignore-missing-imports
-        continue-on-error: true
-        # Note: MyPy has 85 pre-existing type errors that need to be fixed
-        #       Set to continue-on-error: true until these are resolved
+        continue-on-error: false
+        # Type checking is now enforced - all code must pass mypy
+        # See CONTRIBUTING.md for type annotation guidelines
 
       - name: Run pytest
         run: |

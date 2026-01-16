@@ -34,11 +34,11 @@ repositories:
           - "^pgaudit16-.*"            # Audit logging extension
           - "^pg_repack16-.*"          # Table reorganization
           - "^postgis34_16-.*"         # Spatial database extension
-          # Additional extensions (uncomment as needed):
-          # - "^pgrouting_16-.*"       # Routing extension for PostGIS
-          # - "^pgvector_16-.*"        # Vector similarity search
-          # - "^timescaledb-.*"        # Time-series database
-          # - "^citus_16-.*"           # Distributed PostgreSQL
+            # Additional extensions (uncomment as needed):
+            # - "^pgrouting_16-.*"       # Routing extension for PostGIS
+            # - "^pgvector_16-.*"        # Vector similarity search
+            # - "^timescaledb-.*"        # Time-series database
+            # - "^citus_16-.*"           # Distributed PostgreSQL
         exclude:
           - ".*-debuginfo$"
           - ".*-debugsource$"
@@ -76,34 +76,34 @@ repositories:
       post_processing:
         only_latest_version: true
 
-  # ============================================================================
-  # PostgreSQL Common - Shared packages for all versions
-  # ============================================================================
-  #
-  # The common repository contains packages that work across all PostgreSQL versions.
-  #
-  # - id: postgresql-common-el9
-  #   name: "PostgreSQL Common (EL9/x86_64)"
-  #   type: rpm
-  #   feed: https://download.postgresql.org/pub/repos/yum/common/redhat/rhel-9-x86_64/
-  #   enabled: true
-  #
-  #   filters:
-  #     patterns:
-  #       include:
-  #         - "^pgadmin4-.*"           # pgAdmin 4 web interface
-  #         - "^pgbouncer-.*"          # Connection pooler
-  #         - "^pgpool-II-.*"          # Connection pool and load balancer
-  #         - "^pg_top-.*"             # PostgreSQL process monitor
-  #       exclude:
-  #         - ".*-debuginfo$"
-  #     metadata:
-  #       architectures:
-  #         include: ["x86_64", "noarch"]
-  #     rpm:
-  #       exclude_source_rpms: true
-  #     post_processing:
-  #       only_latest_version: true
+# ============================================================================
+# PostgreSQL Common - Shared packages for all versions
+# ============================================================================
+#
+# The common repository contains packages that work across all PostgreSQL versions.
+#
+# - id: postgresql-common-el9
+#   name: "PostgreSQL Common (EL9/x86_64)"
+#   type: rpm
+#   feed: https://download.postgresql.org/pub/repos/yum/common/redhat/rhel-9-x86_64/
+#   enabled: true
+#
+#   filters:
+#     patterns:
+#       include:
+#         - "^pgadmin4-.*"           # pgAdmin 4 web interface
+#         - "^pgbouncer-.*"          # Connection pooler
+#         - "^pgpool-II-.*"          # Connection pool and load balancer
+#         - "^pg_top-.*"             # PostgreSQL process monitor
+#       exclude:
+#         - ".*-debuginfo$"
+#     metadata:
+#       architectures:
+#         include: ["x86_64", "noarch"]
+#     rpm:
+#       exclude_source_rpms: true
+#     post_processing:
+#       only_latest_version: true
 
 
 # ==============================================================================
