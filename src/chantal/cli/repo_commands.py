@@ -732,6 +732,23 @@ def _sync_single_repository(
             ssl_config=effective_ssl,
             cache=cache,
         )
+        result = sync_plugin.sync_repository(session, repository)
+
+        # Display result
+        if result.success:
+            # Update last sync timestamp
+            repository.last_sync_at = datetime.now(timezone.utc)
+            session.commit()
+
+            click.echo("\n✓ Sync completed successfully!")
+            click.echo(f"  Total packages: {result.packages_total}")
+            click.echo(f"  Downloaded: {result.packages_downloaded}")
+            click.echo(f"  Skipped (already in pool): {result.packages_skipped}")
+            click.echo(f"  Data transferred: {result.bytes_downloaded / 1024 / 1024:.2f} MB")
+        else:
+            click.echo(f"\n✗ Sync failed: {result.error_message}", err=True)
+
+        return repository
     elif repo_config.type == "helm":
         helm_syncer = HelmSyncer(
             storage=storage,
@@ -803,25 +820,6 @@ def _sync_single_repository(
     else:
         click.echo(f"Error: Unsupported repository type: {repo_config.type}")
         raise click.Abort()
-
-    # Perform sync
-    result = sync_plugin.sync_repository(session, repository)
-
-    # Display result
-    if result.success:
-        # Update last sync timestamp
-        repository.last_sync_at = datetime.now(timezone.utc)
-        session.commit()
-
-        click.echo("\n✓ Sync completed successfully!")
-        click.echo(f"  Total packages: {result.packages_total}")
-        click.echo(f"  Downloaded: {result.packages_downloaded}")
-        click.echo(f"  Skipped (already in pool): {result.packages_skipped}")
-        click.echo(f"  Data transferred: {result.bytes_downloaded / 1024 / 1024:.2f} MB")
-    else:
-        click.echo(f"\n✗ Sync failed: {result.error_message}", err=True)
-
-    return repository
 
 
 def _check_updates_single_repository(
