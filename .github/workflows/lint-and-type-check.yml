@@ -3,10 +3,10 @@ name: Lint and Type Check
 on:
   push:
     branches:
-      - '**'
+      - main  # Only run on pushes to main (direct commits)
   pull_request:
     branches:
-      - main
+      - main  # Run on all PRs targeting main
 
 jobs:
   lint-and-type-check:
