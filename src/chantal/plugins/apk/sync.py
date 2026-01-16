@@ -235,7 +235,7 @@ class ApkSyncer:
             list: List of package entry dictionaries
         """
         packages = []
-        current_pkg = {}
+        current_pkg: dict[str, str] = {}
 
         # Field prefix mapping
         field_map = {

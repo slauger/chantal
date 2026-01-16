@@ -735,7 +735,7 @@ class RpmSyncPlugin:
                 tmp_path.unlink()
 
     def _download_installer_file(
-        self, session: Session, repository: Repository, base_url: str, file_info: dict[str, str]
+        self, session: Session, repository: Repository, base_url: str, file_info: dict[str, str | None]
     ) -> None:
         """Download and store installer file.
 
@@ -746,7 +746,11 @@ class RpmSyncPlugin:
             file_info: Dict with path, file_type, sha256
         """
         file_path = file_info["path"]
+        if file_path is None:
+            raise ValueError("file_info['path'] cannot be None")
         file_type = file_info["file_type"]
+        if file_type is None:
+            raise ValueError("file_info['file_type'] cannot be None")
         expected_sha256 = file_info.get("sha256")
 
         file_url = urljoin(base_url, file_path)

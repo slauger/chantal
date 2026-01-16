@@ -219,6 +219,7 @@ def parse_packages_file(content: str) -> list[DebMetadata]:
                 filename=filename,
                 size=size,
                 sha256=sha256,
+                component=None,  # Will be set by sync plugin based on metadata source
                 description=description,
                 long_description=long_description,
                 section=stanza.get("Section"),

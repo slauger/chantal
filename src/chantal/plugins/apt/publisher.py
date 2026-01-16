@@ -191,7 +191,7 @@ class AptPublisher(PublisherPlugin):
         Returns:
             Dictionary mapping (component, architecture) to list of packages
         """
-        grouped = {}
+        grouped: dict[tuple[str, str], list[ContentItem]] = {}
 
         for package in packages:
             component = package.content_metadata.get("component", "main")
