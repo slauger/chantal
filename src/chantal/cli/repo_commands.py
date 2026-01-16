@@ -732,21 +732,21 @@ def _sync_single_repository(
             ssl_config=effective_ssl,
             cache=cache,
         )
-        result = sync_plugin.sync_repository(session, repository)
+        rpm_result = sync_plugin.sync_repository(session, repository)
 
         # Display result
-        if result.success:
+        if rpm_result.success:
             # Update last sync timestamp
             repository.last_sync_at = datetime.now(timezone.utc)
             session.commit()
 
             click.echo("\n✓ Sync completed successfully!")
-            click.echo(f"  Total packages: {result.packages_total}")
-            click.echo(f"  Downloaded: {result.packages_downloaded}")
-            click.echo(f"  Skipped (already in pool): {result.packages_skipped}")
-            click.echo(f"  Data transferred: {result.bytes_downloaded / 1024 / 1024:.2f} MB")
+            click.echo(f"  Total packages: {rpm_result.packages_total}")
+            click.echo(f"  Downloaded: {rpm_result.packages_downloaded}")
+            click.echo(f"  Skipped (already in pool): {rpm_result.packages_skipped}")
+            click.echo(f"  Data transferred: {rpm_result.bytes_downloaded / 1024 / 1024:.2f} MB")
         else:
-            click.echo(f"\n✗ Sync failed: {result.error_message}", err=True)
+            click.echo(f"\n✗ Sync failed: {rpm_result.error_message}", err=True)
 
         return repository
     elif repo_config.type == "helm":
@@ -800,22 +800,22 @@ def _sync_single_repository(
             proxy_config=effective_proxy,
             ssl_config=effective_ssl,
         )
-        result = apt_syncer.sync_repository(session, repository)
+        apt_result = apt_syncer.sync_repository(session, repository)
 
         # Update last sync timestamp
         repository.last_sync_at = datetime.now(timezone.utc)
         session.commit()
 
         # Display result
-        if result.success:
+        if apt_result.success:
             click.echo("\n✓ APT sync completed successfully!")
-            click.echo(f"  Packages downloaded: {result.packages_downloaded}")
-            click.echo(f"  Packages skipped: {result.packages_skipped}")
-            click.echo(f"  Packages total: {result.packages_total}")
-            click.echo(f"  Data transferred: {result.bytes_downloaded / 1024 / 1024:.2f} MB")
-            click.echo(f"  Metadata files: {result.metadata_files_downloaded}")
+            click.echo(f"  Packages downloaded: {apt_result.packages_downloaded}")
+            click.echo(f"  Packages skipped: {apt_result.packages_skipped}")
+            click.echo(f"  Packages total: {apt_result.packages_total}")
+            click.echo(f"  Data transferred: {apt_result.bytes_downloaded / 1024 / 1024:.2f} MB")
+            click.echo(f"  Metadata files: {apt_result.metadata_files_downloaded}")
         else:
-            click.echo(f"\n✗ APT sync failed: {result.error_message}")
+            click.echo(f"\n✗ APT sync failed: {apt_result.error_message}")
         return repository
     else:
         click.echo(f"Error: Unsupported repository type: {repo_config.type}")
