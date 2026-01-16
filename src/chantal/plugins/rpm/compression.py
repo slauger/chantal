@@ -6,7 +6,7 @@ import bz2
 import gzip
 from typing import Literal
 
-import zstandard as zstd  # type: ignore[import-not-found]
+import zstandard as zstd
 
 CompressionFormat = Literal["gzip", "zstandard", "bzip2", "none"]
 

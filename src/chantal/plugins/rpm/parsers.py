@@ -15,7 +15,7 @@ import xml.etree.ElementTree as ET
 from urllib.parse import urljoin
 
 import requests
-import zstandard as zstd  # type: ignore[import-not-found]
+import zstandard as zstd
 
 from chantal.core.cache import MetadataCache
 

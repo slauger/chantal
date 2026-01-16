@@ -420,7 +420,7 @@ class RpmPublisher(PublisherPlugin):
                         open_sha256 = hashlib.sha256(open_data).hexdigest()
                         open_size = len(open_data)
                 elif file_path.suffix == ".zst":
-                    import zstandard as zstd  # type: ignore[import-not-found]
+                    import zstandard as zstd
 
                     dctx = zstd.ZstdDecompressor()
                     open_data = dctx.decompress(file_data)
@@ -546,7 +546,7 @@ class RpmPublisher(PublisherPlugin):
                     with gzip.open(filtered_updateinfo_path, "wb") as f_out:
                         shutil.copyfileobj(f_in, f_out)
             elif updateinfo_path.suffix == ".zst":
-                import zstandard as zstd  # type: ignore[import-not-found]
+                import zstandard as zstd
 
                 with open(tmp_xml_path, "rb") as f_in:
                     xml_data = f_in.read()
@@ -660,7 +660,7 @@ class RpmPublisher(PublisherPlugin):
             elif filelists_path.suffix == ".zst":
                 import io
 
-                import zstandard as zstd  # type: ignore[import-not-found]
+                import zstandard as zstd
 
                 with open(filelists_path, "rb") as f:
                     dctx = zstd.ZstdDecompressor()
@@ -715,7 +715,7 @@ class RpmPublisher(PublisherPlugin):
                     with gzip.open(filtered_filelists_path, "wb") as f_out:
                         shutil.copyfileobj(f_in, f_out)
             elif filelists_path.suffix == ".zst":
-                import zstandard as zstd  # type: ignore[import-not-found]
+                import zstandard as zstd
 
                 with open(tmp_xml_path, "rb") as f_in:
                     xml_data = f_in.read()
@@ -795,7 +795,7 @@ class RpmPublisher(PublisherPlugin):
             elif other_path.suffix == ".zst":
                 import io
 
-                import zstandard as zstd  # type: ignore[import-not-found]
+                import zstandard as zstd
 
                 with open(other_path, "rb") as f:
                     dctx = zstd.ZstdDecompressor()
@@ -850,7 +850,7 @@ class RpmPublisher(PublisherPlugin):
                     with gzip.open(filtered_other_path, "wb") as f_out:
                         shutil.copyfileobj(f_in, f_out)
             elif other_path.suffix == ".zst":
-                import zstandard as zstd  # type: ignore[import-not-found]
+                import zstandard as zstd
 
                 with open(tmp_xml_path, "rb") as f_in:
                     xml_data = f_in.read()
