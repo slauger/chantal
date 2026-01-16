@@ -241,7 +241,7 @@ def create_publish_group(cli: click.Group) -> click.Group:
             )
 
             if output_format == "json":
-                result = {"snapshots": []}
+                result: dict[str, list[dict[str, str | int | None]]] = {"snapshots": []}
 
                 for snapshot in published_snapshots:
                     repo = session.query(Repository).filter_by(id=snapshot.repository_id).first()
@@ -338,6 +338,9 @@ def create_publish_group(cli: click.Group) -> click.Group:
 
             # Get repository info
             repository = session.query(Repository).filter_by(id=snap.repository_id).first()
+            if repository is None:
+                click.echo("Error: Repository not found in database.", err=True)
+                ctx.exit(1)
 
             click.echo(f"Unpublishing snapshot: {snapshot}")
             click.echo(f"Repository: {repository.repo_id}")
@@ -345,6 +348,9 @@ def create_publish_group(cli: click.Group) -> click.Group:
             click.echo()
 
             # Remove published directory
+            if snap.published_path is None:
+                click.echo("Error: Snapshot has no published path.", err=True)
+                ctx.exit(1)
             published_path = Path(snap.published_path)
             if published_path.exists():
                 shutil.rmtree(published_path)
@@ -392,10 +398,10 @@ def _publish_single_repository(
 
     # Initialize publisher based on repository type
     if repo_config.type == "rpm":
-        publisher = RpmPublisher(storage=storage)
+        rpm_publisher = RpmPublisher(storage=storage)
         # Publish repository
         try:
-            publisher.publish_repository(
+            rpm_publisher.publish_repository(
                 session=session, repository=repository, config=repo_config, target_path=target_path
             )
             click.echo("\n✓ Repository published successfully!")
@@ -406,10 +412,10 @@ def _publish_single_repository(
             click.echo(f"\n✗ Publishing failed: {e}", err=True)
             raise
     elif repo_config.type == "helm":
-        publisher = HelmPublisher(storage=storage)
+        helm_publisher = HelmPublisher(storage=storage)
         # Publish repository
         try:
-            publisher.publish_repository(
+            helm_publisher.publish_repository(
                 session=session, repository=repository, config=repo_config, target_path=target_path
             )
             click.echo("\n✓ Helm repository published successfully!")
@@ -420,13 +426,15 @@ def _publish_single_repository(
             click.echo(f"\n✗ Publishing failed: {e}", err=True)
             raise
     elif repo_config.type == "apk":
-        publisher = ApkPublisher(storage=storage)
+        apk_publisher = ApkPublisher(storage=storage)
         # Publish repository
         try:
-            publisher.publish_repository(
+            apk_publisher.publish_repository(
                 session=session, repository=repository, config=repo_config, target_path=target_path
             )
             apk_config = repo_config.apk
+            if apk_config is None:
+                raise ValueError("APK config is required for APK repositories")
             arch_path = (
                 target_path / apk_config.branch / apk_config.repository / apk_config.architecture
             )
@@ -438,13 +446,15 @@ def _publish_single_repository(
             click.echo(f"\n✗ Publishing failed: {e}", err=True)
             raise
     elif repo_config.type == "apt":
-        publisher = AptPublisher(storage=storage, config=repo_config)
+        apt_publisher = AptPublisher(storage=storage, config=repo_config)
         # Publish repository
         try:
-            publisher.publish_repository(
+            apt_publisher.publish_repository(
                 session=session, repository=repository, config=repo_config, target_path=target_path
             )
             apt_config = repo_config.apt
+            if apt_config is None:
+                raise ValueError("APT config is required for APT repositories")
             dists_path = target_path / "dists" / apt_config.distribution
             click.echo("\n✓ APT repository published successfully!")
             click.echo(f"  Location: {target_path}")
@@ -498,6 +508,9 @@ def _publish_repository_snapshot(
 
         # Get repository
         repository = session.query(Repository).filter_by(id=snap.repository_id).first()
+        if repository is None:
+            click.echo("Error: Repository not found in database.", err=True)
+            ctx.exit(1)
 
         # Find repository config
         repo_config = None
@@ -530,33 +543,25 @@ def _publish_repository_snapshot(
 
         # Initialize publisher based on repository type
         if repo_config.type == "rpm":
-            publisher = RpmPublisher(storage=storage)
-        elif repo_config.type == "apt":
-            publisher = AptPublisher(storage=storage, config=repo_config)
-        else:
-            click.echo(f"Error: Unsupported repository type: {repo_config.type}", err=True)
-            ctx.exit(1)
+            rpm_publisher = RpmPublisher(storage=storage)
+            # Publish snapshot
+            try:
+                rpm_publisher.publish_snapshot(
+                    session=session,
+                    snapshot=snap,
+                    repository=repository,
+                    config=repo_config,
+                    target_path=target_path,
+                )
 
-        # Publish snapshot
-        try:
-            publisher.publish_snapshot(
-                session=session,
-                snapshot=snap,
-                repository=repository,
-                config=repo_config,
-                target_path=target_path,
-            )
+                # Update snapshot metadata
+                snap.is_published = True
+                snap.published_path = str(target_path)
+                session.commit()
 
-            # Update snapshot metadata
-            snap.is_published = True
-            snap.published_path = str(target_path)
-            session.commit()
-
-            click.echo()
-            click.echo("✓ Snapshot published successfully!")
-            click.echo(f"  Location: {target_path}")
-
-            if repo_config.type == "rpm":
+                click.echo()
+                click.echo("✓ Snapshot published successfully!")
+                click.echo(f"  Location: {target_path}")
                 click.echo(f"  Packages directory: {target_path}/Packages")
                 click.echo(f"  Metadata directory: {target_path}/repodata")
                 click.echo()
@@ -566,8 +571,33 @@ def _publish_repository_snapshot(
                 click.echo(f"  baseurl=file://{target_path}")
                 click.echo("  enabled=1")
                 click.echo("  gpgcheck=0")
-            elif repo_config.type == "apt":
+            except Exception as e:
+                click.echo(f"\n✗ Publishing failed: {e}", err=True)
+                raise
+        elif repo_config.type == "apt":
+            apt_publisher = AptPublisher(storage=storage, config=repo_config)
+            # Publish snapshot
+            try:
+                apt_publisher.publish_snapshot(
+                    session=session,
+                    snapshot=snap,
+                    repository=repository,
+                    config=repo_config,
+                    target_path=target_path,
+                )
+
+                # Update snapshot metadata
+                snap.is_published = True
+                snap.published_path = str(target_path)
+                session.commit()
+
+                click.echo()
+                click.echo("✓ Snapshot published successfully!")
+                click.echo(f"  Location: {target_path}")
+
                 apt_config = repo_config.apt
+                if apt_config is None:
+                    raise ValueError("APT config is required for APT repositories")
                 dists_path = target_path / "dists" / apt_config.distribution
                 click.echo(f"  Distribution: {apt_config.distribution}")
                 click.echo(f"  Metadata directory: {dists_path}")
@@ -576,10 +606,12 @@ def _publish_repository_snapshot(
                 click.echo(
                     f"  deb [trusted=yes] file://{target_path} {apt_config.distribution} {' '.join(apt_config.components)}"
                 )
-
-        except Exception as e:
-            click.echo(f"\n✗ Publishing failed: {e}", err=True)
-            raise
+            except Exception as e:
+                click.echo(f"\n✗ Publishing failed: {e}", err=True)
+                raise
+        else:
+            click.echo(f"Error: Unsupported repository type: {repo_config.type}", err=True)
+            ctx.exit(1)
 
 
 def _publish_view_snapshot(
