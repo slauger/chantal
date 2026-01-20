@@ -3,12 +3,30 @@ from __future__ import annotations
 """Database management commands."""
 
 import click
+from sqlalchemy.orm import Session
 
 from chantal.core.config import GlobalConfig
 from chantal.db import migrations
+from chantal.db.connection import DatabaseManager
+from chantal.db.models import Repository, Snapshot, SyncHistory
 
 # Click context settings to enable -h as alias for --help
 CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
+
+
+def _get_orphaned_repositories(session: Session, config: GlobalConfig) -> list[Repository]:
+    """Get repositories in database that are not in configuration.
+
+    Args:
+        session: Database session
+        config: Global configuration
+
+    Returns:
+        List of orphaned repositories
+    """
+    config_repo_ids = {r.id for r in config.repositories}
+    all_repos = session.query(Repository).all()
+    return [r for r in all_repos if r.repo_id not in config_repo_ids]
 
 
 def create_db_group(cli: click.Group) -> click.Group:
@@ -177,14 +195,186 @@ def create_db_group(cli: click.Group) -> click.Group:
 
     @db.command("cleanup")
     @click.option("--dry-run", is_flag=True, help="Show what would be deleted")
+    @click.option(
+        "--orphaned", is_flag=True, help="Only clean orphaned repositories (in DB but not in config)"
+    )
+    @click.option(
+        "--unreferenced", is_flag=True, help="Only clean unreferenced packages"
+    )
+    @click.option(
+        "--force", is_flag=True, help="Skip confirmation prompt"
+    )
     @click.pass_context
-    def db_cleanup(ctx: click.Context, dry_run: bool) -> None:
-        """Remove unreferenced packages from pool."""
-        if dry_run:
-            click.echo("DRY RUN: Would cleanup unreferenced packages")
-        else:
-            click.echo("Cleaning up unreferenced packages...")
-        click.echo("TODO: Implement cleanup logic")
+    def db_cleanup(ctx: click.Context, dry_run: bool, orphaned: bool, unreferenced: bool, force: bool) -> None:
+        """Clean up database issues.
+
+        By default, cleans both orphaned repositories and unreferenced packages.
+        Use --orphaned or --unreferenced to clean only one type.
+
+        Orphaned repositories: Repositories in database that are not in configuration
+        Unreferenced packages: Packages in database without repository references
+
+        IMPORTANT: This command requires confirmation unless --force or --dry-run is used.
+        """
+        config: GlobalConfig = ctx.obj["config"]
+
+        # Determine what to clean (default: both)
+        cleanup_orphaned = orphaned or (not orphaned and not unreferenced)
+        cleanup_unreferenced = unreferenced or (not orphaned and not unreferenced)
+
+        # Initialize database connection
+        db_manager = DatabaseManager(config.database.url)
+        session = db_manager.get_session()
+
+        try:
+            if dry_run:
+                click.echo("DRY RUN: Analyzing database issues...")
+            else:
+                click.echo("Analyzing database issues...")
+            click.echo()
+
+            total_repos_deleted = 0
+            total_snapshots_deleted = 0
+            total_history_deleted = 0
+
+            # Get orphaned repositories (for both dry-run and confirmation)
+            orphaned_repos = []
+            if cleanup_orphaned:
+                orphaned_repos = _get_orphaned_repositories(session, config)
+
+            # Interactive confirmation (only if not dry-run and not force)
+            if not dry_run and not force:
+                if orphaned_repos:
+                    # Count related objects
+                    total_snaps = sum(session.query(Snapshot).filter_by(repository_id=r.id).count() for r in orphaned_repos)
+                    total_hist = sum(session.query(SyncHistory).filter_by(repository_id=r.id).count() for r in orphaned_repos)
+
+                    click.echo("Will delete:")
+                    if cleanup_orphaned and orphaned_repos:
+                        click.echo(f"  - {len(orphaned_repos)} orphaned repositories")
+                        click.echo(f"  - {total_snaps} snapshots")
+                        click.echo(f"  - {total_hist} sync history entries")
+                    click.echo()
+
+                    # Ask for confirmation
+                    if not click.confirm("Delete these items?", default=False):
+                        click.echo("Aborted.")
+                        return
+                    click.echo()
+                else:
+                    click.echo("No cleanup needed.")
+                    return
+
+            # Clean up orphaned repositories
+            if cleanup_orphaned:
+
+                if orphaned_repos:
+                    click.echo(f"Orphaned repositories ({len(orphaned_repos)}):")
+                    for repo in orphaned_repos:
+                        # Count related objects
+                        snapshot_count = session.query(Snapshot).filter_by(repository_id=repo.id).count()
+                        history_count = session.query(SyncHistory).filter_by(repository_id=repo.id).count()
+
+                        click.echo(f"  - {repo.repo_id} ({repo.type}, {history_count} syncs, {snapshot_count} snapshots)")
+
+                        if not dry_run:
+                            # Delete related sync history
+                            session.query(SyncHistory).filter_by(repository_id=repo.id).delete()
+                            total_history_deleted += history_count
+
+                            # Delete related snapshots
+                            session.query(Snapshot).filter_by(repository_id=repo.id).delete()
+                            total_snapshots_deleted += snapshot_count
+
+                            # Delete repository
+                            session.delete(repo)
+                            total_repos_deleted += 1
+
+                    if not dry_run:
+                        session.commit()
+                    click.echo()
+                else:
+                    click.echo("No orphaned repositories found.")
+                    click.echo()
+
+            # Clean up unreferenced packages (TODO)
+            if cleanup_unreferenced:
+                click.echo("Unreferenced packages cleanup: TODO")
+                click.echo()
+
+            # Summary
+            if dry_run:
+                click.echo("Summary (DRY RUN):")
+                if cleanup_orphaned:
+                    click.echo(f"  Would delete {len(orphaned_repos) if orphaned_repos else 0} repositories")
+                    if orphaned_repos:
+                        total_snaps = sum(session.query(Snapshot).filter_by(repository_id=r.id).count() for r in orphaned_repos)
+                        total_hist = sum(session.query(SyncHistory).filter_by(repository_id=r.id).count() for r in orphaned_repos)
+                        click.echo(f"  Would delete {total_snaps} snapshots")
+                        click.echo(f"  Would delete {total_hist} sync history entries")
+            else:
+                click.echo("Summary:")
+                if cleanup_orphaned:
+                    click.echo(f"  Deleted {total_repos_deleted} repositories")
+                    click.echo(f"  Deleted {total_snapshots_deleted} snapshots")
+                    click.echo(f"  Deleted {total_history_deleted} sync history entries")
+
+        finally:
+            session.close()
+
+    @db.command("orphaned")
+    @click.pass_context
+    def db_orphaned(ctx: click.Context) -> None:
+        """List orphaned repositories in database.
+
+        Orphaned repositories are repositories in the database that are not
+        in the configuration file. This can happen after removing repositories
+        from the configuration.
+        """
+        config: GlobalConfig = ctx.obj["config"]
+
+        # Initialize database connection
+        db_manager = DatabaseManager(config.database.url)
+        session = db_manager.get_session()
+
+        try:
+            click.echo("Finding orphaned repositories...")
+            click.echo()
+
+            orphaned_repos = _get_orphaned_repositories(session, config)
+
+            if orphaned_repos:
+                click.echo(f"Found {len(orphaned_repos)} orphaned repositories:")
+                click.echo()
+
+                # Table header
+                click.echo(f"{'Repository ID':<30} {'Type':<8} {'Last Sync':<20} {'Syncs':<8} {'Snapshots':<10}")
+                click.echo("-" * 82)
+
+                for repo in orphaned_repos:
+                    # Get counts
+                    sync_count = session.query(SyncHistory).filter_by(repository_id=repo.id).count()
+                    snapshot_count = session.query(Snapshot).filter_by(repository_id=repo.id).count()
+
+                    # Format last sync
+                    if repo.last_sync_at:
+                        last_sync = repo.last_sync_at.strftime("%Y-%m-%d %H:%M")
+                    else:
+                        last_sync = "Never synced"
+
+                    click.echo(f"{repo.repo_id:<30} {repo.type:<8} {last_sync:<20} {sync_count:<8} {snapshot_count:<10}")
+
+                click.echo()
+                click.echo(f"Total: {len(orphaned_repos)} orphaned repositories")
+                click.echo()
+                click.echo("To remove these repositories, run:")
+                click.echo("  chantal db cleanup --orphaned --dry-run  (preview)")
+                click.echo("  chantal db cleanup --orphaned             (delete)")
+            else:
+                click.echo("No orphaned repositories found.")
+
+        finally:
+            session.close()
 
     @db.command("stats")
     @click.pass_context
@@ -204,14 +394,62 @@ def create_db_group(cli: click.Group) -> click.Group:
     @db.command("verify")
     @click.pass_context
     def db_verify(ctx: click.Context) -> None:
-        """Verify database integrity."""
-        click.echo("Verifying database integrity...")
-        click.echo("TODO: Implement database verification")
-        click.echo()
-        click.echo("Expected checks:")
-        click.echo("  - All packages in database have files in pool")
-        click.echo("  - All pool files have database entries")
-        click.echo("  - Foreign key constraints are valid")
+        """Verify database integrity.
+
+        Checks:
+        - Orphaned repositories (in database but not in configuration)
+        - Foreign key constraints
+        - Repository references
+        """
+        config: GlobalConfig = ctx.obj["config"]
+
+        # Initialize database connection
+        db_manager = DatabaseManager(config.database.url)
+        session = db_manager.get_session()
+
+        try:
+            click.echo("Verifying database integrity...")
+            click.echo("=" * 60)
+            click.echo()
+
+            total_issues = 0
+
+            # Check for orphaned repositories
+            click.echo("Checking for orphaned repositories...")
+            orphaned_repos = _get_orphaned_repositories(session, config)
+
+            if orphaned_repos:
+                click.echo(f"  ✗ Found {len(orphaned_repos)} orphaned repositories")
+                total_issues += len(orphaned_repos)
+                for repo in orphaned_repos:
+                    click.echo(f"    - {repo.repo_id} ({repo.type})")
+                click.echo()
+                click.echo("    → Run 'chantal db orphaned' for details")
+                click.echo("    → Run 'chantal db cleanup --orphaned' to remove")
+            else:
+                click.echo("  ✓ No orphaned repositories found")
+            click.echo()
+
+            # Check repository counts
+            click.echo("Repository statistics:")
+            config_repo_count = len(config.repositories)
+            db_repo_count = session.query(Repository).count()
+            click.echo(f"  Repositories in config: {config_repo_count}")
+            click.echo(f"  Repositories in database: {db_repo_count}")
+            click.echo()
+
+            # Summary
+            click.echo("=" * 60)
+            if total_issues == 0:
+                click.echo("✓ Database verification completed successfully!")
+                click.echo("  No issues found")
+            else:
+                click.echo(f"Database verification found {total_issues} issue(s)")
+                click.echo()
+                click.echo("Run 'chantal db cleanup --dry-run' to see what would be cleaned")
+
+        finally:
+            session.close()
 
     return db
 

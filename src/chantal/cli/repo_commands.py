@@ -22,6 +22,402 @@ from .db_commands import check_db_schema_version
 CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
 
 
+def _format_duration(started_at: datetime, completed_at: datetime | None) -> str:
+    """Format duration for display.
+
+    Args:
+        started_at: Start time
+        completed_at: Completion time (None if still running)
+
+    Returns:
+        Formatted duration string
+    """
+    if completed_at:
+        duration_seconds = (completed_at - started_at).total_seconds()
+        if duration_seconds >= 60:
+            minutes = int(duration_seconds // 60)
+            seconds = int(duration_seconds % 60)
+            return f"{minutes}m {seconds}s"
+        else:
+            return f"{int(duration_seconds)}s"
+    else:
+        return "Running"
+
+
+def _format_changes(
+    packages_added: int, packages_updated: int, packages_removed: int
+) -> str:
+    """Format package changes for display.
+
+    Args:
+        packages_added: Number of packages added
+        packages_updated: Number of packages updated
+        packages_removed: Number of packages removed
+
+    Returns:
+        Formatted changes string
+    """
+    changes = []
+    if packages_added > 0:
+        changes.append(f"+{packages_added}")
+    if packages_updated > 0:
+        changes.append(f"~{packages_updated}")
+    if packages_removed > 0:
+        changes.append(f"-{packages_removed}")
+
+    if changes:
+        return " ".join(changes)
+    else:
+        return "No changes"
+
+
+def _show_single_repo_history(
+    session: Session,
+    config: GlobalConfig,
+    repo_id: str,
+    limit: int,
+    output_format: str,
+    ctx: click.Context,
+) -> None:
+    """Show sync history for a single repository.
+
+    Args:
+        session: Database session
+        config: Global configuration
+        repo_id: Repository ID
+        limit: Number of sync entries to show
+        output_format: Output format (table or json)
+        ctx: Click context
+    """
+    import json
+
+    # Get repository from database
+    repository = session.query(Repository).filter_by(repo_id=repo_id).first()
+
+    if not repository:
+        # Check if repository exists in configuration
+        repo_config = next((r for r in config.repositories if r.id == repo_id), None)
+        if repo_config:
+            click.echo(f"Error: Repository '{repo_id}' has not been synced yet.", err=True)
+            click.echo(f"Run 'chantal repo sync --repo-id {repo_id}' first.", err=True)
+        else:
+            click.echo(f"Error: Repository '{repo_id}' not found in configuration.", err=True)
+            click.echo("Run 'chantal repo list' to see available repositories.", err=True)
+        ctx.exit(1)
+
+    # Get sync history ordered by most recent first
+    history = (
+        session.query(SyncHistory)
+        .filter_by(repository_id=repository.id)
+        .order_by(SyncHistory.started_at.desc())
+        .limit(limit)
+        .all()
+    )
+
+    if output_format == "json":
+        result = []
+        for sync in history:
+            duration = None
+            if sync.completed_at:
+                duration_seconds = (sync.completed_at - sync.started_at).total_seconds()
+                duration = duration_seconds
+
+            result.append(
+                {
+                    "started_at": sync.started_at.isoformat(),
+                    "completed_at": sync.completed_at.isoformat() if sync.completed_at else None,
+                    "status": sync.status,
+                    "duration_seconds": duration,
+                    "packages_added": sync.packages_added,
+                    "packages_removed": sync.packages_removed,
+                    "packages_updated": sync.packages_updated,
+                    "bytes_downloaded": sync.bytes_downloaded,
+                    "error_message": sync.error_message,
+                }
+            )
+        click.echo(json.dumps(result, indent=2))
+    else:
+        # Table format
+        click.echo(f"Sync History: {repo_id}")
+        click.echo(f"Showing last {limit} sync(s)")
+        click.echo()
+
+        if not history:
+            click.echo("  No sync history found.")
+            click.echo()
+            click.echo(f"  Run 'chantal repo sync --repo-id {repo_id}' to sync this repository.")
+            return
+
+        click.echo(f"{'Date':<20} {'Status':<10} {'Duration':>10} {'Changes':<30}")
+        click.echo("-" * 80)
+
+        for sync in history:
+            # Format date
+            date_str = sync.started_at.strftime("%Y-%m-%d %H:%M")
+
+            # Format status
+            status_str = sync.status.capitalize()
+
+            # Format duration
+            duration_str = _format_duration(sync.started_at, sync.completed_at)
+
+            # Format changes
+            changes_str = _format_changes(
+                sync.packages_added, sync.packages_updated, sync.packages_removed
+            )
+
+            click.echo(f"{date_str:<20} {status_str:<10} {duration_str:>10} {changes_str:<30}")
+
+            # Show error message if failed
+            if sync.status == "failed" and sync.error_message:
+                click.echo(f"  Error: {sync.error_message}")
+
+        click.echo()
+        click.echo(f"Total: {len(history)} sync operation(s)")
+
+
+def _show_all_repos_last_sync(
+    session: Session, config: GlobalConfig, output_format: str
+) -> None:
+    """Show last sync for all repositories.
+
+    Args:
+        session: Database session
+        config: Global configuration
+        output_format: Output format (table or json)
+    """
+    import json
+
+    # Build result for all repositories from config
+    result = []
+
+    for repo_config in config.repositories:
+        # Try to get repository from database
+        repository = session.query(Repository).filter_by(repo_id=repo_config.id).first()
+
+        if repository:
+            # Get last sync for this repository
+            last_sync = (
+                session.query(SyncHistory)
+                .filter_by(repository_id=repository.id)
+                .order_by(SyncHistory.started_at.desc())
+                .first()
+            )
+            result.append((repository, last_sync))
+        else:
+            # Repository exists in config but not in database (never synced)
+            result.append((repo_config, None))
+
+    if output_format == "json":
+        json_result = []
+        for item in result:
+            repo, last_sync = item
+            repo_id = repo.repo_id if isinstance(repo, Repository) else repo.id
+
+            if last_sync:
+                duration = None
+                if last_sync.completed_at:
+                    duration = (last_sync.completed_at - last_sync.started_at).total_seconds()
+
+                json_result.append(
+                    {
+                        "repo_id": repo_id,
+                        "last_sync": {
+                            "started_at": last_sync.started_at.isoformat(),
+                            "completed_at": (
+                                last_sync.completed_at.isoformat()
+                                if last_sync.completed_at
+                                else None
+                            ),
+                            "status": last_sync.status,
+                            "duration_seconds": duration,
+                            "packages_added": last_sync.packages_added,
+                            "packages_removed": last_sync.packages_removed,
+                            "packages_updated": last_sync.packages_updated,
+                            "bytes_downloaded": last_sync.bytes_downloaded,
+                            "error_message": last_sync.error_message,
+                        },
+                    }
+                )
+            else:
+                json_result.append({"repo_id": repo_id, "last_sync": None})
+
+        click.echo(json.dumps(json_result, indent=2))
+    else:
+        # Table format
+        click.echo("Sync History - All Repositories (Last Sync Only)")
+        click.echo()
+        click.echo(
+            f"{'Repository':<30} {'Last Sync':<20} {'Status':<10} {'Duration':>10} {'Changes':<20}"
+        )
+        click.echo("-" * 100)
+
+        synced_count = 0
+        failed_count = 0
+
+        for item in result:
+            repo, last_sync = item
+            repo_id = repo.repo_id if isinstance(repo, Repository) else repo.id
+
+            if last_sync:
+                date_str = last_sync.started_at.strftime("%Y-%m-%d %H:%M")
+                status_str = last_sync.status.capitalize()
+                duration_str = _format_duration(last_sync.started_at, last_sync.completed_at)
+                changes_str = _format_changes(
+                    last_sync.packages_added,
+                    last_sync.packages_updated,
+                    last_sync.packages_removed,
+                )
+
+                click.echo(
+                    f"{repo_id:<30} {date_str:<20} {status_str:<10} {duration_str:>10} {changes_str:<20}"
+                )
+
+                if last_sync.status == "failed" and last_sync.error_message:
+                    click.echo(f"  Error: {last_sync.error_message}")
+                    failed_count += 1
+                elif last_sync.status == "success":
+                    synced_count += 1
+            else:
+                click.echo(f"{repo_id:<30} {'Never synced':<20} {'-':<10} {'-':>10} {'-':<20}")
+
+        click.echo()
+        click.echo(
+            f"Summary: {len(result)} repositories ({synced_count} synced, {failed_count} failed)"
+        )
+
+
+def _show_all_repos_history(
+    session: Session, config: GlobalConfig, limit: int, output_format: str
+) -> None:
+    """Show sync history for all repositories.
+
+    Args:
+        session: Database session
+        config: Global configuration
+        limit: Number of sync entries to show per repository
+        output_format: Output format (table or json)
+    """
+    import json
+
+    # Build result for all repositories from config
+    result = []
+
+    for repo_config in config.repositories:
+        # Try to get repository from database
+        repository = session.query(Repository).filter_by(repo_id=repo_config.id).first()
+
+        if repository:
+            # Get history for this repository
+            history = (
+                session.query(SyncHistory)
+                .filter_by(repository_id=repository.id)
+                .order_by(SyncHistory.started_at.desc())
+                .limit(limit)
+                .all()
+            )
+            result.append((repository, history))
+        else:
+            # Repository exists in config but not in database (never synced)
+            result.append((repo_config, []))
+
+    if output_format == "json":
+        json_result = []
+        for repo, history in result:
+            repo_id = repo.repo_id if isinstance(repo, Repository) else repo.id
+            history_list = []
+            for sync in history:
+                duration = None
+                if sync.completed_at:
+                    duration = (sync.completed_at - sync.started_at).total_seconds()
+
+                history_list.append(
+                    {
+                        "started_at": sync.started_at.isoformat(),
+                        "completed_at": (
+                            sync.completed_at.isoformat() if sync.completed_at else None
+                        ),
+                        "status": sync.status,
+                        "duration_seconds": duration,
+                        "packages_added": sync.packages_added,
+                        "packages_removed": sync.packages_removed,
+                        "packages_updated": sync.packages_updated,
+                        "bytes_downloaded": sync.bytes_downloaded,
+                        "error_message": sync.error_message,
+                    }
+                )
+
+            json_result.append({"repo_id": repo_id, "history": history_list})
+
+        click.echo(json.dumps(json_result, indent=2))
+    else:
+        # Table format - calculate column widths dynamically
+        # First pass: determine maximum width needed for repository column
+        max_repo_width = len("Repository")
+        for repo, _ in result:
+            repo_id = repo.repo_id if isinstance(repo, Repository) else repo.id
+            max_repo_width = max(max_repo_width, len(repo_id))
+
+        # Add some padding
+        max_repo_width += 2
+
+        # Fixed widths for other columns
+        date_width = 20
+        status_width = 10
+        duration_width = 10
+        changes_width = 20
+
+        total_width = max_repo_width + date_width + status_width + duration_width + changes_width
+
+        click.echo(f"Sync History - All Repositories (Last {limit} Syncs Each)")
+        click.echo()
+        click.echo(
+            f"{'Repository':<{max_repo_width}} {'Date':<{date_width}} "
+            f"{'Status':<{status_width}} {'Duration':>{duration_width}} {'Changes':<{changes_width}}"
+        )
+        click.echo("-" * total_width)
+
+        total_syncs = 0
+        repos_with_history = 0
+
+        for repo, history in result:
+            repo_id = repo.repo_id if isinstance(repo, Repository) else repo.id
+
+            if not history:
+                click.echo(
+                    f"{repo_id:<{max_repo_width}} {'Never synced':<{date_width}} "
+                    f"{'-':<{status_width}} {'-':>{duration_width}} {'-':<{changes_width}}"
+                )
+                continue
+
+            repos_with_history += 1
+
+            # Show each sync as a table row
+            for idx, sync in enumerate(history):
+                # Only show repo_id in first row for this repo
+                repo_display = repo_id if idx == 0 else ""
+
+                date_str = sync.started_at.strftime("%Y-%m-%d %H:%M")
+                status_str = sync.status.capitalize()
+                duration_str = _format_duration(sync.started_at, sync.completed_at)
+                changes_str = _format_changes(
+                    sync.packages_added, sync.packages_updated, sync.packages_removed
+                )
+
+                click.echo(
+                    f"{repo_display:<{max_repo_width}} {date_str:<{date_width}} "
+                    f"{status_str:<{status_width}} {duration_str:>{duration_width}} {changes_str:<{changes_width}}"
+                )
+
+                if sync.status == "failed" and sync.error_message:
+                    click.echo(f"{'':<{max_repo_width}}   Error: {sync.error_message}")
+
+                total_syncs += 1
+
+        click.echo()
+        click.echo(f"Total: {len(result)} repositories ({repos_with_history} with history), {total_syncs} sync operations")
+
+
 def create_repo_group(cli: click.Group) -> click.Group:
     """Create and return the repo command group.
 
@@ -544,7 +940,9 @@ def create_repo_group(cli: click.Group) -> click.Group:
             session.close()
 
     @repo.command("history")
-    @click.option("--repo-id", required=True, help="Repository ID")
+    @click.option("--repo-id", help="Repository ID")
+    @click.option("--all", is_flag=True, help="Show sync history for all repositories")
+    @click.option("--last", is_flag=True, help="Show only last sync (use with --all)")
     @click.option("--limit", type=int, default=10, help="Number of sync entries to show")
     @click.option(
         "--format",
@@ -554,126 +952,54 @@ def create_repo_group(cli: click.Group) -> click.Group:
         help="Output format",
     )
     @click.pass_context
-    def repo_history(ctx: click.Context, repo_id: str, limit: int, output_format: str) -> None:
+    def repo_history(
+        ctx: click.Context,
+        repo_id: str | None,
+        all: bool,
+        last: bool,
+        limit: int,
+        output_format: str,
+    ) -> None:
         """Show sync history for repository.
 
         Displays past sync operations with status, duration, packages added/removed, etc.
         """
+        # Validate mutually exclusive options
+        if not repo_id and not all:
+            click.echo("Error: Either --repo-id or --all is required", err=True)
+            click.echo()
+            click.echo("Usage:")
+            click.echo("  chantal repo history --repo-id <id> [--limit N]")
+            click.echo("  chantal repo history --all [--last | --limit N]")
+            ctx.exit(1)
+
+        if repo_id and all:
+            click.echo("Error: Cannot use both --repo-id and --all", err=True)
+            ctx.exit(1)
+
+        if last and not all:
+            click.echo("Error: --last can only be used with --all", err=True)
+            ctx.exit(1)
+
+        if last and limit != 10:  # 10 = default value
+            click.echo("Error: Cannot use both --last and --limit", err=True)
+            ctx.exit(1)
+
         config: GlobalConfig = ctx.obj["config"]
         db_manager = DatabaseManager(config.database.url)
 
         with db_manager.session() as session:
-            # Get repository from database
-            repository = session.query(Repository).filter_by(repo_id=repo_id).first()
-
-            if not repository:
-                # Check if repository exists in configuration
-                repo_config = next((r for r in config.repositories if r.id == repo_id), None)
-                if repo_config:
-                    click.echo(f"Error: Repository '{repo_id}' has not been synced yet.", err=True)
-                    click.echo(f"Run 'chantal repo sync --repo-id {repo_id}' first.", err=True)
-                else:
-                    click.echo(
-                        f"Error: Repository '{repo_id}' not found in configuration.", err=True
-                    )
-                    click.echo("Run 'chantal repo list' to see available repositories.", err=True)
-                ctx.exit(1)
-
-            # Get sync history ordered by most recent first
-            history = (
-                session.query(SyncHistory)
-                .filter_by(repository_id=repository.id)
-                .order_by(SyncHistory.started_at.desc())
-                .limit(limit)
-                .all()
-            )
-
-            if output_format == "json":
-                import json
-
-                result = []
-                for sync in history:
-                    duration = None
-                    if sync.completed_at:
-                        duration_seconds = (sync.completed_at - sync.started_at).total_seconds()
-                        duration = duration_seconds
-
-                    result.append(
-                        {
-                            "started_at": sync.started_at.isoformat(),
-                            "completed_at": (
-                                sync.completed_at.isoformat() if sync.completed_at else None
-                            ),
-                            "status": sync.status,
-                            "duration_seconds": duration,
-                            "packages_added": sync.packages_added,
-                            "packages_removed": sync.packages_removed,
-                            "packages_updated": sync.packages_updated,
-                            "bytes_downloaded": sync.bytes_downloaded,
-                            "error_message": sync.error_message,
-                        }
-                    )
-                click.echo(json.dumps(result, indent=2))
-            else:
-                # Table format
-                click.echo(f"Sync History: {repo_id}")
-                click.echo(f"Showing last {limit} sync(s)")
-                click.echo()
-
-                if not history:
-                    click.echo("  No sync history found.")
-                    click.echo()
-                    click.echo(
-                        f"  Run 'chantal repo sync --repo-id {repo_id}' to sync this repository."
-                    )
-                    return
-
-                click.echo(f"{'Date':<20} {'Status':<10} {'Duration':>10} {'Changes':<30}")
-                click.echo("-" * 80)
-
-                for sync in history:
-                    # Format date
-                    date_str = sync.started_at.strftime("%Y-%m-%d %H:%M")
-
-                    # Format status
-                    status_str = sync.status.capitalize()
-
-                    # Format duration
-                    if sync.completed_at:
-                        duration_seconds = (sync.completed_at - sync.started_at).total_seconds()
-                        if duration_seconds >= 60:
-                            minutes = int(duration_seconds // 60)
-                            seconds = int(duration_seconds % 60)
-                            duration_str = f"{minutes}m {seconds}s"
-                        else:
-                            duration_str = f"{int(duration_seconds)}s"
-                    else:
-                        duration_str = "Running"
-
-                    # Format changes
-                    changes = []
-                    if sync.packages_added > 0:
-                        changes.append(f"+{sync.packages_added}")
-                    if sync.packages_updated > 0:
-                        changes.append(f"~{sync.packages_updated}")
-                    if sync.packages_removed > 0:
-                        changes.append(f"-{sync.packages_removed}")
-
-                    if changes:
-                        changes_str = " ".join(changes)
-                    else:
-                        changes_str = "No changes"
-
-                    click.echo(
-                        f"{date_str:<20} {status_str:<10} {duration_str:>10} {changes_str:<30}"
-                    )
-
-                    # Show error message if failed
-                    if sync.status == "failed" and sync.error_message:
-                        click.echo(f"  Error: {sync.error_message}")
-
-                click.echo()
-                click.echo(f"Total: {len(history)} sync operation(s)")
+            # Mode A: Single repository history
+            if repo_id:
+                _show_single_repo_history(
+                    session, config, repo_id, limit, output_format, ctx
+                )
+            # Mode B: All repositories - last sync only
+            elif all and last:
+                _show_all_repos_last_sync(session, config, output_format)
+            # Mode C: All repositories - with history
+            elif all:
+                _show_all_repos_history(session, config, limit, output_format)
 
     return repo
 
@@ -725,97 +1051,204 @@ def _sync_single_repository(
 
     # Initialize sync plugin based on repository type
     if repo_config.type == "rpm":
-        sync_plugin = RpmSyncPlugin(
-            storage=storage,
-            config=repo_config,
-            proxy_config=effective_proxy,
-            ssl_config=effective_ssl,
-            cache=cache,
+        # Create sync history entry
+        sync_history = SyncHistory(
+            repository_id=repository.id,
+            started_at=datetime.now(timezone.utc),
+            status="running",
         )
-        rpm_result = sync_plugin.sync_repository(session, repository)
+        session.add(sync_history)
+        session.commit()
 
-        # Display result
-        if rpm_result.success:
+        try:
+            sync_plugin = RpmSyncPlugin(
+                storage=storage,
+                config=repo_config,
+                proxy_config=effective_proxy,
+                ssl_config=effective_ssl,
+                cache=cache,
+            )
+            rpm_result = sync_plugin.sync_repository(session, repository)
+
+            # Update sync history with results
+            sync_history.completed_at = datetime.now(timezone.utc)
+            if rpm_result.success:
+                sync_history.status = "success"
+                sync_history.packages_added = rpm_result.packages_downloaded
+                sync_history.packages_updated = 0  # RPM doesn't track this separately
+                sync_history.packages_removed = 0  # RPM doesn't track this
+                sync_history.bytes_downloaded = rpm_result.bytes_downloaded
+
+                # Update last sync timestamp
+                repository.last_sync_at = datetime.now(timezone.utc)
+                session.commit()
+
+                click.echo("\n✓ Sync completed successfully!")
+                click.echo(f"  Total packages: {rpm_result.packages_total}")
+                click.echo(f"  Downloaded: {rpm_result.packages_downloaded}")
+                click.echo(f"  Skipped (already in pool): {rpm_result.packages_skipped}")
+                click.echo(f"  Data transferred: {rpm_result.bytes_downloaded / 1024 / 1024:.2f} MB")
+            else:
+                sync_history.status = "failed"
+                sync_history.error_message = rpm_result.error_message
+                session.commit()
+                click.echo(f"\n✗ Sync failed: {rpm_result.error_message}", err=True)
+
+        except Exception as e:
+            sync_history.completed_at = datetime.now(timezone.utc)
+            sync_history.status = "failed"
+            sync_history.error_message = str(e)
+            session.commit()
+            raise
+
+        return repository
+    elif repo_config.type == "helm":
+        # Create sync history entry
+        sync_history = SyncHistory(
+            repository_id=repository.id,
+            started_at=datetime.now(timezone.utc),
+            status="running",
+        )
+        session.add(sync_history)
+        session.commit()
+
+        try:
+            helm_syncer = HelmSyncer(
+                storage=storage,
+                config=repo_config,
+                proxy_config=effective_proxy,
+                ssl_config=effective_ssl,
+            )
+            stats = helm_syncer.sync_repository(session, repository, repo_config)
+
+            # Update sync history with results
+            sync_history.completed_at = datetime.now(timezone.utc)
+            sync_history.status = "success"
+            sync_history.packages_added = stats['charts_added']
+            sync_history.packages_updated = stats['charts_updated']
+            sync_history.packages_removed = 0  # Helm doesn't remove charts
+            sync_history.bytes_downloaded = stats['bytes_downloaded']
+
             # Update last sync timestamp
             repository.last_sync_at = datetime.now(timezone.utc)
             session.commit()
 
-            click.echo("\n✓ Sync completed successfully!")
-            click.echo(f"  Total packages: {rpm_result.packages_total}")
-            click.echo(f"  Downloaded: {rpm_result.packages_downloaded}")
-            click.echo(f"  Skipped (already in pool): {rpm_result.packages_skipped}")
-            click.echo(f"  Data transferred: {rpm_result.bytes_downloaded / 1024 / 1024:.2f} MB")
-        else:
-            click.echo(f"\n✗ Sync failed: {rpm_result.error_message}", err=True)
+            # Display result
+            click.echo("\n✓ Helm sync completed successfully!")
+            click.echo(f"  Charts added: {stats['charts_added']}")
+            click.echo(f"  Charts updated: {stats['charts_updated']}")
+            click.echo(f"  Charts skipped: {stats['charts_skipped']}")
+            click.echo(f"  Data transferred: {stats['bytes_downloaded'] / 1024 / 1024:.2f} MB")
 
-        return repository
-    elif repo_config.type == "helm":
-        helm_syncer = HelmSyncer(
-            storage=storage,
-            config=repo_config,
-            proxy_config=effective_proxy,
-            ssl_config=effective_ssl,
-        )
-        stats = helm_syncer.sync_repository(session, repository, repo_config)
+        except Exception as e:
+            sync_history.completed_at = datetime.now(timezone.utc)
+            sync_history.status = "failed"
+            sync_history.error_message = str(e)
+            session.commit()
+            raise
 
-        # Update last sync timestamp
-        repository.last_sync_at = datetime.now(timezone.utc)
-        session.commit()
-
-        # Display result
-        click.echo("\n✓ Helm sync completed successfully!")
-        click.echo(f"  Charts added: {stats['charts_added']}")
-        click.echo(f"  Charts updated: {stats['charts_updated']}")
-        click.echo(f"  Charts skipped: {stats['charts_skipped']}")
-        click.echo(f"  Data transferred: {stats['bytes_downloaded'] / 1024 / 1024:.2f} MB")
         return repository
     elif repo_config.type == "apk":
-        apk_syncer = ApkSyncer(
-            storage=storage,
-            config=repo_config,
-            proxy_config=effective_proxy,
-            ssl_config=effective_ssl,
+        # Create sync history entry
+        sync_history = SyncHistory(
+            repository_id=repository.id,
+            started_at=datetime.now(timezone.utc),
+            status="running",
         )
-        stats = apk_syncer.sync_repository(session, repository, repo_config)
-
-        # Update last sync timestamp
-        repository.last_sync_at = datetime.now(timezone.utc)
+        session.add(sync_history)
         session.commit()
 
-        # Display result
-        click.echo("\n✓ APK sync completed successfully!")
-        click.echo(f"  Packages added: {stats['packages_added']}")
-        click.echo(f"  Packages updated: {stats['packages_updated']}")
-        click.echo(f"  Packages skipped: {stats['packages_skipped']}")
-        click.echo(f"  Data transferred: {stats['bytes_downloaded'] / 1024 / 1024:.2f} MB")
-        if stats["sha1_mismatches"] > 0:
-            click.echo(
-                f"  SHA1 mismatches: {stats['sha1_mismatches']} (stale APKINDEX, integrity verified via SHA256)"
+        try:
+            apk_syncer = ApkSyncer(
+                storage=storage,
+                config=repo_config,
+                proxy_config=effective_proxy,
+                ssl_config=effective_ssl,
             )
+            stats = apk_syncer.sync_repository(session, repository, repo_config)
+
+            # Update sync history with results
+            sync_history.completed_at = datetime.now(timezone.utc)
+            sync_history.status = "success"
+            sync_history.packages_added = stats['packages_added']
+            sync_history.packages_updated = stats['packages_updated']
+            sync_history.packages_removed = 0  # APK doesn't track removals
+            sync_history.bytes_downloaded = stats['bytes_downloaded']
+
+            # Update last sync timestamp
+            repository.last_sync_at = datetime.now(timezone.utc)
+            session.commit()
+
+            # Display result
+            click.echo("\n✓ APK sync completed successfully!")
+            click.echo(f"  Packages added: {stats['packages_added']}")
+            click.echo(f"  Packages updated: {stats['packages_updated']}")
+            click.echo(f"  Packages skipped: {stats['packages_skipped']}")
+            click.echo(f"  Data transferred: {stats['bytes_downloaded'] / 1024 / 1024:.2f} MB")
+            if stats["sha1_mismatches"] > 0:
+                click.echo(
+                    f"  SHA1 mismatches: {stats['sha1_mismatches']} (stale APKINDEX, integrity verified via SHA256)"
+                )
+
+        except Exception as e:
+            sync_history.completed_at = datetime.now(timezone.utc)
+            sync_history.status = "failed"
+            sync_history.error_message = str(e)
+            session.commit()
+            raise
+
         return repository
     elif repo_config.type == "apt":
-        apt_syncer = AptSyncPlugin(
-            storage=storage,
-            config=repo_config,
-            proxy_config=effective_proxy,
-            ssl_config=effective_ssl,
+        # Create sync history entry
+        sync_history = SyncHistory(
+            repository_id=repository.id,
+            started_at=datetime.now(timezone.utc),
+            status="running",
         )
-        apt_result = apt_syncer.sync_repository(session, repository)
-
-        # Update last sync timestamp
-        repository.last_sync_at = datetime.now(timezone.utc)
+        session.add(sync_history)
         session.commit()
 
-        # Display result
-        if apt_result.success:
-            click.echo("\n✓ APT sync completed successfully!")
-            click.echo(f"  Packages downloaded: {apt_result.packages_downloaded}")
-            click.echo(f"  Packages skipped: {apt_result.packages_skipped}")
-            click.echo(f"  Packages total: {apt_result.packages_total}")
-            click.echo(f"  Data transferred: {apt_result.bytes_downloaded / 1024 / 1024:.2f} MB")
-            click.echo(f"  Metadata files: {apt_result.metadata_files_downloaded}")
-        else:
-            click.echo(f"\n✗ APT sync failed: {apt_result.error_message}")
+        try:
+            apt_syncer = AptSyncPlugin(
+                storage=storage,
+                config=repo_config,
+                proxy_config=effective_proxy,
+                ssl_config=effective_ssl,
+            )
+            apt_result = apt_syncer.sync_repository(session, repository)
+
+            # Update sync history with results
+            sync_history.completed_at = datetime.now(timezone.utc)
+            if apt_result.success:
+                sync_history.status = "success"
+                sync_history.packages_added = apt_result.packages_downloaded
+                sync_history.packages_updated = 0  # APT doesn't track this separately
+                sync_history.packages_removed = 0  # APT doesn't track this
+                sync_history.bytes_downloaded = apt_result.bytes_downloaded
+
+                # Update last sync timestamp
+                repository.last_sync_at = datetime.now(timezone.utc)
+                session.commit()
+
+                click.echo("\n✓ APT sync completed successfully!")
+                click.echo(f"  Packages downloaded: {apt_result.packages_downloaded}")
+                click.echo(f"  Packages skipped: {apt_result.packages_skipped}")
+                click.echo(f"  Packages total: {apt_result.packages_total}")
+                click.echo(f"  Data transferred: {apt_result.bytes_downloaded / 1024 / 1024:.2f} MB")
+                click.echo(f"  Metadata files: {apt_result.metadata_files_downloaded}")
+            else:
+                sync_history.status = "failed"
+                sync_history.error_message = apt_result.error_message
+                session.commit()
+                click.echo(f"\n✗ APT sync failed: {apt_result.error_message}")
+
+        except Exception as e:
+            sync_history.completed_at = datetime.now(timezone.utc)
+            sync_history.status = "failed"
+            sync_history.error_message = str(e)
+            session.commit()
+            raise
+
         return repository
     else:
         click.echo(f"Error: Unsupported repository type: {repo_config.type}")

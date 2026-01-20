@@ -84,8 +84,11 @@ def create_pool_group(cli: click.Group) -> click.Group:
     @click.option(
         "--missing", is_flag=True, help="Only clean missing entries (in database but not in pool)"
     )
+    @click.option(
+        "--force", is_flag=True, help="Skip confirmation prompt"
+    )
     @click.pass_context
-    def pool_cleanup(ctx: click.Context, dry_run: bool, orphaned: bool, missing: bool) -> None:
+    def pool_cleanup(ctx: click.Context, dry_run: bool, orphaned: bool, missing: bool, force: bool) -> None:
         """Clean up pool integrity issues.
 
         By default, cleans both orphaned files and missing database entries.
@@ -93,6 +96,8 @@ def create_pool_group(cli: click.Group) -> click.Group:
 
         Orphaned files: Files in pool that are not referenced in database
         Missing entries: Database entries without corresponding pool files
+
+        IMPORTANT: This command requires confirmation unless --force or --dry-run is used.
         """
         config: GlobalConfig = ctx.obj["config"]
 
@@ -111,12 +116,55 @@ def create_pool_group(cli: click.Group) -> click.Group:
             if dry_run:
                 click.echo("DRY RUN: Analyzing pool integrity issues...")
             else:
-                click.echo("Cleaning up pool integrity issues...")
+                click.echo("Analyzing pool integrity issues...")
             click.echo()
 
             total_files_removed = 0
             total_bytes_freed = 0
             total_db_removed = 0
+
+            # First pass: Count what would be cleaned (for confirmation)
+            orphaned_file_count = 0
+            orphaned_bytes = 0
+            missing_entry_count = 0
+
+            if not dry_run:
+                # Count orphaned files
+                if cleanup_orphaned:
+                    click.echo("Checking for orphaned files...")
+                    orphaned_files = storage.get_orphaned_files(session)
+                    orphaned_file_count = len(orphaned_files)
+                    orphaned_bytes = sum(f.stat().st_size for f in orphaned_files)
+
+                # Count missing entries
+                if cleanup_missing:
+                    click.echo("Checking for missing files...")
+                    packages = session.query(ContentItem).all()
+                    for package in packages:
+                        pool_file = storage.pool_path / package.pool_path
+                        if not pool_file.exists():
+                            missing_entry_count += 1
+
+                click.echo()
+
+                # Show summary and ask for confirmation
+                if orphaned_file_count > 0 or missing_entry_count > 0:
+                    click.echo("Will delete:")
+                    if cleanup_orphaned and orphaned_file_count > 0:
+                        click.echo(f"  - {orphaned_file_count:,} orphaned files ({orphaned_bytes / (1024**2):.2f} MB)")
+                    if cleanup_missing and missing_entry_count > 0:
+                        click.echo(f"  - {missing_entry_count:,} database entries")
+                    click.echo()
+
+                    # Ask for confirmation unless --force is used
+                    if not force:
+                        if not click.confirm("Delete these items?", default=False):
+                            click.echo("Aborted.")
+                            return
+                        click.echo()
+                else:
+                    click.echo("No cleanup needed.")
+                    return
 
             # Clean up orphaned files (in pool but not in DB)
             if cleanup_orphaned:
