@@ -150,6 +150,84 @@ class MetadataCache:
 
         return True
 
+    def get_parsed(self, checksum: str, file_type: str = "metadata") -> any:
+        """Get parsed data from cache (pickle format).
+
+        Args:
+            checksum: SHA256 checksum of the original metadata file
+            file_type: Type hint for logging (not used in lookup)
+
+        Returns:
+            Parsed data (list[dict] for packages), or None if not found/invalid
+        """
+        if not self.enabled or not self.cache_path:
+            return None
+
+        # Build cache file path for parsed data
+        cache_file = self.cache_path / f"{checksum}.parsed.pickle"
+
+        if not cache_file.exists():
+            logger.debug(f"Parsed cache miss for {file_type}: {checksum[:16]}...")
+            return None
+
+        # Check TTL if configured
+        if not self.is_valid(cache_file):
+            logger.debug(f"Parsed cache expired for {file_type}: {checksum[:16]}...")
+            cache_file.unlink(missing_ok=True)
+            return None
+
+        # Load parsed data from pickle
+        try:
+            import pickle
+
+            data = pickle.loads(cache_file.read_bytes())
+            logger.info(
+                f"Parsed cache hit for {file_type}: {checksum[:16]}... ({cache_file.stat().st_size / 1024 / 1024:.2f} MB)"
+            )
+            return data
+        except Exception as e:
+            logger.warning(f"Failed to load parsed cache for {file_type}: {e}")
+            cache_file.unlink(missing_ok=True)
+            return None
+
+    def put_parsed(self, checksum: str, data: any, file_type: str = "metadata") -> Path | None:
+        """Store parsed data in cache (pickle format).
+
+        Args:
+            checksum: SHA256 checksum of the original metadata file
+            data: Parsed data to cache (e.g., list[dict] for packages)
+            file_type: Type hint for logging
+
+        Returns:
+            Path to cached file, or None if caching failed
+
+        Raises:
+            IOError: If cache write fails
+        """
+        if not self.enabled or not self.cache_path:
+            return None
+
+        cache_file = self.cache_path / f"{checksum}.parsed.pickle"
+
+        # Write to cache (atomic via temp file + rename)
+        temp_file = cache_file.with_suffix(".tmp")
+        try:
+            import pickle
+
+            pickled_data = pickle.dumps(data, protocol=pickle.HIGHEST_PROTOCOL)
+            temp_file.write_bytes(pickled_data)
+            temp_file.rename(cache_file)
+            logger.info(
+                f"Cached parsed {file_type}: {checksum[:16]}... ({len(pickled_data) / 1024 / 1024:.2f} MB)"
+            )
+            return cache_file
+        except Exception as e:
+            logger.warning(f"Failed to cache parsed {file_type}: {e}")
+            temp_file.unlink(missing_ok=True)
+            raise
+        finally:
+            temp_file.unlink(missing_ok=True)
+
     def clear(self, pattern: str | None = None) -> int:
         """Clear cache entries.
 

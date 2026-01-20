@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from chantal.core.config import ProxyConfig, RepositoryConfig, SSLConfig
 from chantal.core.downloader import DownloadManager
+from chantal.core.output import OutputLevel, SyncOutputter
 from chantal.core.storage import StorageManager
 from chantal.db.models import ContentItem, Repository, RepositoryFile
 from chantal.plugins.apt.models import DebMetadata
@@ -68,6 +69,7 @@ class AptSyncPlugin:
         config: RepositoryConfig,
         proxy_config: ProxyConfig | None = None,
         ssl_config: SSLConfig | None = None,
+        output_level: OutputLevel = OutputLevel.NORMAL,
     ):
         """Initialize APT sync plugin.
 
@@ -76,11 +78,13 @@ class AptSyncPlugin:
             config: Repository configuration
             proxy_config: Optional proxy configuration
             ssl_config: Optional SSL/TLS configuration
+            output_level: Output verbosity level
         """
         self.storage = storage
         self.config = config
         self.proxy_config = proxy_config
         self.ssl_config = ssl_config
+        self.output = SyncOutputter(output_level)
 
         # Validate APT-specific config
         if not config.apt:
@@ -109,36 +113,39 @@ class AptSyncPlugin:
             SyncResult with sync statistics
         """
         try:
-            print(f"Syncing APT repository: {repository.repo_id}")
-            print(f"Feed URL: {self.config.feed}")
-            print(f"Distribution: {self.apt_config.distribution}")
-            print(f"Components: {', '.join(self.apt_config.components)}")
-            print(f"Architectures: {', '.join(self.apt_config.architectures)}")
+            self.output.header(
+                repository.repo_id,
+                "apt",
+                self.config.feed,
+                distribution=self.apt_config.distribution,
+                components=', '.join(self.apt_config.components),
+                architectures=', '.join(self.apt_config.architectures),
+            )
 
             # Build dists URL (feed should point to repository root, not dists/)
             dists_url = urljoin(self.config.feed + "/", f"dists/{self.apt_config.distribution}/")
 
             # Phase 1: Download Release/InRelease files
-            print("\n=== Phase 1: Downloading Release metadata ===")
+            self.output.phase("Downloading Release metadata", number=1)
             release_metadata = self._fetch_and_store_release(session, repository, dists_url)
 
             # Phase 2: Download Packages.gz/Sources.gz for all components/architectures
-            print("\n=== Phase 2: Downloading repository metadata ===")
+            self.output.phase("Downloading repository metadata", number=2)
             metadata_files = self._build_metadata_file_list(release_metadata)
-            print(f"Found {len(metadata_files)} metadata files to download")
+            self.output.info(f"Found {len(metadata_files)} metadata files to download")
 
             metadata_downloaded = 0
             for metadata_info in metadata_files:
                 try:
                     self._download_metadata_file(session, repository, dists_url, metadata_info)
                     metadata_downloaded += 1
-                    print(f"  → Downloaded {metadata_info.relative_path}")
+                    self.output.verbose(f"  → Downloaded {metadata_info.relative_path}")
                 except Exception as e:
                     logger.warning(f"Failed to download {metadata_info.relative_path}: {e}")
-                    print(f"  → Warning: Failed to download {metadata_info.relative_path}: {e}")
+                    self.output.warning(f"Failed to download {metadata_info.relative_path}: {e}")
 
             # Phase 3: Parse Packages files and download .deb packages
-            print("\n=== Phase 3: Downloading packages ===")
+            self.output.phase("Downloading packages", number=3)
             packages_total = 0
             packages_downloaded = 0
             packages_skipped = 0
@@ -146,7 +153,7 @@ class AptSyncPlugin:
 
             # Get existing packages from database (for deduplication)
             existing_packages = self._get_existing_packages(session)
-            print(f"Already have {len(existing_packages)} packages in pool")
+            self.output.info(f"Already have {len(existing_packages)} packages in pool")
 
             # Collect all packages from Packages files
             all_packages = []
@@ -155,7 +162,7 @@ class AptSyncPlugin:
                 if metadata_info.file_type != "Packages":
                     continue
 
-                print(f"\nProcessing {metadata_info.component}/{metadata_info.architecture}...")
+                self.output.verbose(f"Processing {metadata_info.component}/{metadata_info.architecture}...")
 
                 # Get the Packages.gz file from storage
                 packages_gz_path = self._get_metadata_file_path(session, metadata_info, repository)
@@ -180,27 +187,29 @@ class AptSyncPlugin:
                     logger.error(f"Failed to parse Packages file: {e}")
                     continue
 
-                print(f"  Found {len(packages)} packages")
+                self.output.verbose(f"  Found {len(packages)} packages")
                 all_packages.extend(packages)
 
             packages_total = len(all_packages)
-            print(f"\nTotal packages found: {packages_total}")
+            self.output.info(f"Total packages found: {packages_total}")
 
             # Apply filters if repository mode is filtered
             if repository.mode == "filtered":
-                print("\n=== Applying Filters (Filtered Mode) ===")
+                self.output.info("Applying filters (filtered mode)...")
                 all_packages = self._apply_filters(all_packages, self.config)
-                print(f"After filtering: {len(all_packages)} packages")
-                print("⚠️  WARNING: Filtered mode will regenerate metadata without GPG signatures!")
-                print("    Clients must use [trusted=yes] or Acquire::AllowInsecureRepositories=1")
+                self.output.info(f"After filtering: {len(all_packages)} packages")
+                self.output.warning("Filtered mode will regenerate metadata without GPG signatures!")
+                self.output.warning("Clients must use [trusted=yes] or Acquire::AllowInsecureRepositories=1")
 
             # Download filtered packages
-            for pkg in all_packages:
+            self.output.start_progress(len(all_packages), "Downloading packages", "packages")
+
+            for i, pkg in enumerate(all_packages, 1):
                 pkg_name = f"{pkg.package}_{pkg.version}_{pkg.architecture}"
 
                 # Check if already in pool
                 if pkg.sha256 in existing_packages:
-                    print(f"  → {pkg_name}: already in pool")
+                    self.output.already_in_pool(pkg_name, pkg.sha256)
                     packages_skipped += 1
 
                     # Link existing package to this repository if not already linked
@@ -213,21 +222,28 @@ class AptSyncPlugin:
                 # Download package
                 try:
                     pkg_url = urljoin(self.config.feed + "/", pkg.filename)
+                    pkg_size_mb = pkg.size / 1024 / 1024 if pkg.size else 0
+                    self.output.downloading(pkg_name, pkg_size_mb, i, len(all_packages))
                     downloaded_bytes = self._download_package(pkg_url, pkg, session, repository)
                     packages_downloaded += 1
                     bytes_downloaded += downloaded_bytes
-                    print(f"  → {pkg_name}: downloaded {downloaded_bytes / 1024 / 1024:.2f} MB")
+                    self.output.downloaded(downloaded_bytes / 1024 / 1024)
                 except Exception as e:
                     logger.error(f"Failed to download {pkg_name}: {e}")
-                    print(f"  → {pkg_name}: ERROR - {e}")
+                    self.output.error(f"{pkg_name}: {e}")
+
+                self.output.update_progress()
+
+            self.output.finish_progress()
 
             # Sync complete
-            print("\n=== Sync Complete ===")
-            print(f"Packages downloaded: {packages_downloaded}")
-            print(f"Packages skipped: {packages_skipped}")
-            print(f"Packages total: {packages_total}")
-            print(f"Bytes downloaded: {bytes_downloaded / 1024 / 1024:.2f} MB")
-            print(f"Metadata files: {metadata_downloaded}")
+            self.output.summary(
+                packages_downloaded=packages_downloaded,
+                packages_skipped=packages_skipped,
+                packages_total=packages_total,
+                total_size_mb=f"{bytes_downloaded / 1024 / 1024:.2f} MB",
+                metadata_files=metadata_downloaded,
+            )
 
             return SyncResult(
                 packages_downloaded=packages_downloaded,
@@ -240,7 +256,7 @@ class AptSyncPlugin:
 
         except Exception as e:
             logger.exception(f"Sync failed: {e}")
-            print(f"ERROR: Sync failed: {e}")
+            self.output.error(f"Sync failed: {e}")
             return SyncResult(
                 packages_downloaded=0,
                 packages_skipped=0,
@@ -277,7 +293,7 @@ class AptSyncPlugin:
 
         # Try InRelease (preferred)
         try:
-            print(f"Fetching {inrelease_url}...")
+            self.output.verbose(f"Fetching {inrelease_url}...")
             response = self.session.get(inrelease_url, timeout=60)
             response.raise_for_status()
             release_content = response.text
@@ -293,16 +309,16 @@ class AptSyncPlugin:
                 file_category="metadata",
                 original_path="InRelease",
             )
-            print("  → Downloaded InRelease")
+            self.output.verbose("  → Downloaded InRelease")
 
         except Exception as e:
             logger.warning(f"Failed to download InRelease: {e}")
-            print(f"  → InRelease not available: {e}")
+            self.output.verbose(f"  → InRelease not available: {e}")
 
         # Fallback to Release + Release.gpg
         if not inrelease_downloaded:
             try:
-                print(f"Fetching {release_url}...")
+                self.output.verbose(f"Fetching {release_url}...")
                 response = self.session.get(release_url, timeout=60)
                 response.raise_for_status()
                 release_content = response.text
@@ -317,7 +333,7 @@ class AptSyncPlugin:
                     file_category="metadata",
                     original_path="Release",
                 )
-                print("  → Downloaded Release")
+                self.output.verbose("  → Downloaded Release")
 
                 # Try to download Release.gpg
                 try:
@@ -333,10 +349,10 @@ class AptSyncPlugin:
                         file_category="signature",
                         original_path="Release.gpg",
                     )
-                    print("  → Downloaded Release.gpg")
+                    self.output.verbose("  → Downloaded Release.gpg")
                 except Exception as gpg_error:
                     logger.warning(f"Failed to download Release.gpg: {gpg_error}")
-                    print(f"  → Warning: Release.gpg not available: {gpg_error}")
+                    self.output.warning(f"Release.gpg not available: {gpg_error}")
 
             except Exception as e:
                 raise Exception(f"Failed to download Release file: {e}") from e
@@ -364,9 +380,9 @@ class AptSyncPlugin:
                 release_text = "\n".join(content_lines)
 
             release_metadata = parse_release_file(release_text)
-            print(f"  → Parsed Release: {release_metadata.suite}/{release_metadata.codename}")
-            print(f"  → Components: {', '.join(release_metadata.components)}")
-            print(f"  → Architectures: {', '.join(release_metadata.architectures)}")
+            self.output.verbose(f"  → Parsed Release: {release_metadata.suite}/{release_metadata.codename}")
+            self.output.verbose(f"  → Components: {', '.join(release_metadata.components)}")
+            self.output.verbose(f"  → Architectures: {', '.join(release_metadata.architectures)}")
 
             # Return release metadata as dict for compatibility
             return {

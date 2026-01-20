@@ -8,6 +8,7 @@ import click
 from sqlalchemy.orm import Session
 
 from chantal.core.config import GlobalConfig, RepositoryConfig
+from chantal.core.output import OutputLevel
 from chantal.core.storage import StorageManager
 from chantal.db.connection import DatabaseManager
 from chantal.db.models import Repository, Snapshot, SyncHistory
@@ -560,6 +561,12 @@ def create_repo_group(cli: click.Group) -> click.Group:
     @click.option(
         "--workers", type=int, default=1, help="Number of parallel workers for --all or --pattern"
     )
+    @click.option(
+        "-v", "--verbose", is_flag=True, help="Show detailed output with package-by-package progress"
+    )
+    @click.option(
+        "-q", "--quiet", is_flag=True, help="Show only errors, no progress output"
+    )
     @click.pass_context
     def repo_sync(
         ctx: click.Context,
@@ -568,6 +575,8 @@ def create_repo_group(cli: click.Group) -> click.Group:
         pattern: str,
         type: str,
         workers: int,
+        verbose: bool,
+        quiet: bool,
     ) -> None:
         """Sync repository from upstream.
 
@@ -593,6 +602,19 @@ def create_repo_group(cli: click.Group) -> click.Group:
         if sum([bool(repo_id), bool(all), bool(pattern)]) > 1:
             click.echo("Error: Cannot use multiple selection methods (--repo-id, --all, --pattern)")
             raise click.Abort()
+
+        # Validate quiet and verbose flags
+        if quiet and verbose:
+            click.echo("Error: Cannot use both --quiet and --verbose")
+            raise click.Abort()
+
+        # Determine output level
+        if quiet:
+            output_level = OutputLevel.QUIET
+        elif verbose:
+            output_level = OutputLevel.VERBOSE
+        else:
+            output_level = OutputLevel.NORMAL
 
         # Check database schema version
         check_db_schema_version(ctx)
@@ -626,7 +648,7 @@ def create_repo_group(cli: click.Group) -> click.Group:
                 # TODO: Implement parallel workers if workers > 1
                 for repo_config in repos_to_sync:
                     click.echo(f"--- Syncing {repo_config.id} ---")
-                    _sync_single_repository(session, storage, config, repo_config)
+                    _sync_single_repository(session, storage, config, repo_config, output_level)
 
             elif pattern:
                 import fnmatch
@@ -657,7 +679,7 @@ def create_repo_group(cli: click.Group) -> click.Group:
                 # TODO: Implement parallel workers if workers > 1
                 for repo_config in repos_to_sync:
                     click.echo(f"--- Syncing {repo_config.id} ---")
-                    _sync_single_repository(session, storage, config, repo_config)
+                    _sync_single_repository(session, storage, config, repo_config, output_level)
                     click.echo()
             else:
                 # Sync single repository
@@ -666,7 +688,7 @@ def create_repo_group(cli: click.Group) -> click.Group:
                     click.echo(f"Error: Repository '{repo_id}' not found in configuration")
                     raise click.Abort()
 
-                _sync_single_repository(session, storage, config, single_repo)
+                _sync_single_repository(session, storage, config, single_repo, output_level)
         finally:
             session.close()
 
@@ -1009,8 +1031,20 @@ def _sync_single_repository(
     storage: StorageManager,
     global_config: GlobalConfig,
     repo_config: RepositoryConfig,
+    output_level: OutputLevel = OutputLevel.NORMAL,
 ) -> Repository:
-    """Helper function to sync a single repository."""
+    """Helper function to sync a single repository.
+
+    Args:
+        session: Database session
+        storage: Storage manager
+        global_config: Global configuration
+        repo_config: Repository configuration
+        output_level: Output verbosity level
+
+    Returns:
+        Repository object
+    """
     # Get or create repository in database
     repository = session.query(Repository).filter_by(repo_id=repo_config.id).first()
     if not repository:
@@ -1067,6 +1101,7 @@ def _sync_single_repository(
                 proxy_config=effective_proxy,
                 ssl_config=effective_ssl,
                 cache=cache,
+                output_level=output_level,
             )
             rpm_result = sync_plugin.sync_repository(session, repository)
 
@@ -1118,6 +1153,7 @@ def _sync_single_repository(
                 config=repo_config,
                 proxy_config=effective_proxy,
                 ssl_config=effective_ssl,
+                output_level=output_level,
             )
             stats = helm_syncer.sync_repository(session, repository, repo_config)
 
@@ -1164,6 +1200,7 @@ def _sync_single_repository(
                 config=repo_config,
                 proxy_config=effective_proxy,
                 ssl_config=effective_ssl,
+                output_level=output_level,
             )
             stats = apk_syncer.sync_repository(session, repository, repo_config)
 
@@ -1214,6 +1251,7 @@ def _sync_single_repository(
                 config=repo_config,
                 proxy_config=effective_proxy,
                 ssl_config=effective_ssl,
+                output_level=output_level,
             )
             apt_result = apt_syncer.sync_repository(session, repository)
 
@@ -1306,6 +1344,7 @@ def _check_updates_single_repository(
             proxy_config=effective_proxy,
             ssl_config=effective_ssl,
             cache=cache,
+            output_level=OutputLevel.NORMAL,  # check-updates always uses normal output
         )
     else:
         click.echo(f"Error: Unsupported repository type: {repo_config.type}")

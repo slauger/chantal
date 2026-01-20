@@ -42,42 +42,6 @@ def fetch_repomd_xml(session: requests.Session, base_url: str) -> ET.Element:
     return ET.fromstring(response.content)
 
 
-def extract_primary_location(repomd_root: ET.Element) -> str:
-    """Extract primary.xml.gz location from repomd.xml.
-
-    Args:
-        repomd_root: Parsed repomd.xml root element
-
-    Returns:
-        Relative path to primary.xml.gz
-
-    Raises:
-        ValueError: If primary location not found
-    """
-    # Handle XML namespaces
-    ns = {"repo": "http://linux.duke.edu/metadata/repo"}
-
-    # Find data element with type="primary"
-    data_elem = repomd_root.find("repo:data[@type='primary']", ns)
-    if data_elem is None:
-        # Try without namespace
-        data_elem = repomd_root.find("data[@type='primary']")
-        if data_elem is None:
-            raise ValueError("Primary metadata location not found in repomd.xml")
-
-    location_elem = data_elem.find("repo:location", ns)
-    if location_elem is None:
-        location_elem = data_elem.find("location")
-        if location_elem is None:
-            raise ValueError("Primary location element not found")
-
-    location = location_elem.get("href")
-    if not location:
-        raise ValueError("Primary location href attribute missing")
-
-    return location
-
-
 def extract_all_metadata(repomd_root: ET.Element) -> list[dict]:
     """Extract all metadata file information from repomd.xml.
 
@@ -174,7 +138,7 @@ def fetch_metadata_with_cache(
     checksum: str,
     cache: MetadataCache | None = None,
     file_type: str = "metadata",
-) -> bytes:
+) -> tuple[bytes, bool]:
     """Download and decompress metadata file with optional caching.
 
     Args:
@@ -186,7 +150,7 @@ def fetch_metadata_with_cache(
         file_type: Type hint for logging (e.g., "primary", "updateinfo")
 
     Returns:
-        Decompressed XML content as bytes
+        Tuple of (decompressed XML content as bytes, from_cache boolean)
 
     Raises:
         requests.RequestException: On HTTP errors
@@ -199,7 +163,7 @@ def fetch_metadata_with_cache(
             # Read cached compressed file
             compressed_content = cached_file.read_bytes()
             # Decompress and return
-            return _decompress_metadata(compressed_content, location)
+            return _decompress_metadata(compressed_content, location), True
 
     # Cache miss or disabled - download from upstream
     metadata_url = urljoin(base_url + "/", location)
@@ -215,7 +179,7 @@ def fetch_metadata_with_cache(
             logger.warning(f"Failed to cache {file_type}: {e}")
 
     # Decompress and return
-    return _decompress_metadata(response.content, location)
+    return _decompress_metadata(response.content, location), False
 
 
 def _decompress_metadata(compressed_content: bytes, filename: str) -> bytes:
@@ -254,29 +218,6 @@ def _decompress_metadata(compressed_content: bytes, filename: str) -> bytes:
         return bz2.decompress(compressed_content)
     else:
         raise ValueError(f"Unknown compression format for {filename}")
-
-
-def fetch_primary_xml(session: requests.Session, base_url: str, primary_location: str) -> bytes:
-    """Download and decompress primary.xml.gz or primary.xml.xz.
-
-    DEPRECATED: Use fetch_metadata_with_cache() for cache support.
-
-    Args:
-        session: Requests session (with auth/SSL configured)
-        base_url: Base URL of repository
-        primary_location: Relative path to primary.xml.gz or primary.xml.xz
-
-    Returns:
-        Decompressed XML content as bytes
-
-    Raises:
-        requests.RequestException: On HTTP errors
-        ValueError: If compression format is unknown
-    """
-    primary_url = urljoin(base_url + "/", primary_location)
-    response = session.get(primary_url, timeout=60)
-    response.raise_for_status()
-    return _decompress_metadata(response.content, primary_location)
 
 
 def parse_primary_xml(xml_content: bytes) -> list[dict]:

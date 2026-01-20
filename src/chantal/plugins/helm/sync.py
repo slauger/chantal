@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from chantal.core.config import ProxyConfig, RepositoryConfig, SSLConfig
 from chantal.core.downloader import DownloadManager
+from chantal.core.output import OutputLevel, SyncOutputter
 from chantal.core.storage import StorageManager
 from chantal.db.models import ContentItem, Repository, RepositoryFile
 from chantal.plugins.helm.models import HelmMetadata
@@ -41,6 +42,7 @@ class HelmSyncer:
         config: RepositoryConfig,
         proxy_config: ProxyConfig | None = None,
         ssl_config: SSLConfig | None = None,
+        output_level: OutputLevel = OutputLevel.NORMAL,
     ):
         """Initialize Helm syncer.
 
@@ -49,11 +51,13 @@ class HelmSyncer:
             config: Repository configuration
             proxy_config: Optional proxy configuration
             ssl_config: Optional SSL/TLS configuration
+            output_level: Output verbosity level
         """
         self.storage = storage
         self.config = config
         self.proxy_config = proxy_config
         self.ssl_config = ssl_config
+        self.output = SyncOutputter(output_level)
 
         # Setup download manager with all authentication and SSL/TLS configuration
         self.downloader = DownloadManager(
@@ -80,11 +84,14 @@ class HelmSyncer:
             dict: Sync statistics
         """
         logger.info(f"Syncing Helm repository: {repository.repo_id}")
+        self.output.header(repository.repo_id, "helm", config.feed)
 
         # Fetch and parse index.yaml
         # Ensure feed URL ends with / for proper urljoin behavior
         feed_url = config.feed if config.feed.endswith("/") else config.feed + "/"
         index_url = urljoin(feed_url, "index.yaml")
+
+        self.output.phase("Downloading index.yaml", number=1)
         index_data = self._fetch_index(index_url, config)
 
         # Store index.yaml as RepositoryFile for mirror mode
@@ -93,12 +100,15 @@ class HelmSyncer:
         # Parse charts from index
         all_charts = self._parse_index(index_data)
         logger.info(f"Found {len(all_charts)} chart versions in index.yaml")
+        self.output.info(f"Found {len(all_charts)} chart versions in index.yaml")
 
         # Apply filters
         filtered_charts = self._apply_filters(all_charts, config)
         logger.info(f"After filtering: {len(filtered_charts)} chart versions")
+        self.output.info(f"After filtering: {len(filtered_charts)} chart versions")
 
         # Download and store charts
+        self.output.phase("Downloading charts", number=2)
         stats = {
             "charts_added": 0,
             "charts_updated": 0,
@@ -106,7 +116,9 @@ class HelmSyncer:
             "bytes_downloaded": 0,
         }
 
-        for chart_entry in filtered_charts:
+        self.output.start_progress(len(filtered_charts), "Downloading charts", "charts")
+
+        for i, chart_entry in enumerate(filtered_charts, 1):
             try:
                 # Check if chart already exists
                 existing = (
@@ -120,11 +132,14 @@ class HelmSyncer:
 
                 if existing:
                     # Chart already exists - link to repository if not already linked
+                    chart_name = f"{chart_entry['name']}-{chart_entry['version']}"
+                    self.output.already_in_pool(chart_name, chart_entry.get("digest", ""))
                     if repository not in existing.repositories:
                         existing.repositories.append(repository)
                         stats["charts_updated"] += 1
                     else:
                         stats["charts_skipped"] += 1
+                    self.output.update_progress()
                     continue
 
                 # Download chart
@@ -134,6 +149,9 @@ class HelmSyncer:
                     # Ensure feed URL ends with / for proper urljoin behavior
                     feed_url = config.feed if config.feed.endswith("/") else config.feed + "/"
                     chart_url = urljoin(feed_url, chart_url)
+
+                chart_name = f"{chart_entry['name']}-{chart_entry['version']}"
+                self.output.downloading(chart_name, 0, i, len(filtered_charts))
 
                 pool_path, sha256, size = self._download_chart(chart_url, config)
 
@@ -158,13 +176,26 @@ class HelmSyncer:
                 stats["bytes_downloaded"] += size
 
                 logger.debug(f"Added chart: {metadata.name}-{metadata.version}")
+                self.output.downloaded(size / 1024 / 1024)
 
             except Exception as e:
                 logger.error(f"Error syncing chart {chart_entry.get('name')}: {e}")
+                self.output.error(f"Error syncing chart {chart_entry.get('name')}: {e}")
                 continue
+            finally:
+                self.output.update_progress()
+
+        self.output.finish_progress()
 
         session.commit()
         logger.info(f"Sync complete: {stats}")
+
+        self.output.summary(
+            charts_added=stats["charts_added"],
+            charts_updated=stats["charts_updated"],
+            charts_skipped=stats["charts_skipped"],
+            total_size_mb=f"{stats['bytes_downloaded'] / 1024 / 1024:.2f} MB",
+        )
 
         return stats
 
@@ -179,6 +210,7 @@ class HelmSyncer:
             dict: Parsed index.yaml data
         """
         logger.info(f"Fetching index.yaml from {url}")
+        self.output.verbose(f"Fetching index.yaml from {url}")
 
         response = self.session.get(url, timeout=30)
         response.raise_for_status()

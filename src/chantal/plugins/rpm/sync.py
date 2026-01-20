@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 from chantal.core.cache import MetadataCache
 from chantal.core.config import ProxyConfig, RepositoryConfig, SSLConfig
 from chantal.core.downloader import DownloadManager
+from chantal.core.output import OutputLevel, SyncOutputter
 from chantal.core.storage import StorageManager
 from chantal.db.models import ContentItem, Repository, RepositoryFile
 from chantal.plugins.rpm import filters, parsers
@@ -133,6 +134,7 @@ class RpmSyncPlugin:
         proxy_config: ProxyConfig | None = None,
         ssl_config: SSLConfig | None = None,
         cache: MetadataCache | None = None,
+        output_level: OutputLevel = OutputLevel.NORMAL,
     ):
         """Initialize RPM sync plugin.
 
@@ -142,12 +144,14 @@ class RpmSyncPlugin:
             proxy_config: Optional proxy configuration
             ssl_config: Optional SSL/TLS configuration
             cache: Optional metadata cache instance
+            output_level: Output verbosity level
         """
         self.storage = storage
         self.config = config
         self.proxy_config = proxy_config
         self.ssl_config = ssl_config
         self.cache = cache
+        self.output = SyncOutputter(output_level)
 
         # Setup download manager with all authentication and SSL/TLS configuration
         self.downloader = DownloadManager(
@@ -168,11 +172,11 @@ class RpmSyncPlugin:
             SyncResult with sync statistics
         """
         try:
-            print(f"Syncing repository: {repository.repo_id}")
-            print(f"Feed URL: {self.config.feed}")
+            self.output.header(repository.repo_id, "rpm", self.config.feed)
 
             # Step 1: Fetch repomd.xml (always fresh, contains checksums)
-            print("Fetching repomd.xml...")
+            self.output.phase("Fetching package list", number=1)
+            self.output.info("Fetching repomd.xml...")
             repomd_root = parsers.fetch_repomd_xml(self.session, self.config.feed)
 
             # Step 2: Extract ALL metadata info (including primary.xml.gz)
@@ -187,20 +191,42 @@ class RpmSyncPlugin:
 
             primary_location = primary_metadata["location"]
             primary_checksum = primary_metadata["checksum"]
-            print(f"Primary metadata: {primary_location} (SHA256: {primary_checksum[:16]}...)")
+            self.output.verbose(f"Primary metadata: {primary_location} (SHA256: {primary_checksum[:16]}...)")
 
-            # Step 3: Download and parse primary.xml.gz (with cache support)
-            print("Fetching primary.xml.gz...")
-            xml_content = parsers.fetch_metadata_with_cache(
-                session=self.session,
-                base_url=self.config.feed,
-                location=primary_location,
-                checksum=primary_checksum,
-                cache=self.cache,
-                file_type="primary",
-            )
-            packages = parsers.parse_primary_xml(xml_content)
-            print(f"Found {len(packages)} packages in repository")
+            # Step 3: Download and parse primary.xml.gz (with parsed data cache support)
+            # Try parsed cache first (fastest - avoids XML parsing)
+            packages = self.cache.get_parsed(primary_checksum, "primary") if self.cache else None
+
+            if packages:
+                self.output.verbose("  → primary packages loaded from parsed cache (fast path)")
+                self.output.info(f"Found {len(packages)} packages in repository")
+            else:
+                # Parsed cache miss - fetch XML and parse it
+                xml_content, from_cache = parsers.fetch_metadata_with_cache(
+                    session=self.session,
+                    base_url=self.config.feed,
+                    location=primary_location,
+                    checksum=primary_checksum,
+                    cache=self.cache,
+                    file_type="primary",
+                )
+                if from_cache:
+                    self.output.verbose("  → primary.xml.gz loaded from cache")
+                else:
+                    self.output.verbose("  → primary.xml.gz downloaded from upstream")
+
+                # Parse XML (slow operation)
+                self.output.verbose("  → parsing primary.xml...")
+                packages = parsers.parse_primary_xml(xml_content)
+                self.output.info(f"Found {len(packages)} packages in repository")
+
+                # Cache parsed data for next time
+                if self.cache:
+                    try:
+                        self.cache.put_parsed(primary_checksum, packages, "primary")
+                        self.output.verbose("  → cached parsed packages for next sync")
+                    except Exception as e:
+                        self.output.verbose(f"  → warning: failed to cache parsed data: {e}")
 
             # Step 4: Apply filters if configured
             if self.config.filters:
@@ -208,16 +234,20 @@ class RpmSyncPlugin:
                 packages = filters.apply_filters(packages, self.config.filters)
                 filtered_out = original_count - len(packages)
                 if filtered_out > 0:
-                    print(f"Filtered out {filtered_out} packages, {len(packages)} remaining")
+                    self.output.info(f"Filtered out {filtered_out} packages, {len(packages)} remaining")
 
             # Step 5: Get existing packages from database
             existing_packages = self._get_existing_packages(session)
-            print(f"Already have {len(existing_packages)} packages in pool")
+            self.output.info(f"Already have {len(existing_packages)} packages in pool")
 
             # Step 6: Download new packages
+            self.output.phase("Downloading packages", number=2)
             packages_downloaded = 0
             packages_skipped = 0
             bytes_downloaded = 0
+
+            # Start progress bar for normal mode
+            self.output.start_progress(len(packages), "Downloading packages", "packages")
 
             for i, pkg_meta in enumerate(packages, 1):
                 pkg_name = pkg_meta["name"]
@@ -226,14 +256,13 @@ class RpmSyncPlugin:
                 pkg_arch = pkg_meta["arch"]
                 pkg_sha256 = pkg_meta["sha256"]
                 pkg_location = pkg_meta["location"]
+                pkg_size = pkg_meta.get("size_bytes", 0)
 
-                print(
-                    f"[{i}/{len(packages)}] Processing {pkg_name}-{pkg_version}-{pkg_release}.{pkg_arch}"
-                )
+                nvra = f"{pkg_name}-{pkg_version}-{pkg_release}.{pkg_arch}"
 
                 # Check if package already exists by SHA256
                 if pkg_sha256 in existing_packages:
-                    print(f"  → Already in pool (SHA256: {pkg_sha256[:16]}...)")
+                    self.output.already_in_pool(nvra, pkg_sha256)
                     packages_skipped += 1
 
                     # Link existing package to this repository if not already linked
@@ -241,13 +270,15 @@ class RpmSyncPlugin:
                     if repository not in existing_pkg.repositories:
                         existing_pkg.repositories.append(repository)
                         session.commit()
-                        print("  → Linked to repository")
+                        self.output.verbose("  → Linked to repository")
 
+                    self.output.update_progress()
                     continue
 
                 # Download package
                 pkg_url = urljoin(self.config.feed + "/", pkg_location)
-                print(f"  → Downloading from {pkg_url}")
+                self.output.downloading(nvra, pkg_size / 1024 / 1024, i, len(packages))
+                self.output.verbose(f"  → URL: {pkg_url}")
 
                 try:
                     downloaded_bytes = self._download_package(
@@ -255,13 +286,17 @@ class RpmSyncPlugin:
                     )
                     packages_downloaded += 1
                     bytes_downloaded += downloaded_bytes
-                    print(f"  → Downloaded {downloaded_bytes / 1024 / 1024:.2f} MB")
+                    self.output.downloaded(downloaded_bytes / 1024 / 1024)
                 except Exception as e:
-                    print(f"  → ERROR: Failed to download: {e}")
+                    self.output.error(f"Failed to download {nvra}: {e}")
                     # Continue with next package
 
+                self.output.update_progress()
+
+            self.output.finish_progress()
+
             # Step 7: Download metadata files
-            print("\nDownloading metadata files...")
+            self.output.phase("Downloading metadata files", number=3)
             metadata_files = parsers.extract_all_metadata(repomd_root)
             metadata_downloaded = 0
 
@@ -280,15 +315,18 @@ class RpmSyncPlugin:
                         open_checksum=metadata_info.get("open_checksum"),
                         open_size=metadata_info.get("open_size"),
                     )
-                    self._download_metadata_file(mfi, session, repository, self.config.feed)
+                    from_cache = self._download_metadata_file(mfi, session, repository, self.config.feed)
                     metadata_downloaded += 1
-                    print(f"  → Downloaded {metadata_info['file_type']}.xml.gz")
+                    if from_cache:
+                        self.output.verbose(f"  → {metadata_info['file_type']}.xml.gz (cached)")
+                    else:
+                        self.output.verbose(f"  → {metadata_info['file_type']}.xml.gz (downloaded)")
                 except Exception as e:
-                    print(f"  → Warning: Failed to download {metadata_info['file_type']}: {e}")
+                    self.output.warning(f"Failed to download {metadata_info['file_type']}: {e}")
                     # Continue with next metadata file
 
             # Step 8: Check for .treeinfo and download installer files
-            print("\nChecking for installer files (.treeinfo)...")
+            self.output.phase("Checking for installer files (.treeinfo)", number=4)
             treeinfo_url = urljoin(self.config.feed, ".treeinfo")
             try:
                 response = self.session.get(treeinfo_url, timeout=30)
@@ -298,7 +336,7 @@ class RpmSyncPlugin:
                 installer_files = parsers.parse_treeinfo(treeinfo_content)
 
                 if installer_files:
-                    print(f"Found {len(installer_files)} installer files")
+                    self.output.info(f"Found {len(installer_files)} installer files")
                     installer_downloaded = 0
 
                     for file_info in installer_files:
@@ -311,29 +349,30 @@ class RpmSyncPlugin:
                             )
                             installer_downloaded += 1
                         except Exception as e:
-                            print(f"  → Warning: Failed to download {file_info['file_type']}: {e}")
+                            self.output.warning(f"Failed to download {file_info['file_type']}: {e}")
                             # Continue with next installer file
 
                     # Store .treeinfo itself
                     self._store_treeinfo(session, repository, treeinfo_content)
 
-                    print(
+                    self.output.info(
                         f"Installer files downloaded: {installer_downloaded}/{len(installer_files)}"
                     )
 
             except requests.exceptions.HTTPError as e:
                 if e.response.status_code == 404:
-                    print("  No .treeinfo found (not an installer repository)")
+                    self.output.verbose("No .treeinfo found (not an installer repository)")
                 else:
-                    print(f"  → Warning: Failed to fetch .treeinfo: {e}")
+                    self.output.warning(f"Failed to fetch .treeinfo: {e}")
             except Exception as e:
-                print(f"  → Warning: Failed to process .treeinfo: {e}")
+                self.output.warning(f"Failed to process .treeinfo: {e}")
 
-            print("\nSync complete!")
-            print(f"  Packages downloaded: {packages_downloaded}")
-            print(f"  Packages skipped: {packages_skipped}")
-            print(f"  Metadata files downloaded: {metadata_downloaded}")
-            print(f"  Total size: {bytes_downloaded / 1024 / 1024:.2f} MB")
+            self.output.summary(
+                packages_downloaded=packages_downloaded,
+                packages_skipped=packages_skipped,
+                metadata_files_downloaded=metadata_downloaded,
+                total_size_mb=f"{bytes_downloaded / 1024 / 1024:.2f} MB",
+            )
 
             return SyncResult(
                 packages_downloaded=packages_downloaded,
@@ -345,7 +384,7 @@ class RpmSyncPlugin:
             )
 
         except Exception as e:
-            print(f"Sync failed: {e}")
+            self.output.error(f"Sync failed: {e}")
             return SyncResult(
                 packages_downloaded=0,
                 packages_skipped=0,
@@ -374,16 +413,53 @@ class RpmSyncPlugin:
             print("Fetching repomd.xml...")
             repomd_root = parsers.fetch_repomd_xml(self.session, self.config.feed)
 
-            # Step 2: Extract primary.xml location
-            primary_location = parsers.extract_primary_location(repomd_root)
+            # Step 2: Extract ALL metadata info (including primary.xml.gz)
+            metadata_files = parsers.extract_all_metadata(repomd_root)
 
-            # Step 3: Download and parse primary.xml
-            print("Fetching primary.xml...")
-            xml_content = parsers.fetch_primary_xml(
-                self.session, self.config.feed, primary_location
+            # Find primary.xml metadata
+            primary_metadata = next(
+                (m for m in metadata_files if m["file_type"] == "primary"), None
             )
-            packages = parsers.parse_primary_xml(xml_content)
-            print(f"Found {len(packages)} packages in upstream repository")
+            if not primary_metadata:
+                raise ValueError("Primary metadata not found in repomd.xml")
+
+            primary_location = primary_metadata["location"]
+            primary_checksum = primary_metadata["checksum"]
+
+            # Step 3: Download and parse primary.xml.gz (with parsed data cache support)
+            # Try parsed cache first (fastest - avoids XML parsing)
+            packages = self.cache.get_parsed(primary_checksum, "primary") if self.cache else None
+
+            if packages:
+                print("  → primary packages loaded from parsed cache (fast path)")
+                print(f"Found {len(packages)} packages in upstream repository")
+            else:
+                # Parsed cache miss - fetch XML and parse it
+                xml_content, from_cache = parsers.fetch_metadata_with_cache(
+                    session=self.session,
+                    base_url=self.config.feed,
+                    location=primary_location,
+                    checksum=primary_checksum,
+                    cache=self.cache,
+                    file_type="primary",
+                )
+                if from_cache:
+                    print("  → primary.xml.gz loaded from cache")
+                else:
+                    print("  → primary.xml.gz downloaded from upstream")
+
+                # Parse XML (slow operation)
+                print("  → parsing primary.xml...")
+                packages = parsers.parse_primary_xml(xml_content)
+                print(f"Found {len(packages)} packages in upstream repository")
+
+                # Cache parsed data for next time
+                if self.cache:
+                    try:
+                        self.cache.put_parsed(primary_checksum, packages, "primary")
+                        print("  → cached parsed packages for next check")
+                    except Exception as e:
+                        print(f"  → warning: failed to cache parsed data: {e}")
 
             # Step 4: Apply filters if configured
             if self.config.filters:
@@ -612,7 +688,7 @@ class RpmSyncPlugin:
         session: Session,
         repository: Repository,
         base_url: str,
-    ) -> None:
+    ) -> bool:
         """Download metadata file and store as RepositoryFile.
 
         Uses metadata cache if enabled to avoid redundant downloads.
@@ -623,10 +699,15 @@ class RpmSyncPlugin:
             repository: Repository model instance
             base_url: Base URL of repository
 
+        Returns:
+            True if loaded from cache, False if downloaded
+
         Raises:
             requests.RequestException: On HTTP errors
             ValueError: On checksum mismatch
         """
+        from_cache = False
+
         # Try cache first (if enabled)
         if self.cache:
             cached_file = self.cache.get(metadata_info.checksum, metadata_info.file_type)
@@ -634,6 +715,7 @@ class RpmSyncPlugin:
                 # Use cached file directly - it's already compressed
                 tmp_path = cached_file
                 cleanup_temp = False  # Don't delete cached file
+                from_cache = True
             else:
                 # Cache miss - download and cache
                 metadata_url = urljoin(base_url + "/", metadata_info.location)
@@ -649,7 +731,7 @@ class RpmSyncPlugin:
                     cleanup_temp = False
                 except Exception as e:
                     # Cache failed - use temp file
-                    print(f"  → Warning: Failed to cache {metadata_info.file_type}: {e}")
+                    self.output.warning(f"Failed to cache {metadata_info.file_type}: {e}")
                     tmp_file = tempfile.NamedTemporaryFile(
                         delete=False, suffix=f".{metadata_info.file_type}"
                     )
@@ -729,6 +811,8 @@ class RpmSyncPlugin:
                 repo_file.repositories.append(repository)
                 session.commit()
 
+            return from_cache
+
         finally:
             # Clean up temp file (only if not from cache)
             if cleanup_temp and tmp_path.exists():
@@ -759,7 +843,7 @@ class RpmSyncPlugin:
 
         file_url = urljoin(base_url, file_path)
 
-        print(f"  → Downloading {file_type}: {file_path}")
+        self.output.verbose(f"  → Downloading {file_type}: {file_path}")
 
         # Download to temp file
         tmp_file = tempfile.NamedTemporaryFile(delete=False)
@@ -774,19 +858,6 @@ class RpmSyncPlugin:
             for chunk in response.iter_content(chunk_size=8192):
                 tmp_file.write(chunk)
                 downloaded += len(chunk)
-
-                # Show progress for large files (> 10MB)
-                if total_size > 10 * 1024 * 1024:
-                    mb_downloaded = downloaded / 1024 / 1024
-                    mb_total = total_size / 1024 / 1024
-                    print(
-                        f"\r    {mb_downloaded:.1f} MB / {mb_total:.1f} MB ({mb_downloaded/mb_total*100:.0f}%)",
-                        end="",
-                        flush=True,
-                    )
-
-            if total_size > 10 * 1024 * 1024:
-                print()  # Newline after progress
 
             tmp_file.close()
             tmp_file_path = tmp_file.name
@@ -829,7 +900,7 @@ class RpmSyncPlugin:
             # Clean up temp file
             os.unlink(tmp_file_path)
 
-            print(f"    ✓ Stored {file_type} ({actual_sha256[:8]}...)")
+            self.output.verbose(f"    ✓ Stored {file_type} ({actual_sha256[:8]}...)")
 
         except Exception:
             # Clean up on error
@@ -876,7 +947,7 @@ class RpmSyncPlugin:
             repository.repository_files.append(repo_file)
             session.commit()
 
-            print("  ✓ Stored .treeinfo")
+            self.output.verbose("  ✓ Stored .treeinfo")
 
         finally:
             # Clean up temp file

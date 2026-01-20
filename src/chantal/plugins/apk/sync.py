@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from chantal.core.config import ProxyConfig, RepositoryConfig, SSLConfig
 from chantal.core.downloader import DownloadManager
+from chantal.core.output import OutputLevel, SyncOutputter
 from chantal.core.storage import StorageManager
 from chantal.db.models import ContentItem, Repository, RepositoryFile
 from chantal.plugins.apk.models import ApkMetadata
@@ -41,6 +42,7 @@ class ApkSyncer:
         config: RepositoryConfig,
         proxy_config: ProxyConfig | None = None,
         ssl_config: SSLConfig | None = None,
+        output_level: OutputLevel = OutputLevel.NORMAL,
     ):
         """Initialize APK syncer.
 
@@ -49,11 +51,13 @@ class ApkSyncer:
             config: Repository configuration
             proxy_config: Optional proxy configuration
             ssl_config: Optional SSL/TLS configuration
+            output_level: Output verbosity level
         """
         self.storage = storage
         self.config = config
         self.proxy_config = proxy_config
         self.ssl_config = ssl_config
+        self.output = SyncOutputter(output_level)
 
         # Setup download manager with all authentication and SSL/TLS configuration
         self.downloader = DownloadManager(
@@ -88,6 +92,15 @@ class ApkSyncer:
         if not apk_config:
             raise ValueError(f"APK configuration missing for repository {repository.repo_id}")
 
+        self.output.header(
+            repository.repo_id,
+            "apk",
+            config.feed,
+            branch=apk_config.branch,
+            repository=apk_config.repository,
+            architecture=apk_config.architecture,
+        )
+
         feed_url = config.feed if config.feed.endswith("/") else config.feed + "/"
         index_url = urljoin(
             feed_url,
@@ -95,6 +108,7 @@ class ApkSyncer:
         )
 
         # Fetch and parse APKINDEX
+        self.output.phase("Downloading APKINDEX.tar.gz", number=1)
         index_data = self._fetch_apkindex(index_url, config)
 
         # Store APKINDEX.tar.gz as RepositoryFile for mirror mode
@@ -103,12 +117,15 @@ class ApkSyncer:
         # Parse packages from APKINDEX
         all_packages = self._parse_apkindex(index_data)
         logger.info(f"Found {len(all_packages)} packages in APKINDEX")
+        self.output.info(f"Found {len(all_packages)} packages in APKINDEX")
 
         # Apply filters
         filtered_packages = self._apply_filters(all_packages, config)
         logger.info(f"After filtering: {len(filtered_packages)} packages")
+        self.output.info(f"After filtering: {len(filtered_packages)} packages")
 
         # Download and store packages
+        self.output.phase("Downloading packages", number=2)
         stats = {
             "packages_added": 0,
             "packages_updated": 0,
@@ -121,7 +138,9 @@ class ApkSyncer:
             feed_url, f"{apk_config.branch}/{apk_config.repository}/{apk_config.architecture}/"
         )
 
-        for pkg_entry in filtered_packages:
+        self.output.start_progress(len(filtered_packages), "Downloading packages", "packages")
+
+        for i, pkg_entry in enumerate(filtered_packages, 1):
             try:
                 # Create metadata
                 metadata = ApkMetadata.from_apkindex_entry(pkg_entry)
@@ -148,20 +167,28 @@ class ApkSyncer:
 
                 if existing:
                     # Package already exists - link to repository if not already linked
+                    pkg_name = f"{metadata.name}-{metadata.version}"
+                    self.output.already_in_pool(pkg_name)
                     if repository not in existing.repositories:
                         existing.repositories.append(repository)
                         stats["packages_updated"] += 1
                     else:
                         stats["packages_skipped"] += 1
+                    self.output.update_progress()
                     continue
 
                 # Download package
                 pkg_url = urljoin(base_url, filename)
+                pkg_name = f"{metadata.name}-{metadata.version}"
+                pkg_size_mb = metadata.size / 1024 / 1024 if metadata.size else 0
+                self.output.downloading(pkg_name, pkg_size_mb, i, len(filtered_packages))
+
                 pool_path, sha256, size, sha1_ok = self._download_package(
                     pkg_url, config, metadata.checksum
                 )
                 if not sha1_ok:
                     stats["sha1_mismatches"] += 1
+                    self.output.warning(f"SHA1 mismatch for {pkg_name}")
 
                 # Create ContentItem
                 content_item = ContentItem(
@@ -181,13 +208,27 @@ class ApkSyncer:
                 stats["bytes_downloaded"] += size
 
                 logger.debug(f"Added package: {metadata.name}-{metadata.version}")
+                self.output.downloaded(size / 1024 / 1024)
 
             except Exception as e:
                 logger.error(f"Error syncing package {pkg_entry.get('name')}: {e}")
+                self.output.error(f"Error syncing package {pkg_entry.get('name')}: {e}")
                 continue
+            finally:
+                self.output.update_progress()
+
+        self.output.finish_progress()
 
         session.commit()
         logger.info(f"Sync complete: {stats}")
+
+        self.output.summary(
+            packages_added=stats["packages_added"],
+            packages_updated=stats["packages_updated"],
+            packages_skipped=stats["packages_skipped"],
+            total_size_mb=f"{stats['bytes_downloaded'] / 1024 / 1024:.2f} MB",
+            sha1_mismatches=stats["sha1_mismatches"],
+        )
 
         return stats
 
