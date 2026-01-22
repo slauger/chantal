@@ -12,6 +12,7 @@ import logging
 import time
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -150,7 +151,7 @@ class MetadataCache:
 
         return True
 
-    def get_parsed(self, checksum: str, file_type: str = "metadata") -> any:
+    def get_parsed(self, checksum: str, file_type: str = "metadata") -> Any:
         """Get parsed data from cache (pickle format).
 
         Args:
@@ -190,7 +191,7 @@ class MetadataCache:
             cache_file.unlink(missing_ok=True)
             return None
 
-    def put_parsed(self, checksum: str, data: any, file_type: str = "metadata") -> Path | None:
+    def put_parsed(self, checksum: str, data: Any, file_type: str = "metadata") -> Path | None:
         """Store parsed data in cache (pickle format).
 
         Args:

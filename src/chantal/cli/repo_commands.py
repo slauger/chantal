@@ -186,7 +186,7 @@ def _show_all_repos_last_sync(session: Session, config: GlobalConfig, output_for
     import json
 
     # Build result for all repositories from config
-    result = []
+    result: list[tuple[Repository | RepositoryConfig, SyncHistory | None]] = []
 
     for repo_config in config.repositories:
         # Try to get repository from database
@@ -237,7 +237,7 @@ def _show_all_repos_last_sync(session: Session, config: GlobalConfig, output_for
                     }
                 )
             else:
-                json_result.append({"repo_id": repo_id, "last_sync": None})
+                json_result.append({"repo_id": repo_id, "last_sync": None})  # type: ignore[dict-item]
 
         click.echo(json.dumps(json_result, indent=2))
     else:
@@ -298,7 +298,7 @@ def _show_all_repos_history(
     import json
 
     # Build result for all repositories from config
-    result = []
+    result: list[tuple[Repository | RepositoryConfig, list[SyncHistory]]] = []
 
     for repo_config in config.repositories:
         # Try to get repository from database
