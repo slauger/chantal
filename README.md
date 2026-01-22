@@ -233,21 +233,52 @@ See [Workflows Documentation](https://slauger.github.io/chantal/user-guide/workf
 
 Contributions welcome! See [GitHub Issues](https://github.com/slauger/chantal/issues) for planned features and improvements.
 
-**Development Setup:**
+### Development Setup
+
+**1. Clone and Setup Virtual Environment:**
 ```bash
-# Clone and install
 git clone https://github.com/slauger/chantal.git
 cd chantal
-pip install -e ".[dev]"
 
-# Run tests (191 tests)
-pytest
+# Create virtual environment
+make venv
+# OR manually: python3 -m venv venv
 
-# Linting and formatting
-ruff check src/ tests/
-black src/ tests/
-mypy src/
+# Activate virtual environment
+source venv/bin/activate
+
+# Install dependencies
+make install-dev
+# OR manually: pip install -e ".[dev]"
 ```
+
+**2. Run Local Tests (CI/CD Checks):**
+```bash
+# IMPORTANT: Always use the Makefile targets to ensure correct venv usage!
+
+# Run all linters (same as CI/CD)
+make lint
+
+# Run all checks (linters + tests)
+make check
+
+# Individual checks
+make ruff        # Linting
+make black       # Code formatting check
+make yamllint    # YAML linting
+make mypy        # Type checking
+make pytest      # Unit tests
+
+# Auto-format code
+make format
+```
+
+**3. Development Notes:**
+- ⚠️ **Always activate the venv** before running tests (`source venv/bin/activate`)
+- ✅ **Use `make lint`** instead of running tools directly - ensures venv usage
+- ✅ **CI/CD runs the same checks** as `make lint` - local = CI/CD
+- 🔧 All linters are pinned to specific versions for consistency
+- 📝 See `Makefile` for all available targets
 
 Read the [Architecture Documentation](https://slauger.github.io/chantal/architecture/overview.html) before contributing.
 
