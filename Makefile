@@ -2,7 +2,9 @@
 # This Makefile mirrors the checks run in .github/workflows/lint-and-type-check.yml
 
 # Configuration
-PYTHON := python3
+# Try to use venv if available, otherwise fall back to system python
+VENV_PYTHON := $(shell [ -f venv312/bin/python ] && echo venv312/bin/python || echo python3)
+PYTHON := $(VENV_PYTHON)
 SRC_DIR := src/chantal
 TEST_DIR := tests
 EXAMPLES_DIR := examples
@@ -51,29 +53,29 @@ test: pytest
 # Individual linter targets (matching CI/CD workflow)
 ruff:
 	@echo "$(COLOR_BOLD)Running ruff linter...$(COLOR_RESET)"
-	@ruff check $(SRC_DIR) $(TEST_DIR)
+	@$(PYTHON) -m ruff check $(SRC_DIR) $(TEST_DIR)
 
 black:
 	@echo "$(COLOR_BOLD)Checking code formatting with black...$(COLOR_RESET)"
-	@black --check --diff $(SRC_DIR) $(TEST_DIR)
+	@$(PYTHON) -m black --check --diff $(SRC_DIR) $(TEST_DIR)
 
 yamllint:
 	@echo "$(COLOR_BOLD)Linting YAML files...$(COLOR_RESET)"
-	@yamllint --strict $(EXAMPLES_DIR) $(GITHUB_DIR)
+	@$(PYTHON) -m yamllint --strict $(EXAMPLES_DIR) $(GITHUB_DIR)
 
 mypy:
 	@echo "$(COLOR_BOLD)Running mypy type checker...$(COLOR_RESET)"
-	@mypy $(SRC_DIR) --ignore-missing-imports
+	@$(PYTHON) -m mypy $(SRC_DIR) --ignore-missing-imports
 
 pytest:
 	@echo "$(COLOR_BOLD)Running pytest...$(COLOR_RESET)"
-	@pytest $(TEST_DIR) -v --tb=short
+	@$(PYTHON) -m pytest $(TEST_DIR) -v --tb=short
 
 # Formatting target
 format:
 	@echo "$(COLOR_BOLD)Auto-formatting code...$(COLOR_RESET)"
-	@black $(SRC_DIR) $(TEST_DIR)
-	@ruff check --fix $(SRC_DIR) $(TEST_DIR)
+	@$(PYTHON) -m black $(SRC_DIR) $(TEST_DIR)
+	@$(PYTHON) -m ruff check --fix $(SRC_DIR) $(TEST_DIR)
 	@echo "$(COLOR_GREEN)$(COLOR_BOLD)✓ Code formatted!$(COLOR_RESET)"
 
 # Utility targets
