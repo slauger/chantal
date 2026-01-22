@@ -3,7 +3,7 @@
 
 # Configuration
 # Try to use venv if available, otherwise fall back to system python
-VENV_PYTHON := $(shell [ -f venv312/bin/python ] && echo venv312/bin/python || echo python3)
+VENV_PYTHON := $(shell [ -f venv/bin/python ] && echo venv/bin/python || echo python3)
 PYTHON := $(VENV_PYTHON)
 SRC_DIR := src/chantal
 TEST_DIR := tests
@@ -18,7 +18,7 @@ COLOR_YELLOW := \033[33m
 COLOR_BLUE := \033[34m
 
 # Phony targets
-.PHONY: help check lint test format ruff black yamllint mypy pytest clean install-dev
+.PHONY: help check lint test format ruff black yamllint mypy pytest clean install-dev venv
 
 # Default target
 help:
@@ -38,6 +38,7 @@ help:
 	@echo "  make $(COLOR_YELLOW)pytest$(COLOR_RESET)     - Run tests with pytest"
 	@echo ""
 	@echo "$(COLOR_BOLD)Utilities:$(COLOR_RESET)"
+	@echo "  make $(COLOR_BLUE)venv$(COLOR_RESET)        - Create virtual environment"
 	@echo "  make $(COLOR_BLUE)install-dev$(COLOR_RESET) - Install development dependencies"
 	@echo "  make $(COLOR_BLUE)clean$(COLOR_RESET)       - Remove build artifacts and cache"
 
@@ -79,10 +80,16 @@ format:
 	@echo "$(COLOR_GREEN)$(COLOR_BOLD)✓ Code formatted!$(COLOR_RESET)"
 
 # Utility targets
+venv:
+	@echo "$(COLOR_BOLD)Creating virtual environment...$(COLOR_RESET)"
+	@python3 -m venv venv
+	@echo "$(COLOR_GREEN)$(COLOR_BOLD)✓ Virtual environment created!$(COLOR_RESET)"
+	@echo "$(COLOR_YELLOW)Run 'source venv/bin/activate' to activate it$(COLOR_RESET)"
+
 install-dev:
 	@echo "$(COLOR_BOLD)Installing development dependencies...$(COLOR_RESET)"
 	@$(PYTHON) -m pip install --upgrade pip
-	@pip install -e ".[dev]"
+	@$(PYTHON) -m pip install -e ".[dev]"
 	@echo "$(COLOR_GREEN)$(COLOR_BOLD)✓ Development dependencies installed!$(COLOR_RESET)"
 
 clean:
