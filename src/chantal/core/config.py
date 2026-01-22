@@ -361,7 +361,7 @@ class RepositoryConfig(BaseModel):
 class DatabaseConfig(BaseModel):
     """Database configuration."""
 
-    url: str = "postgresql://chantal:chantal@localhost/chantal"
+    url: str = "sqlite:///chantal.db"
     pool_size: int = 5
     max_overflow: int = 10
     echo: bool = False  # SQLAlchemy echo (verbose SQL logging)
