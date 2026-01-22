@@ -202,7 +202,7 @@ def _decompress_metadata(compressed_content: bytes, filename: str) -> bytes:
         return gzip.decompress(compressed_content)
     elif filename.endswith(".zst"):
         dctx = zstd.ZstdDecompressor()
-        return dctx.decompress(compressed_content)  # type: ignore[no-any-return]
+        return dctx.decompress(compressed_content)
     elif filename.endswith(".bz2"):
         return bz2.decompress(compressed_content)
 
@@ -213,7 +213,7 @@ def _decompress_metadata(compressed_content: bytes, filename: str) -> bytes:
         return lzma.decompress(compressed_content)
     elif compressed_content[:4] == b"\x28\xb5\x2f\xfd":  # zstandard magic
         dctx = zstd.ZstdDecompressor()
-        return dctx.decompress(compressed_content)  # type: ignore[no-any-return]
+        return dctx.decompress(compressed_content)
     elif compressed_content[:3] == b"BZh":  # bzip2 magic
         return bz2.decompress(compressed_content)
     else:

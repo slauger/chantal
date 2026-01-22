@@ -43,7 +43,7 @@ dependencies = [
     "urllib3>=2.1.0",
 
     # Compression
-    "zstandard>=0.22.0",
+    "zstandard>=0.23.0",  # >=0.23.0 includes type stubs
 
     # Progress & UI
     "tqdm>=4.66.0",
