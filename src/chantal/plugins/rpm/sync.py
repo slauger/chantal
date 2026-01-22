@@ -852,12 +852,8 @@ class RpmSyncPlugin:
             response.raise_for_status()
 
             # Download with progress for large files
-            total_size = int(response.headers.get("content-length", 0))
-            downloaded = 0
-
             for chunk in response.iter_content(chunk_size=8192):
                 tmp_file.write(chunk)
-                downloaded += len(chunk)
 
             tmp_file.close()
             tmp_file_path = tmp_file.name
