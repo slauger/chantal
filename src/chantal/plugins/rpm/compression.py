@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import bz2
 import gzip
-from typing import Literal
+from typing import Literal, cast
 
 import zstandard as zstd
 
@@ -47,7 +47,7 @@ def decompress_file(compressed_data: bytes, compression: CompressionFormat) -> b
         return gzip.decompress(compressed_data)
     elif compression == "zstandard":
         dctx = zstd.ZstdDecompressor()
-        return dctx.decompress(compressed_data)
+        return cast(bytes, dctx.decompress(compressed_data))
     elif compression == "bzip2":
         return bz2.decompress(compressed_data)
     elif compression == "none":
@@ -78,7 +78,7 @@ def compress_file(
     elif compression == "zstandard":
         level = compression_level if compression_level is not None else 3
         cctx = zstd.ZstdCompressor(level=level)
-        return cctx.compress(data)
+        return cast(bytes, cctx.compress(data))
     elif compression == "bzip2":
         level = compression_level if compression_level is not None else 9
         return bz2.compress(data, compresslevel=level)
