@@ -1,0 +1,55 @@
+version: 2
+updates:
+  # Python dependencies (production)
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    groups:
+      # Group all production dependencies together
+      production-dependencies:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "pytest*"
+          - "mypy*"
+          - "black*"
+          - "ruff*"
+          - "yamllint*"
+          - "types-*"
+    labels:
+      - "dependencies"
+      - "python"
+
+  # Python dev dependencies (tools that need consistency)
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    groups:
+      # Group dev tools together for easier review
+      dev-tools:
+        patterns:
+          - "pytest*"
+          - "mypy*"
+          - "black*"
+          - "ruff*"
+          - "yamllint*"
+          - "types-*"
+    labels:
+      - "dependencies"
+      - "dev-dependencies"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    labels:
+      - "dependencies"
+      - "github-actions"
