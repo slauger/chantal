@@ -196,16 +196,16 @@ def create_db_group(cli: click.Group) -> click.Group:
     @db.command("cleanup")
     @click.option("--dry-run", is_flag=True, help="Show what would be deleted")
     @click.option(
-        "--orphaned", is_flag=True, help="Only clean orphaned repositories (in DB but not in config)"
+        "--orphaned",
+        is_flag=True,
+        help="Only clean orphaned repositories (in DB but not in config)",
     )
-    @click.option(
-        "--unreferenced", is_flag=True, help="Only clean unreferenced packages"
-    )
-    @click.option(
-        "--force", is_flag=True, help="Skip confirmation prompt"
-    )
+    @click.option("--unreferenced", is_flag=True, help="Only clean unreferenced packages")
+    @click.option("--force", is_flag=True, help="Skip confirmation prompt")
     @click.pass_context
-    def db_cleanup(ctx: click.Context, dry_run: bool, orphaned: bool, unreferenced: bool, force: bool) -> None:
+    def db_cleanup(
+        ctx: click.Context, dry_run: bool, orphaned: bool, unreferenced: bool, force: bool
+    ) -> None:
         """Clean up database issues.
 
         By default, cleans both orphaned repositories and unreferenced packages.
@@ -246,8 +246,14 @@ def create_db_group(cli: click.Group) -> click.Group:
             if not dry_run and not force:
                 if orphaned_repos:
                     # Count related objects
-                    total_snaps = sum(session.query(Snapshot).filter_by(repository_id=r.id).count() for r in orphaned_repos)
-                    total_hist = sum(session.query(SyncHistory).filter_by(repository_id=r.id).count() for r in orphaned_repos)
+                    total_snaps = sum(
+                        session.query(Snapshot).filter_by(repository_id=r.id).count()
+                        for r in orphaned_repos
+                    )
+                    total_hist = sum(
+                        session.query(SyncHistory).filter_by(repository_id=r.id).count()
+                        for r in orphaned_repos
+                    )
 
                     click.echo("Will delete:")
                     if cleanup_orphaned and orphaned_repos:
@@ -272,10 +278,16 @@ def create_db_group(cli: click.Group) -> click.Group:
                     click.echo(f"Orphaned repositories ({len(orphaned_repos)}):")
                     for repo in orphaned_repos:
                         # Count related objects
-                        snapshot_count = session.query(Snapshot).filter_by(repository_id=repo.id).count()
-                        history_count = session.query(SyncHistory).filter_by(repository_id=repo.id).count()
+                        snapshot_count = (
+                            session.query(Snapshot).filter_by(repository_id=repo.id).count()
+                        )
+                        history_count = (
+                            session.query(SyncHistory).filter_by(repository_id=repo.id).count()
+                        )
 
-                        click.echo(f"  - {repo.repo_id} ({repo.type}, {history_count} syncs, {snapshot_count} snapshots)")
+                        click.echo(
+                            f"  - {repo.repo_id} ({repo.type}, {history_count} syncs, {snapshot_count} snapshots)"
+                        )
 
                         if not dry_run:
                             # Delete related sync history
@@ -306,10 +318,18 @@ def create_db_group(cli: click.Group) -> click.Group:
             if dry_run:
                 click.echo("Summary (DRY RUN):")
                 if cleanup_orphaned:
-                    click.echo(f"  Would delete {len(orphaned_repos) if orphaned_repos else 0} repositories")
+                    click.echo(
+                        f"  Would delete {len(orphaned_repos) if orphaned_repos else 0} repositories"
+                    )
                     if orphaned_repos:
-                        total_snaps = sum(session.query(Snapshot).filter_by(repository_id=r.id).count() for r in orphaned_repos)
-                        total_hist = sum(session.query(SyncHistory).filter_by(repository_id=r.id).count() for r in orphaned_repos)
+                        total_snaps = sum(
+                            session.query(Snapshot).filter_by(repository_id=r.id).count()
+                            for r in orphaned_repos
+                        )
+                        total_hist = sum(
+                            session.query(SyncHistory).filter_by(repository_id=r.id).count()
+                            for r in orphaned_repos
+                        )
                         click.echo(f"  Would delete {total_snaps} snapshots")
                         click.echo(f"  Would delete {total_hist} sync history entries")
             else:
@@ -348,13 +368,17 @@ def create_db_group(cli: click.Group) -> click.Group:
                 click.echo()
 
                 # Table header
-                click.echo(f"{'Repository ID':<30} {'Type':<8} {'Last Sync':<20} {'Syncs':<8} {'Snapshots':<10}")
+                click.echo(
+                    f"{'Repository ID':<30} {'Type':<8} {'Last Sync':<20} {'Syncs':<8} {'Snapshots':<10}"
+                )
                 click.echo("-" * 82)
 
                 for repo in orphaned_repos:
                     # Get counts
                     sync_count = session.query(SyncHistory).filter_by(repository_id=repo.id).count()
-                    snapshot_count = session.query(Snapshot).filter_by(repository_id=repo.id).count()
+                    snapshot_count = (
+                        session.query(Snapshot).filter_by(repository_id=repo.id).count()
+                    )
 
                     # Format last sync
                     if repo.last_sync_at:
@@ -362,7 +386,9 @@ def create_db_group(cli: click.Group) -> click.Group:
                     else:
                         last_sync = "Never synced"
 
-                    click.echo(f"{repo.repo_id:<30} {repo.type:<8} {last_sync:<20} {sync_count:<8} {snapshot_count:<10}")
+                    click.echo(
+                        f"{repo.repo_id:<30} {repo.type:<8} {last_sync:<20} {sync_count:<8} {snapshot_count:<10}"
+                    )
 
                 click.echo()
                 click.echo(f"Total: {len(orphaned_repos)} orphaned repositories")

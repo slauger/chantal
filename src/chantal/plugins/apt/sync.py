@@ -118,8 +118,8 @@ class AptSyncPlugin:
                 "apt",
                 self.config.feed,
                 distribution=self.apt_config.distribution,
-                components=', '.join(self.apt_config.components),
-                architectures=', '.join(self.apt_config.architectures),
+                components=", ".join(self.apt_config.components),
+                architectures=", ".join(self.apt_config.architectures),
             )
 
             # Build dists URL (feed should point to repository root, not dists/)
@@ -162,7 +162,9 @@ class AptSyncPlugin:
                 if metadata_info.file_type != "Packages":
                     continue
 
-                self.output.verbose(f"Processing {metadata_info.component}/{metadata_info.architecture}...")
+                self.output.verbose(
+                    f"Processing {metadata_info.component}/{metadata_info.architecture}..."
+                )
 
                 # Get the Packages.gz file from storage
                 packages_gz_path = self._get_metadata_file_path(session, metadata_info, repository)
@@ -198,8 +200,12 @@ class AptSyncPlugin:
                 self.output.info("Applying filters (filtered mode)...")
                 all_packages = self._apply_filters(all_packages, self.config)
                 self.output.info(f"After filtering: {len(all_packages)} packages")
-                self.output.warning("Filtered mode will regenerate metadata without GPG signatures!")
-                self.output.warning("Clients must use [trusted=yes] or Acquire::AllowInsecureRepositories=1")
+                self.output.warning(
+                    "Filtered mode will regenerate metadata without GPG signatures!"
+                )
+                self.output.warning(
+                    "Clients must use [trusted=yes] or Acquire::AllowInsecureRepositories=1"
+                )
 
             # Download filtered packages
             self.output.start_progress(len(all_packages), "Downloading packages", "packages")
@@ -380,7 +386,9 @@ class AptSyncPlugin:
                 release_text = "\n".join(content_lines)
 
             release_metadata = parse_release_file(release_text)
-            self.output.verbose(f"  → Parsed Release: {release_metadata.suite}/{release_metadata.codename}")
+            self.output.verbose(
+                f"  → Parsed Release: {release_metadata.suite}/{release_metadata.codename}"
+            )
             self.output.verbose(f"  → Components: {', '.join(release_metadata.components)}")
             self.output.verbose(f"  → Architectures: {', '.join(release_metadata.architectures)}")
 

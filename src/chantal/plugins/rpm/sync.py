@@ -191,7 +191,9 @@ class RpmSyncPlugin:
 
             primary_location = primary_metadata["location"]
             primary_checksum = primary_metadata["checksum"]
-            self.output.verbose(f"Primary metadata: {primary_location} (SHA256: {primary_checksum[:16]}...)")
+            self.output.verbose(
+                f"Primary metadata: {primary_location} (SHA256: {primary_checksum[:16]}...)"
+            )
 
             # Step 3: Download and parse primary.xml.gz (with parsed data cache support)
             # Try parsed cache first (fastest - avoids XML parsing)
@@ -234,7 +236,9 @@ class RpmSyncPlugin:
                 packages = filters.apply_filters(packages, self.config.filters)
                 filtered_out = original_count - len(packages)
                 if filtered_out > 0:
-                    self.output.info(f"Filtered out {filtered_out} packages, {len(packages)} remaining")
+                    self.output.info(
+                        f"Filtered out {filtered_out} packages, {len(packages)} remaining"
+                    )
 
             # Step 5: Get existing packages from database
             existing_packages = self._get_existing_packages(session)
@@ -315,7 +319,9 @@ class RpmSyncPlugin:
                         open_checksum=metadata_info.get("open_checksum"),
                         open_size=metadata_info.get("open_size"),
                     )
-                    from_cache = self._download_metadata_file(mfi, session, repository, self.config.feed)
+                    from_cache = self._download_metadata_file(
+                        mfi, session, repository, self.config.feed
+                    )
                     metadata_downloaded += 1
                     if from_cache:
                         self.output.verbose(f"  → {metadata_info['file_type']}.xml.gz (cached)")

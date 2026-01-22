@@ -45,9 +45,7 @@ def _format_duration(started_at: datetime, completed_at: datetime | None) -> str
         return "Running"
 
 
-def _format_changes(
-    packages_added: int, packages_updated: int, packages_removed: int
-) -> str:
+def _format_changes(packages_added: int, packages_updated: int, packages_removed: int) -> str:
     """Format package changes for display.
 
     Args:
@@ -177,9 +175,7 @@ def _show_single_repo_history(
         click.echo(f"Total: {len(history)} sync operation(s)")
 
 
-def _show_all_repos_last_sync(
-    session: Session, config: GlobalConfig, output_format: str
-) -> None:
+def _show_all_repos_last_sync(session: Session, config: GlobalConfig, output_format: str) -> None:
     """Show last sync for all repositories.
 
     Args:
@@ -416,7 +412,9 @@ def _show_all_repos_history(
                 total_syncs += 1
 
         click.echo()
-        click.echo(f"Total: {len(result)} repositories ({repos_with_history} with history), {total_syncs} sync operations")
+        click.echo(
+            f"Total: {len(result)} repositories ({repos_with_history} with history), {total_syncs} sync operations"
+        )
 
 
 def create_repo_group(cli: click.Group) -> click.Group:
@@ -562,11 +560,12 @@ def create_repo_group(cli: click.Group) -> click.Group:
         "--workers", type=int, default=1, help="Number of parallel workers for --all or --pattern"
     )
     @click.option(
-        "-v", "--verbose", is_flag=True, help="Show detailed output with package-by-package progress"
+        "-v",
+        "--verbose",
+        is_flag=True,
+        help="Show detailed output with package-by-package progress",
     )
-    @click.option(
-        "-q", "--quiet", is_flag=True, help="Show only errors, no progress output"
-    )
+    @click.option("-q", "--quiet", is_flag=True, help="Show only errors, no progress output")
     @click.pass_context
     def repo_sync(
         ctx: click.Context,
@@ -1013,9 +1012,7 @@ def create_repo_group(cli: click.Group) -> click.Group:
         with db_manager.session() as session:
             # Mode A: Single repository history
             if repo_id:
-                _show_single_repo_history(
-                    session, config, repo_id, limit, output_format, ctx
-                )
+                _show_single_repo_history(session, config, repo_id, limit, output_format, ctx)
             # Mode B: All repositories - last sync only
             elif all and last:
                 _show_all_repos_last_sync(session, config, output_format)
@@ -1122,7 +1119,9 @@ def _sync_single_repository(
                 click.echo(f"  Total packages: {rpm_result.packages_total}")
                 click.echo(f"  Downloaded: {rpm_result.packages_downloaded}")
                 click.echo(f"  Skipped (already in pool): {rpm_result.packages_skipped}")
-                click.echo(f"  Data transferred: {rpm_result.bytes_downloaded / 1024 / 1024:.2f} MB")
+                click.echo(
+                    f"  Data transferred: {rpm_result.bytes_downloaded / 1024 / 1024:.2f} MB"
+                )
             else:
                 sync_history.status = "failed"
                 sync_history.error_message = rpm_result.error_message
@@ -1160,10 +1159,10 @@ def _sync_single_repository(
             # Update sync history with results
             sync_history.completed_at = datetime.now(timezone.utc)
             sync_history.status = "success"
-            sync_history.packages_added = stats['charts_added']
-            sync_history.packages_updated = stats['charts_updated']
+            sync_history.packages_added = stats["charts_added"]
+            sync_history.packages_updated = stats["charts_updated"]
             sync_history.packages_removed = 0  # Helm doesn't remove charts
-            sync_history.bytes_downloaded = stats['bytes_downloaded']
+            sync_history.bytes_downloaded = stats["bytes_downloaded"]
 
             # Update last sync timestamp
             repository.last_sync_at = datetime.now(timezone.utc)
@@ -1207,10 +1206,10 @@ def _sync_single_repository(
             # Update sync history with results
             sync_history.completed_at = datetime.now(timezone.utc)
             sync_history.status = "success"
-            sync_history.packages_added = stats['packages_added']
-            sync_history.packages_updated = stats['packages_updated']
+            sync_history.packages_added = stats["packages_added"]
+            sync_history.packages_updated = stats["packages_updated"]
             sync_history.packages_removed = 0  # APK doesn't track removals
-            sync_history.bytes_downloaded = stats['bytes_downloaded']
+            sync_history.bytes_downloaded = stats["bytes_downloaded"]
 
             # Update last sync timestamp
             repository.last_sync_at = datetime.now(timezone.utc)
@@ -1272,7 +1271,9 @@ def _sync_single_repository(
                 click.echo(f"  Packages downloaded: {apt_result.packages_downloaded}")
                 click.echo(f"  Packages skipped: {apt_result.packages_skipped}")
                 click.echo(f"  Packages total: {apt_result.packages_total}")
-                click.echo(f"  Data transferred: {apt_result.bytes_downloaded / 1024 / 1024:.2f} MB")
+                click.echo(
+                    f"  Data transferred: {apt_result.bytes_downloaded / 1024 / 1024:.2f} MB"
+                )
                 click.echo(f"  Metadata files: {apt_result.metadata_files_downloaded}")
             else:
                 sync_history.status = "failed"

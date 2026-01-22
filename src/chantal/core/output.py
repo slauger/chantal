@@ -106,9 +106,7 @@ class SyncOutputter:
         self.progress.start()
         self.task = self.progress.add_task(description, total=total, unit=unit)
 
-    def start_download_progress(
-        self, total_bytes: int, description: str = "Downloading"
-    ) -> None:
+    def start_download_progress(self, total_bytes: int, description: str = "Downloading") -> None:
         """Start download progress bar with transfer speed.
 
         Args:
@@ -197,9 +195,7 @@ class SyncOutputter:
         """
         self.err_console.print(f"✗ {message}", style="red")
 
-    def downloading(
-        self, package_name: str, size_mb: float, current: int, total: int
-    ) -> None:
+    def downloading(self, package_name: str, size_mb: float, current: int, total: int) -> None:
         """Show package download status.
 
         In NORMAL mode: Updates progress bar
@@ -212,9 +208,7 @@ class SyncOutputter:
             total: Total number of packages
         """
         if self.level == OutputLevel.VERBOSE:
-            self.console.print(
-                f"→ Package {current}/{total}: {package_name} ({size_mb:.1f} MB)"
-            )
+            self.console.print(f"→ Package {current}/{total}: {package_name} ({size_mb:.1f} MB)")
 
     def already_in_pool(self, package_name: str, sha256: str | None = None) -> None:
         """Show that package is already in pool.
@@ -227,9 +221,7 @@ class SyncOutputter:
             return
 
         if sha256:
-            self.console.print(
-                f"  → Already in pool: {package_name} (SHA256: {sha256[:16]}...)"
-            )
+            self.console.print(f"  → Already in pool: {package_name} (SHA256: {sha256[:16]}...)")
         else:
             self.console.print(f"  → Already in pool: {package_name}")
 

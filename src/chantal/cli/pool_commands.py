@@ -84,11 +84,11 @@ def create_pool_group(cli: click.Group) -> click.Group:
     @click.option(
         "--missing", is_flag=True, help="Only clean missing entries (in database but not in pool)"
     )
-    @click.option(
-        "--force", is_flag=True, help="Skip confirmation prompt"
-    )
+    @click.option("--force", is_flag=True, help="Skip confirmation prompt")
     @click.pass_context
-    def pool_cleanup(ctx: click.Context, dry_run: bool, orphaned: bool, missing: bool, force: bool) -> None:
+    def pool_cleanup(
+        ctx: click.Context, dry_run: bool, orphaned: bool, missing: bool, force: bool
+    ) -> None:
         """Clean up pool integrity issues.
 
         By default, cleans both orphaned files and missing database entries.
@@ -151,7 +151,9 @@ def create_pool_group(cli: click.Group) -> click.Group:
                 if orphaned_file_count > 0 or missing_entry_count > 0:
                     click.echo("Will delete:")
                     if cleanup_orphaned and orphaned_file_count > 0:
-                        click.echo(f"  - {orphaned_file_count:,} orphaned files ({orphaned_bytes / (1024**2):.2f} MB)")
+                        click.echo(
+                            f"  - {orphaned_file_count:,} orphaned files ({orphaned_bytes / (1024**2):.2f} MB)"
+                        )
                     if cleanup_missing and missing_entry_count > 0:
                         click.echo(f"  - {missing_entry_count:,} database entries")
                     click.echo()
