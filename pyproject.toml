@@ -55,7 +55,7 @@ dev = [
     "pytest>=7.4.3",
     "pytest-asyncio>=0.21.1",
     "pytest-cov>=4.1.0",
-    "mypy>=1.7.0",
+    "mypy==1.19.1",  # Pinned to ensure consistent type checking across environments
     "black==25.12.0",  # Pinned to ensure consistent formatting across environments
     "ruff>=0.1.6",
     "yamllint>=1.35.0",
