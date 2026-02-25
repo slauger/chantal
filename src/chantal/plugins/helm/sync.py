@@ -7,10 +7,11 @@ This module implements syncing for Helm chart repositories.
 """
 
 import logging
+import subprocess
 import tempfile
 from pathlib import Path
 from typing import Any
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 import yaml
 from sqlalchemy.orm import Session
@@ -380,8 +381,10 @@ class HelmSyncer:
     def _download_chart(self, url: str, config: RepositoryConfig) -> tuple[Path, str, int]:
         """Download chart .tgz file to pool.
 
+        Supports both HTTP/HTTPS and OCI registry URLs.
+
         Args:
-            url: Chart URL
+            url: Chart URL (http://, https://, or oci://)
             config: Repository configuration (for credentials)
 
         Returns:
@@ -389,6 +392,23 @@ class HelmSyncer:
         """
         logger.debug(f"Downloading chart from {url}")
 
+        parsed = urlparse(url)
+        
+        if parsed.scheme == "oci":
+            return self._download_oci_chart(url, config)
+        else:
+            return self._download_http_chart(url, config)
+
+    def _download_http_chart(self, url: str, config: RepositoryConfig) -> tuple[Path, str, int]:
+        """Download chart from HTTP/HTTPS URL.
+
+        Args:
+            url: HTTP/HTTPS chart URL
+            config: Repository configuration
+
+        Returns:
+            tuple: (pool_path, sha256, size_bytes)
+        """
         response = self.session.get(url, timeout=300, stream=True)
         response.raise_for_status()
 
@@ -409,3 +429,79 @@ class HelmSyncer:
         logger.debug(f"Stored chart in pool: {pool_path}")
 
         return Path(pool_path), sha256, size
+
+    def _download_oci_chart(self, url: str, config: RepositoryConfig) -> tuple[Path, str, int]:
+        """Download chart from OCI registry.
+
+        Uses helm CLI to pull charts from OCI registries.
+
+        Args:
+            url: OCI chart URL (oci://registry/chart:version)
+            config: Repository configuration (may contain registry credentials)
+
+        Returns:
+            tuple: (pool_path, sha256, size_bytes)
+
+        Raises:
+            RuntimeError: If helm binary not found or pull fails
+        """
+        logger.debug(f"Downloading OCI chart from {url}")
+
+        # Create temp directory for helm pull
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmpdir_path = Path(tmpdir)
+
+            # Build helm command
+            cmd = ["helm", "pull", url, "--destination", str(tmpdir_path)]
+
+            # Add registry credentials if available
+            if config.username and config.password:
+                # helm pull will use credentials from helm registry login
+                # For inline credentials, we'd need to run helm registry login first
+                logger.debug("Registry credentials available but helm pull uses stored credentials")
+
+            try:
+                # Execute helm pull
+                result = subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    text=True,
+                    timeout=300,
+                    check=True,
+                )
+                logger.debug(f"helm pull output: {result.stdout}")
+
+            except FileNotFoundError as e:
+                msg = "helm binary not found. Please install Helm CLI to use OCI registry support."
+                logger.error(msg)
+                raise RuntimeError(msg) from e
+
+            except subprocess.CalledProcessError as e:
+                msg = f"helm pull failed: {e.stderr}"
+                logger.error(msg)
+                raise RuntimeError(msg) from e
+
+            except subprocess.TimeoutExpired as e:
+                msg = f"helm pull timed out after 300 seconds"
+                logger.error(msg)
+                raise RuntimeError(msg) from e
+
+            # Find the downloaded .tgz file
+            tgz_files = list(tmpdir_path.glob("*.tgz"))
+            if not tgz_files:
+                msg = f"No .tgz file found after helm pull from {url}"
+                logger.error(msg)
+                raise RuntimeError(msg)
+
+            if len(tgz_files) > 1:
+                logger.warning(f"Multiple .tgz files found, using first: {tgz_files[0]}")
+
+            tmp_path = tgz_files[0]
+            filename = tmp_path.name
+
+            # Add to pool (calculates SHA256, deduplicates, moves file)
+            sha256, pool_path, size = self.storage.add_package(tmp_path, filename)
+
+            logger.debug(f"Stored OCI chart in pool: {pool_path}")
+
+            return Path(pool_path), sha256, size
