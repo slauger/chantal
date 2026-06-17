@@ -1,0 +1,43 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "labels": [
+    "dependencies"
+  ],
+  "packageRules": [
+    {
+      "matchManagers": [
+        "pep621"
+      ],
+      "groupName": "Python dependencies"
+    },
+    {
+      "matchManagers": [
+        "pep621"
+      ],
+      "matchPackageNames": [
+        "pytest*",
+        "mypy*",
+        "black*",
+        "ruff*",
+        "yamllint*",
+        "types-*"
+      ],
+      "groupName": "Python dev dependencies"
+    },
+    {
+      "matchManagers": [
+        "github-actions"
+      ],
+      "groupName": "GitHub Actions"
+    },
+    {
+      "matchManagers": [
+        "dockerfile"
+      ],
+      "groupName": "Container base images"
+    }
+  ]
+}
