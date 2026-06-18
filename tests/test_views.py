@@ -1,6 +1,6 @@
 """Tests for Views functionality."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 from sqlalchemy import create_engine
@@ -351,17 +351,16 @@ def test_view_snapshot_retrieves_packages(db_session, test_repositories, test_pa
         package_count=2,
         total_size_bytes=3500000,
     )
-    snap1.content_items = [test_packages[0], test_packages[1]]  # vim, bash
-
     snap2 = Snapshot(
         repository_id=test_repositories[1].id,
         name="snap-2",
         package_count=2,
         total_size_bytes=4000000,
     )
-    snap2.content_items = [test_packages[2], test_packages[3]]  # nginx, httpd
-
+    # Add to the session before linking content items so autoflush has them.
     db_session.add_all([snap1, snap2])
+    snap1.content_items = [test_packages[0], test_packages[1]]  # vim, bash
+    snap2.content_items = [test_packages[2], test_packages[3]]  # nginx, httpd
     db_session.commit()
 
     # Create view snapshot
@@ -401,7 +400,7 @@ def test_view_publish_state(db_session):
 
     # Mark as published
     view.is_published = True
-    view.published_at = datetime.utcnow()
+    view.published_at = datetime.now(timezone.utc).replace(tzinfo=None)
     view.published_path = "/var/www/repos/views/test-view/latest"
     db_session.commit()
 
@@ -431,7 +430,7 @@ def test_view_snapshot_publish_state(db_session):
 
     # Mark as published
     view_snapshot.is_published = True
-    view_snapshot.published_at = datetime.utcnow()
+    view_snapshot.published_at = datetime.now(timezone.utc).replace(tzinfo=None)
     view_snapshot.published_path = "/var/www/repos/views/test-view/snapshots/snapshot-1"
     db_session.commit()
 

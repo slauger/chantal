@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import shutil
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import click
@@ -687,7 +687,7 @@ def _publish_view_snapshot(
 
             # Update view snapshot metadata
             view_snapshot.is_published = True
-            view_snapshot.published_at = datetime.utcnow()
+            view_snapshot.published_at = datetime.now(timezone.utc).replace(tzinfo=None)
             view_snapshot.published_path = str(target_path)
             session.commit()
 
