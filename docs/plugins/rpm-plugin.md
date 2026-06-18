@@ -33,6 +33,7 @@ The RPM plugin consists of:
 - ✅ **Compression**: Gzip, Zstandard (.zst), XZ, BZ2 (read & write)
 - ✅ Configurable compression for generated metadata
 - ✅ Magic byte detection for auto-format detection
+- ✅ GPG signing of regenerated metadata (repomd.xml.asc) in filtered mode
 - ✅ RHEL CDN support (client certificates)
 
 **Quality Assurance:**
@@ -44,7 +45,7 @@ The RPM plugin consists of:
 
 **Planned:**
 - 🚧 Delta RPMs
-- 🚧 GPG signature verification
+- 🚧 GPG signature verification of upstream packages during sync
 
 ## Configuration
 
@@ -187,6 +188,63 @@ repositories:
 - `updateinfo.xml` - **Filtered** to include only errata for available packages
 - `comps.xml` - Copied unchanged (groups still valid)
 - `modules.yaml` - Copied unchanged (if present)
+
+### GPG Signing (Filtered Mode)
+
+**Status:** ✅ Available
+
+In filtered mode the regenerated `repomd.xml` no longer matches the upstream
+`repomd.xml.asc`. Configure a `gpg` section to have Chantal sign the regenerated
+`repomd.xml` with its own key, so clients can enable `repo_gpgcheck=1`.
+
+When signing is enabled, publishing produces:
+
+- `repodata/repomd.xml.asc` - detached signature of `repomd.xml`
+- `<repo-root>/key.gpg` - the exported public key (filename via `public_key_name`)
+
+> **Metadata vs. package signatures are independent.** Chantal signs only the
+> repository *metadata*. The mirrored `.rpm` packages keep their **upstream**
+> signatures and are still verified with `gpgcheck=1`. It is fully supported for
+> the metadata to be signed by a different key than the packages — DNF/YUM accept
+> multiple keys in `gpgkey=`. Chantal never re-signs packages (that would change
+> their checksums and break content-addressed storage).
+
+The `gpg` section uses the same options as the APT plugin (per-repository or a
+global fallback). See [APT Plugin → GPG Signing](apt-plugin.md#gpg-signing-filtered-mode)
+for the full option reference (`key_id`, `key_file`, `generate_key`,
+`passphrase_file`, `gnupg_home`, `public_key_name`, …).
+
+```yaml
+repositories:
+  - id: epel9-webservers
+    type: rpm
+    feed: https://dl.fedoraproject.org/pub/epel/9/Everything/x86_64/
+    mode: filtered
+    filters:
+      patterns:
+        include: ["^nginx-.*"]
+    gpg:
+      key_id: "ABCD1234EF567890"
+      gnupg_home: /etc/chantal/gnupg
+      passphrase_file: /etc/chantal/keys/passphrase.txt
+      public_key_name: RPM-GPG-KEY-chantal   # published at the repo root
+```
+
+**Client configuration** (`/etc/yum.repos.d/chantal.repo`):
+
+```ini
+[chantal-epel9-webservers]
+name=Chantal EPEL9 Web Servers (filtered)
+baseurl=http://mirror.example.com/repos/epel9-webservers
+enabled=1
+repo_gpgcheck=1          # verify repomd.xml against our metadata key
+gpgcheck=1               # verify packages against the upstream key
+gpgkey=http://mirror.example.com/repos/epel9-webservers/RPM-GPG-KEY-chantal
+       https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-9
+```
+
+Both public keys are listed in `gpgkey=`: DNF imports both and uses the Chantal
+key for the metadata check and the EPEL key for package checks.
 
 **Updateinfo Filtering Example:**
 
@@ -389,12 +447,14 @@ Result:
 ├── Packages/
 │   ├── nginx-1.20.2-1.el9.x86_64.rpm
 │   └── httpd-2.4.51-1.el9.x86_64.rpm
-└── repodata/
-    ├── repomd.xml (regenerated)
-    ├── abc123-primary.xml.gz (regenerated)
-    ├── def456-filelists.xml.gz (regenerated)
-    ├── ghi789-other.xml.gz (regenerated)
-    └── jkl012-updateinfo.xml.gz (filtered)
+├── repodata/
+│   ├── repomd.xml (regenerated)
+│   ├── repomd.xml.asc (GPG signature, if gpg configured)
+│   ├── abc123-primary.xml.gz (regenerated)
+│   ├── def456-filelists.xml.gz (regenerated)
+│   ├── ghi789-other.xml.gz (regenerated)
+│   └── jkl012-updateinfo.xml.gz (filtered)
+└── RPM-GPG-KEY-chantal (public key, if gpg configured)
 ```
 
 ## Metadata Files
