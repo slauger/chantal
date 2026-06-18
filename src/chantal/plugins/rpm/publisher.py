@@ -16,7 +16,8 @@ from pathlib import Path
 
 from sqlalchemy.orm import Session
 
-from chantal.core.config import RepositoryConfig
+from chantal.core.config import GpgConfig, RepositoryConfig
+from chantal.core.gpg import GpgSigner, GpgSigningError
 from chantal.core.storage import StorageManager
 from chantal.db.models import ContentItem, Repository, RepositoryFile, RepositoryMode, Snapshot
 from chantal.plugins.base import PublisherPlugin
@@ -174,13 +175,47 @@ class RpmPublisher(PublisherPlugin):
         published_metadata.append(("primary", primary_xml_path))
 
         # Generate repomd.xml with all metadata entries
-        self._generate_repomd_xml(repodata_path, published_metadata)
+        repomd_path = self._generate_repomd_xml(repodata_path, published_metadata)
+
+        # In filtered mode the regenerated repomd.xml invalidates the upstream
+        # repomd.xml.asc signature. Sign it ourselves when a GPG key is
+        # configured so clients can use repo_gpgcheck=1. Mirror mode keeps the
+        # upstream signature untouched. Packages are never re-signed: they
+        # retain their upstream signatures (verified via gpgcheck=1).
+        if mode == RepositoryMode.FILTERED and config is not None:
+            gpg_config = config.gpg
+            if gpg_config is not None and gpg_config.enabled:
+                self._sign_repomd(repomd_path, target_path, gpg_config, config)
 
         # Publish kickstart/installer files
         kickstart_files = [rf for rf in repository_files if rf.file_category == "kickstart"]
 
         if kickstart_files:
             self._publish_kickstart_files(kickstart_files, target_path)
+
+    def _sign_repomd(
+        self,
+        repomd_path: Path,
+        target_path: Path,
+        gpg_config: GpgConfig,
+        config: RepositoryConfig,
+    ) -> None:
+        """Sign repomd.xml with GPG (repomd.xml.asc + exported public key).
+
+        Args:
+            repomd_path: Path to the generated repomd.xml file.
+            target_path: Repository root where the public key is published.
+            gpg_config: GPG configuration.
+            config: Repository configuration (used for the key's default name).
+        """
+        try:
+            with GpgSigner(gpg_config, default_name=config.display_name) as signer:
+                outputs = signer.sign_repomd(repomd_path, repo_root=target_path)
+                print(f"  ✓ Signed repomd.xml with GPG key {signer.key_id}")
+                for name in outputs:
+                    print(f"  ✓ Published {name}")
+        except GpgSigningError as exc:
+            raise RuntimeError(f"GPG signing failed for repo '{config.id}': {exc}") from exc
 
     def _detect_upstream_compression(
         self, repository_files: list[RepositoryFile]

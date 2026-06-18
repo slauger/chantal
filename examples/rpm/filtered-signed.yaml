@@ -1,0 +1,54 @@
+# Filtered RPM repository with GPG metadata signing
+#
+# In filtered mode Chantal regenerates repomd.xml, which invalidates the
+# upstream repomd.xml.asc. A `gpg` section makes Chantal sign the regenerated
+# repomd.xml with its own key so clients can enable `repo_gpgcheck=1`.
+#
+# GPG signing is OPTIONAL: without a `gpg` section the metadata is published
+# unsigned (unchanged behaviour). Packages are NEVER re-signed — they keep their
+# upstream signatures and are verified via `gpgcheck=1`. The metadata key and
+# the package key may be different; the client simply lists both in `gpgkey=`.
+#
+# Publishing produces:
+#   repodata/repomd.xml.asc        - detached signature of repomd.xml
+#   RPM-GPG-KEY-chantal            - public key for client distribution
+#
+# Client (/etc/yum.repos.d/chantal.repo):
+#   [chantal-epel9-webservers]
+#   baseurl=http://mirror.example.com/repos/epel9-webservers
+#   repo_gpgcheck=1
+#   gpgcheck=1
+#   gpgkey=http://mirror.example.com/repos/epel9-webservers/RPM-GPG-KEY-chantal
+#          https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-9
+
+repositories:
+  - id: epel9-webservers
+    name: "EPEL 9 - Web Servers (signed, filtered)"
+    type: rpm
+    feed: "https://dl.fedoraproject.org/pub/epel/9/Everything/x86_64/"
+    enabled: true
+    mode: filtered
+
+    filters:
+      patterns:
+        include:
+          - "^nginx-.*"
+          - "^httpd-.*"
+      post_processing:
+        only_latest_version: true
+
+    # --- GPG signing (optional) ---------------------------------------------
+    gpg:
+      # Option A: use an existing key in the keyring
+      key_id: "ABCD1234EF567890"
+      gnupg_home: /etc/chantal/gnupg
+      passphrase_file: /etc/chantal/keys/passphrase.txt
+      public_key_name: RPM-GPG-KEY-chantal   # published at the repo root
+
+      # Option B (alternative): import a private key from a file
+      # key_file: /etc/chantal/keys/signing.asc
+
+      # Option C (alternative): let Chantal generate a key on first publish
+      # generate_key: true
+      # key_name: "Chantal Repository Signing Key"
+      # key_email: "repo@example.com"

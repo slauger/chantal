@@ -398,6 +398,9 @@ def _publish_single_repository(
 
     # Initialize publisher based on repository type
     if repo_config.type == "rpm":
+        # Fall back to the global GPG signing config if the repo has none.
+        if repo_config.gpg is None and global_config.gpg is not None:
+            repo_config.gpg = global_config.gpg
         rpm_publisher = RpmPublisher(storage=storage)
         # Publish repository
         try:
@@ -546,6 +549,9 @@ def _publish_repository_snapshot(
 
         # Initialize publisher based on repository type
         if repo_config.type == "rpm":
+            # Fall back to the global GPG signing config if the repo has none.
+            if repo_config.gpg is None and config.gpg is not None:
+                repo_config.gpg = config.gpg
             rpm_publisher = RpmPublisher(storage=storage)
             # Publish snapshot
             try:
