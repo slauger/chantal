@@ -20,7 +20,7 @@ from chantal.core.config import (
 def test_database_config_defaults():
     """Test database config with defaults."""
     config = DatabaseConfig()
-    assert config.url == "postgresql://chantal:chantal@localhost/chantal"
+    assert config.url == "sqlite:///chantal.db"
     assert config.pool_size == 5
     assert config.max_overflow == 10
     assert config.echo is False
@@ -300,7 +300,7 @@ def test_load_config_default_paths():
     config = load_config(config_path=None)
 
     assert isinstance(config, GlobalConfig)
-    assert config.database.url == "postgresql://chantal:chantal@localhost/chantal"
+    assert config.database.url == "sqlite:///chantal.db"
     assert config.repositories == []
 
 
