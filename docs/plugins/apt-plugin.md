@@ -34,7 +34,7 @@ The APT plugin consists of:
 - ✅ InRelease file preservation (GPG-signed)
 - ✅ GPG signature generation for filtered mode (InRelease, Release.gpg)
 - ✅ Multi-component and multi-architecture layouts
-- ✅ Gzip compression support
+- ✅ Configurable Packages index compression (gzip, zstandard, bzip2, none)
 - ✅ Dependency metadata (Depends, Recommends, Suggests, Conflicts, etc.)
 
 **Planned:**
@@ -157,6 +157,37 @@ The `apt` section in repository configuration supports these options:
 - **`flat_repository`** (boolean, default: false)
   - Support for flat repositories (no dists/ structure)
   - Rare, used by some very old repositories
+
+## Metadata Compression
+
+In filtered mode Chantal regenerates the `Packages` index. The uncompressed
+`Packages` file is always written, alongside one compressed variant controlled
+by the top-level `metadata.compression` option:
+
+```yaml
+repositories:
+  - id: ubuntu-jammy-filtered
+    type: apt
+    feed: http://archive.ubuntu.com/ubuntu
+    mode: filtered
+    apt:
+      distribution: jammy
+      components: [main]
+      architectures: [amd64]
+    metadata:
+      compression: zstandard   # gzip (default) | zstandard | bzip2 | none
+```
+
+| Value | Output | Notes |
+|-------|--------|-------|
+| `auto` (default) | `Packages` + `Packages.gz` | `auto` maps to gzip for APT |
+| `gzip` | `Packages` + `Packages.gz` | Universally supported |
+| `zstandard` | `Packages` + `Packages.zst` | Supported by modern apt (Ubuntu) |
+| `bzip2` | `Packages` + `Packages.bz2` | Legacy |
+| `none` | `Packages` only | Uncompressed index only |
+
+All generated variants are listed with their checksums in the `Release` file, so
+clients automatically pick a format they support.
 
 ## Publishing
 

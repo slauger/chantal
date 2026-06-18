@@ -12,11 +12,12 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from chantal.core.config import AptConfig, RepositoryConfig, StorageConfig
+from chantal.core.config import AptConfig, MetadataConfig, RepositoryConfig, StorageConfig
 from chantal.core.storage import StorageManager
 from chantal.db.models import Base, ContentItem, Repository
 from chantal.plugins.apt.models import DebMetadata
 from chantal.plugins.apt.publisher import AptPublisher
+from chantal.plugins.rpm.compression import decompress_file
 
 # Test fixtures
 
@@ -171,12 +172,15 @@ class TestPackagesFileGeneration:
         component_arch_path = Path(temp_storage.config.published_path) / "test_packages"
         component_arch_path.mkdir(parents=True, exist_ok=True)
 
-        # Generate Packages file
-        packages_gz = publisher._generate_packages_file(
+        # Generate Packages file (returns [Packages, Packages.gz] by default)
+        generated = publisher._generate_packages_file(
             [test_package], component_arch_path, "main", "amd64"
         )
 
         # Verify Packages.gz was created
+        assert generated[0].name == "Packages"
+        packages_gz = component_arch_path / "Packages.gz"
+        assert packages_gz in generated
         assert packages_gz.exists()
         assert packages_gz.name == "Packages.gz"
 
@@ -483,3 +487,98 @@ class TestPackageGrouping:
         # Should default to main/amd64
         assert ("main", "amd64") in grouped
         assert len(grouped[("main", "amd64")]) == 1
+
+
+class TestPackagesCompression:
+    """Tests for configurable Packages index compression."""
+
+    @staticmethod
+    def _config(compression):
+        return RepositoryConfig(
+            id="test-apt-repo",
+            name="Test APT Repository",
+            type="apt",
+            feed="https://example.com/ubuntu",
+            mode="filtered",
+            apt=AptConfig(distribution="jammy", components=["main"], architectures=["amd64"]),
+            metadata=MetadataConfig(compression=compression),
+        )
+
+    def test_default_is_gzip(self, temp_storage, test_package):
+        """Default (auto) compression produces Packages + Packages.gz only."""
+        publisher = AptPublisher(storage=temp_storage, config=self._config("auto"))
+        assert publisher._resolve_compression() == "gzip"
+
+        comp_path = Path(temp_storage.config.published_path) / "pkgs"
+        comp_path.mkdir(parents=True, exist_ok=True)
+        generated = publisher._generate_packages_file(
+            [test_package], comp_path, "main", "amd64", "gzip"
+        )
+
+        names = {p.name for p in generated}
+        assert names == {"Packages", "Packages.gz"}
+        assert not (comp_path / "Packages.zst").exists()
+
+    def test_zstandard(self, temp_storage, test_package):
+        """zstandard compression produces a valid Packages.zst."""
+        publisher = AptPublisher(storage=temp_storage, config=self._config("zstandard"))
+        comp_path = Path(temp_storage.config.published_path) / "pkgs"
+        comp_path.mkdir(parents=True, exist_ok=True)
+
+        generated = publisher._generate_packages_file(
+            [test_package], comp_path, "main", "amd64", "zstandard"
+        )
+        zst = comp_path / "Packages.zst"
+        assert zst in generated
+        assert zst.exists()
+
+        # The compressed index must round-trip to the uncompressed Packages.
+        expected = (comp_path / "Packages").read_bytes()
+        assert decompress_file(zst.read_bytes(), "zstandard") == expected
+
+    def test_bzip2(self, temp_storage, test_package):
+        """bzip2 compression produces Packages.bz2."""
+        publisher = AptPublisher(storage=temp_storage, config=self._config("bzip2"))
+        comp_path = Path(temp_storage.config.published_path) / "pkgs"
+        comp_path.mkdir(parents=True, exist_ok=True)
+
+        generated = publisher._generate_packages_file(
+            [test_package], comp_path, "main", "amd64", "bzip2"
+        )
+        assert (comp_path / "Packages.bz2") in generated
+        assert (comp_path / "Packages.bz2").exists()
+
+    def test_none_only_uncompressed(self, temp_storage, test_package):
+        """'none' compression produces only the uncompressed Packages file."""
+        publisher = AptPublisher(storage=temp_storage, config=self._config("none"))
+        comp_path = Path(temp_storage.config.published_path) / "pkgs"
+        comp_path.mkdir(parents=True, exist_ok=True)
+
+        generated = publisher._generate_packages_file(
+            [test_package], comp_path, "main", "amd64", "none"
+        )
+        assert [p.name for p in generated] == ["Packages"]
+        assert not (comp_path / "Packages.gz").exists()
+
+    def test_release_lists_compressed_variant(self, temp_storage, test_package):
+        """The Release file references the configured compressed variant."""
+        publisher = AptPublisher(storage=temp_storage, config=self._config("zstandard"))
+        dists_path = Path(temp_storage.config.published_path) / "dists" / "jammy"
+        comp_path = dists_path / "main" / "binary-amd64"
+        comp_path.mkdir(parents=True, exist_ok=True)
+
+        generated = publisher._generate_packages_file(
+            [test_package], comp_path, "main", "amd64", "zstandard"
+        )
+        published_metadata = [
+            {"component": "main", "architecture": "amd64", "packages_file": generated[0]}
+        ]
+
+        release_file = publisher._generate_release_file(
+            dists_path, published_metadata, [], "filtered"
+        )
+        content = release_file.read_text()
+
+        assert "main/binary-amd64/Packages" in content
+        assert "main/binary-amd64/Packages.zst" in content
+        assert "main/binary-amd64/Packages.gz" not in content
