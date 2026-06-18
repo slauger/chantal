@@ -393,7 +393,7 @@ class HelmSyncer:
         logger.debug(f"Downloading chart from {url}")
 
         parsed = urlparse(url)
-        
+
         if parsed.scheme == "oci":
             return self._download_oci_chart(url, config)
         else:
@@ -455,7 +455,7 @@ class HelmSyncer:
             cmd = ["helm", "pull", url, "--destination", str(tmpdir_path)]
 
             # Add registry credentials if available
-            if config.username and config.password:
+            if config.auth and config.auth.username and config.auth.password:
                 # helm pull will use credentials from helm registry login
                 # For inline credentials, we'd need to run helm registry login first
                 logger.debug("Registry credentials available but helm pull uses stored credentials")
@@ -482,7 +482,7 @@ class HelmSyncer:
                 raise RuntimeError(msg) from e
 
             except subprocess.TimeoutExpired as e:
-                msg = f"helm pull timed out after 300 seconds"
+                msg = "helm pull timed out after 300 seconds"
                 logger.error(msg)
                 raise RuntimeError(msg) from e
 

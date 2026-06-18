@@ -14,7 +14,7 @@ The APT plugin consists of:
 
 **Repository Modes:**
 - ✅ **Mirror Mode** - Full metadata mirroring (InRelease, Release, Packages)
-- ✅ **Filtered Mode** - Smart metadata regeneration for filtered repos (without GPG signing)
+- ✅ **Filtered Mode** - Smart metadata regeneration for filtered repos (with optional GPG signing)
 - ⏳ **Hosted Mode** - For self-hosted packages (future)
 
 **Package Management:**
@@ -32,12 +32,12 @@ The APT plugin consists of:
 - ✅ RFC822-format Packages file generation
 - ✅ Release file generation with MD5/SHA1/SHA256 checksums
 - ✅ InRelease file preservation (GPG-signed)
+- ✅ GPG signature generation for filtered mode (InRelease, Release.gpg)
 - ✅ Multi-component and multi-architecture layouts
 - ✅ Gzip compression support
 - ✅ Dependency metadata (Depends, Recommends, Suggests, Conflicts, etc.)
 
 **Planned:**
-- 🚧 GPG signature generation for filtered mode
 - 🚧 Translation files (i18n)
 - 🚧 Contents indices
 - 🚧 diff/Index support
@@ -312,7 +312,9 @@ Regenerates metadata for filtered package sets based on configured filters.
   - Pattern-based filtering (regex include/exclude)
   - Version filtering (only latest versions)
 - Regenerates Packages and Release files based on filtered packages
-- **No GPG signatures** - publishes without InRelease/Release.gpg
+- **Optional GPG signing** - signs the regenerated metadata when a `gpg` section
+  is configured (see [GPG Signing](#gpg-signing-filtered-mode)); otherwise
+  publishes without InRelease/Release.gpg
 - Optimal for curated/filtered repositories
 
 **Use Cases:**
@@ -323,9 +325,18 @@ Regenerates metadata for filtered package sets based on configured filters.
 
 **Client Configuration:**
 
-⚠️ **IMPORTANT:** Since filtered repositories regenerate metadata, GPG signatures from upstream become invalid. Clients must explicitly trust the repository.
+⚠️ **IMPORTANT:** Since filtered repositories regenerate metadata, GPG signatures from upstream become invalid.
 
-**Option 1: Per-repository trust (recommended)**
+**Recommended: Sign the repository** (see [GPG Signing](#gpg-signing-filtered-mode)).
+Once a `gpg` section is configured, clients can use the repository securely
+without `[trusted=yes]`:
+```
+deb [signed-by=/etc/apt/keyrings/chantal.asc] http://mirror.example.com/repos/ubuntu-filtered jammy main
+```
+
+If you do **not** configure signing, clients must explicitly trust the repository:
+
+**Option 1: Per-repository trust**
 ```
 deb [trusted=yes] http://mirror.example.com/repos/ubuntu-filtered jammy main
 ```
@@ -408,20 +419,160 @@ See [Filters Configuration](../configuration/filters.md) for complete documentat
 
 **Limitations:**
 
-- No GPG signature generation - requires manual GPG signing setup (future feature)
-- Clients must explicitly trust the repository
+- Without a `gpg` section, clients must explicitly trust the repository
 - Dependency resolution must be handled by client (APT)
-- Some tools may refuse to work with unsigned repositories
 
 **Comparison with Mirror Mode:**
 
 | Feature | Mirror Mode | Filtered Mode |
 |---------|------------|--------------|
-| GPG Signatures | ✅ Preserved | ❌ Not published |
+| GPG Signatures | ✅ Preserved (upstream) | ✅ Re-signed with own key (optional) |
 | Package Filtering | ❌ All packages | ✅ Configurable |
 | Metadata Source | Upstream | Regenerated |
-| Client Trust | Automatic (GPG) | Manual (trusted=yes) |
+| Client Trust | Automatic (GPG) | GPG (signed-by) or manual (trusted=yes) |
 | Use Case | Exact mirrors | Curated subsets |
+
+## GPG Signing (Filtered Mode)
+
+**Status:** ✅ Available
+
+In filtered mode the regenerated `Release` file no longer matches the upstream
+GPG signatures. Configure a `gpg` section to have Chantal sign the metadata with
+its own key, so clients can verify the repository without `[trusted=yes]`.
+
+When signing is enabled, publishing produces:
+
+- `dists/<dist>/InRelease` - the clearsigned (inline) `Release`
+- `dists/<dist>/Release.gpg` - the detached ASCII-armored signature
+- `<repo-root>/key.gpg` - the exported public key for client distribution
+
+### Configuration
+
+The `gpg` section can be set per repository or globally (as a fallback for all
+repositories that don't define their own).
+
+```yaml
+repositories:
+  - id: ubuntu-jammy-filtered
+    name: Ubuntu 22.04 - Filtered
+    type: apt
+    feed: http://archive.ubuntu.com/ubuntu
+    mode: filtered
+
+    apt:
+      distribution: jammy
+      components: [main]
+      architectures: [amd64]
+
+    filters:
+      patterns:
+        include: ["^nginx.*"]
+
+    gpg:
+      # Use an existing key already present in the keyring / gnupg_home
+      key_id: "ABCD1234EF567890"
+      # Or import a private key from a file:
+      key_file: /etc/chantal/keys/signing.asc
+      # Passphrase handling (file preferred over inline value):
+      passphrase_file: /etc/chantal/keys/passphrase.txt
+      # Keyring location (a private temporary one is used if omitted):
+      gnupg_home: /etc/chantal/gnupg
+```
+
+**Options:**
+
+| Option | Description |
+|--------|-------------|
+| `enabled` | Enable/disable signing (default: `true`) |
+| `key_id` | Key ID/fingerprint of an existing key to sign with |
+| `key_file` | Path to an ASCII-armored **private** key to import before signing |
+| `passphrase` | Signing key passphrase (inline; prefer `passphrase_file`) |
+| `passphrase_file` | Path to a file containing the passphrase |
+| `gnupg_home` | GnuPG home directory (keyring location) |
+| `public_key_file` | Path to a public key to publish (exported from the keyring if unset) |
+| `public_key_name` | Filename of the published public key (default: `key.gpg`) |
+| `generate_key` | Generate a new signing keypair if no key is provided (default: `false`) |
+| `key_name` / `key_email` | Identity used when generating a key |
+
+At least one of `key_id`, `key_file`, or `generate_key` must be set when signing
+is enabled.
+
+### Global Fallback
+
+```yaml
+# Global GPG config applies to every APT repository without its own gpg section
+gpg:
+  key_id: "ABCD1234EF567890"
+  gnupg_home: /etc/chantal/gnupg
+
+repositories:
+  - id: ubuntu-jammy-filtered
+    type: apt
+    feed: http://archive.ubuntu.com/ubuntu
+    mode: filtered
+    apt:
+      distribution: jammy
+      components: [main]
+      architectures: [amd64]
+    # inherits the global gpg config
+```
+
+### Key Generation Workflow
+
+You can generate a dedicated signing key with `gpg` and reference it by ID:
+
+```bash
+# Create a keyring location for Chantal
+export GNUPGHOME=/etc/chantal/gnupg
+mkdir -p "$GNUPGHOME" && chmod 700 "$GNUPGHOME"
+
+# Generate a signing key (RSA 3072)
+gpg --batch --gen-key <<EOF
+Key-Type: RSA
+Key-Length: 3072
+Name-Real: Chantal Repository Signing Key
+Name-Email: repo@example.com
+Expire-Date: 0
+%no-protection
+%commit
+EOF
+
+# Find the key ID / fingerprint
+gpg --list-secret-keys --keyid-format LONG
+```
+
+Then reference it in the config:
+
+```yaml
+gpg:
+  key_id: "<fingerprint-from-above>"
+  gnupg_home: /etc/chantal/gnupg
+```
+
+Alternatively, let Chantal generate the key automatically on first publish with
+`generate_key: true` (the keypair is created in `gnupg_home`).
+
+### Client Configuration (Signed Repository)
+
+```bash
+# Download the published public key and install it as a keyring
+sudo mkdir -p /etc/apt/keyrings
+wget -O /etc/apt/keyrings/chantal.asc \
+  http://mirror.example.com/repos/ubuntu-jammy-filtered/key.gpg
+
+# Reference the keyring in the sources entry (no [trusted=yes] needed)
+echo "deb [signed-by=/etc/apt/keyrings/chantal.asc] \
+  http://mirror.example.com/repos/ubuntu-jammy-filtered jammy main" \
+  | sudo tee /etc/apt/sources.list.d/chantal.list
+
+sudo apt-get update
+```
+
+The legacy `apt-key` workflow also works but is deprecated on modern systems:
+
+```bash
+wget -O - http://mirror.example.com/repos/ubuntu-jammy-filtered/key.gpg | sudo apt-key add -
+```
 
 ## Workflow Examples
 
@@ -621,7 +772,7 @@ Chantal can replace apt-mirror with additional features:
 | APT mirroring | ✅ | ✅ |
 | Package filtering | ✅ | ✅ |
 | Snapshots | ✅ | ✅ |
-| GPG signing | ✅ | ⏳ (planned) |
+| GPG signing | ✅ | ✅ |
 | Package uploads | ✅ | ⏳ (planned) |
 | Multi-format | ❌ | ✅ |
 | Views (virtual repos) | ❌ | ✅ |

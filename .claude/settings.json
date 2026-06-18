@@ -11,17 +11,6 @@
         ]
       }
     ],
-    "PreToolUse": [
-      {
-        "matcher": "Edit|Write|Task",
-        "hooks": [
-          {
-            "type": "prompt",
-            "prompt": "Before executing this tool, review the current task plan in .planning/task_plan.md to ensure this action aligns with the current phase and objectives. If .planning/task_plan.md exists, briefly confirm the action is appropriate. Respond with JSON: {\"proceed\": true/false, \"feedback\": \"optional message to Claude\"}"
-          }
-        ]
-      }
-    ],
     "PostToolUse": [
       {
         "matcher": "WebFetch|Read|Grep",
@@ -45,6 +34,6 @@
       }
     ]
   },
-  "description": "Planning-with-Files Workflow für RPMSync Projekt",
+  "description": "Planning-with-Files Workflow f\u00fcr RPMSync Projekt",
   "version": "1.0.0"
 }

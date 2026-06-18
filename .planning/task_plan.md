@@ -3,6 +3,23 @@
 **Status:** Phase 6 (Milestone 6) - Database Management Commands
 **Letzte Aktualisierung:** 2026-01-10 23:05
 
+## Aktive Aufgabe: APT GPG Signing für Filtered Mode (Issue #30)
+
+**Status:** 🔄 In Arbeit — Feature Branch `feature/apt-gpg-signing`
+
+Ziel: GPG-Signaturen für regenerierte APT-Metadaten im Filtered Mode, damit
+Clients ohne `[trusted=yes]` arbeiten können.
+
+Aufgaben:
+- [ ] `GpgConfig` Pydantic-Modell + Wiring in `RepositoryConfig`/`GlobalConfig`
+- [ ] `GpgSigner` (python-gnupg): Key-Import/-Generierung, clearsign, detach-sign, Public-Key-Export
+- [ ] Integration in `AptPublisher._publish_packages()` (nur Filtered Mode)
+- [ ] InRelease (clearsigned) + Release.gpg (detached) + key.gpg publizieren
+- [ ] Tests (Config, Signer, Publisher-Integration, Signatur-Verifikation)
+- [ ] Doku `docs/plugins/apt-plugin.md`
+
+---
+
 ## Übersicht
 
 Chantal ist ein Python CLI-Tool für das Spiegeln von Linux-Paket-Repositories (RPM, APT, PyPI, Helm, etc.) mit Content-Addressed Storage, Snapshots und Views.

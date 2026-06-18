@@ -14,9 +14,10 @@ from pathlib import Path
 
 from sqlalchemy.orm import Session
 
-from chantal.core.config import RepositoryConfig
+from chantal.core.config import GpgConfig, RepositoryConfig
 from chantal.core.storage import StorageManager
 from chantal.db.models import ContentItem, Repository, RepositoryFile, RepositoryMode, Snapshot
+from chantal.plugins.apt.gpg import GpgSigner, GpgSigningError
 from chantal.plugins.base import PublisherPlugin
 
 
@@ -168,17 +169,26 @@ class AptPublisher(PublisherPlugin):
         # In mirror mode, publish all metadata files (Release, InRelease, etc.)
         if mode == RepositoryMode.MIRROR:
             self._publish_metadata_files(repository_files, dists_path)
-        elif mode == RepositoryMode.FILTERED:
-            # Filtered mode: Do not publish GPG signatures
-            print("\n⚠️  WARNING: Filtered mode - Publishing without GPG signatures!")
-            print("    Regenerating metadata based on filtered packages.")
-            print("    Clients must use [trusted=yes] or Acquire::AllowInsecureRepositories=1")
-            print(
-                "    Example: deb [trusted=yes] http://mirror/ubuntu jammy main restricted universe multiverse"
-            )
 
         # Generate Release file (always generated, even in mirror mode for completeness)
-        self._generate_release_file(dists_path, published_metadata, repository_files, mode)
+        release_file = self._generate_release_file(
+            dists_path, published_metadata, repository_files, mode
+        )
+
+        # In filtered mode the regenerated Release invalidates upstream signatures.
+        # Sign it ourselves when a GPG key is configured, otherwise warn the user.
+        if mode == RepositoryMode.FILTERED:
+            gpg_config = self.config.gpg
+            if gpg_config is not None and gpg_config.enabled:
+                self._sign_release(release_file, target_path, gpg_config)
+            else:
+                print("\n⚠️  WARNING: Filtered mode - Publishing without GPG signatures!")
+                print("    Regenerating metadata based on filtered packages.")
+                print("    Clients must use [trusted=yes] or Acquire::AllowInsecureRepositories=1")
+                print(
+                    "    Example: deb [trusted=yes] http://mirror/ubuntu jammy main restricted universe multiverse"
+                )
+                print("    Configure a 'gpg' section to publish signed metadata instead.")
 
     def _group_packages_by_component_arch(
         self, packages: list[ContentItem]
@@ -559,3 +569,25 @@ class AptPublisher(PublisherPlugin):
         print("  ✓ Generated Release file")
 
         return release_file_path
+
+    def _sign_release(
+        self,
+        release_file: Path,
+        target_path: Path,
+        gpg_config: GpgConfig,
+    ) -> None:
+        """Sign the Release file with GPG (InRelease, Release.gpg, public key).
+
+        Args:
+            release_file: Path to the generated Release file.
+            target_path: Repository root where the public key is published.
+            gpg_config: GPG configuration.
+        """
+        try:
+            with GpgSigner(gpg_config, default_name=self.config.display_name) as signer:
+                outputs = signer.sign_release(release_file, repo_root=target_path)
+                print(f"  ✓ Signed Release with GPG key {signer.key_id}")
+                for name in outputs:
+                    print(f"  ✓ Published {name}")
+        except GpgSigningError as exc:
+            raise RuntimeError(f"GPG signing failed for repo '{self.config.id}': {exc}") from exc

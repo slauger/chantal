@@ -142,9 +142,22 @@ def test_db_history():
     assert True  # Command runs, that's what matters
 
 
-def test_db_verify():
-    """Test db verify command."""
+def test_db_verify(tmp_path):
+    """Test db verify command against an isolated, initialized database."""
+    from sqlalchemy import create_engine
+
+    from chantal.db.models import Base
+
+    # Initialize an isolated SQLite database with the schema.
+    db_path = tmp_path / "test.db"
+    db_url = f"sqlite:///{db_path}"
+    Base.metadata.create_all(create_engine(db_url))
+
+    # Point the CLI at this database via a temporary config file.
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(f"database:\n  url: {db_url}\n")
+
     runner = CliRunner()
-    result = runner.invoke(cli, ["db", "verify"])
-    assert result.exit_code == 0
+    result = runner.invoke(cli, ["--config", str(config_path), "db", "verify"])
+    assert result.exit_code == 0, result.output
     assert "integrity" in result.output.lower()

@@ -164,6 +164,84 @@ class AptConfig(BaseModel):
     )
 
 
+class GpgConfig(BaseModel):
+    """GPG signing configuration for APT repositories.
+
+    Used to sign regenerated metadata (Release) in filtered mode so that
+    clients can verify the repository without ``[trusted=yes]``.
+
+    The signing key can be provided in three ways (checked in this order):
+
+    1. ``key_file`` - import a private (secret) key from an ASCII-armored file.
+    2. ``key_id`` - use a key already present in the keyring / ``gnupg_home``.
+    3. ``generate_key`` - generate a new keypair if none of the above is set.
+    """
+
+    # Enable/disable signing (allows keeping config while turning signing off)
+    enabled: bool = True
+
+    # Key selection
+    key_id: str | None = Field(None, description="Key ID or fingerprint of the signing key to use")
+    key_file: str | None = Field(
+        None, description="Path to ASCII-armored private key file to import before signing"
+    )
+
+    # Passphrase handling (file preferred over inline value)
+    passphrase: str | None = Field(
+        None, description="Signing key passphrase (inline; prefer passphrase_file)"
+    )
+    passphrase_file: str | None = Field(
+        None, description="Path to a file containing the signing key passphrase"
+    )
+
+    # GnuPG home directory (keyring location); a temporary one is used if unset
+    gnupg_home: str | None = Field(None, description="GNUPGHOME directory holding the keyring")
+
+    # Public key distribution
+    public_key_file: str | None = Field(
+        None,
+        description="Path to the public key to publish for clients "
+        "(exported from the keyring if not set)",
+    )
+    public_key_name: str = Field(
+        "key.gpg",
+        description="Filename of the published public key inside the repository root",
+    )
+
+    # Optional keypair generation when no key is provided
+    generate_key: bool = Field(
+        False, description="Generate a new signing keypair if no key is provided"
+    )
+    key_name: str | None = Field(
+        None, description="Real name for a generated key (defaults to repository name)"
+    )
+    key_email: str | None = Field(
+        None, description="Email for a generated key (defaults to chantal@localhost)"
+    )
+
+    @model_validator(mode="after")
+    def validate_key_source(self) -> GpgConfig:
+        """Ensure at least one key source is configured when signing is enabled."""
+        if not self.enabled:
+            return self
+        if not (self.key_file or self.key_id or self.generate_key):
+            raise ValueError(
+                "GPG signing is enabled but no key source is configured. "
+                "Provide 'key_file', 'key_id', or set 'generate_key: true'."
+            )
+        return self
+
+    def read_passphrase(self) -> str | None:
+        """Resolve the passphrase from file or inline value.
+
+        Returns:
+            The passphrase string, or None if no passphrase is configured.
+        """
+        if self.passphrase_file:
+            return Path(self.passphrase_file).read_text(encoding="utf-8").strip()
+        return self.passphrase
+
+
 class MetadataConfig(BaseModel):
     """Metadata generation configuration (RPM, APT, etc.)."""
 
@@ -332,6 +410,9 @@ class RepositoryConfig(BaseModel):
         default_factory=lambda: MetadataConfig(),
         description="Metadata generation configuration (compression, etc.)",
     )
+
+    # GPG signing (APT filtered mode); falls back to global gpg config if unset
+    gpg: GpgConfig | None = None
 
     @field_validator("type")
     @classmethod
@@ -505,6 +586,8 @@ class GlobalConfig(BaseModel):
     proxy: ProxyConfig | None = None
     ssl: SSLConfig | None = None
     download: DownloadConfig | None = Field(default_factory=DownloadConfig)
+    # Global GPG signing fallback for repositories without their own gpg config
+    gpg: GpgConfig | None = None
     repositories: list[RepositoryConfig] = Field(default_factory=list)
     views: list[ViewConfig] = Field(default_factory=list)
 
