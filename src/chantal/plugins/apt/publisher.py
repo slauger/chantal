@@ -6,7 +6,6 @@ APT/DEB repository publisher plugin.
 This module implements publishing for APT repositories with Debian package metadata.
 """
 
-import gzip
 import hashlib
 import shutil
 from datetime import datetime, timezone
@@ -19,6 +18,11 @@ from chantal.core.storage import StorageManager
 from chantal.db.models import ContentItem, Repository, RepositoryFile, RepositoryMode, Snapshot
 from chantal.plugins.apt.gpg import GpgSigner, GpgSigningError
 from chantal.plugins.base import PublisherPlugin
+from chantal.plugins.rpm.compression import CompressionFormat, compress_file, get_extension
+
+# Compressed Packages index variants that may exist in a component directory.
+# Used when collecting checksums for the Release file.
+_PACKAGES_VARIANTS = ("Packages", "Packages.gz", "Packages.xz", "Packages.zst", "Packages.bz2")
 
 
 class AptPublisher(PublisherPlugin):
@@ -137,6 +141,9 @@ class AptPublisher(PublisherPlugin):
         # Group packages by component and architecture
         packages_by_component_arch = self._group_packages_by_component_arch(packages)
 
+        # Resolve the compression format for generated Packages indices.
+        compression = self._resolve_compression()
+
         # Publish packages for each component/architecture combination
         published_metadata = []
         for (component, architecture), component_packages in packages_by_component_arch.items():
@@ -153,16 +160,17 @@ class AptPublisher(PublisherPlugin):
                 component_packages, component_arch_path, component, architecture
             )
 
-            # Generate Packages file
-            packages_file = self._generate_packages_file(
-                component_packages, component_arch_path, component, architecture
+            # Generate Packages file(s) (uncompressed + configured compression)
+            generated = self._generate_packages_file(
+                component_packages, component_arch_path, component, architecture, compression
             )
 
             published_metadata.append(
                 {
                     "component": component,
                     "architecture": architecture,
-                    "packages_file": packages_file,
+                    # Uncompressed Packages path; its parent is the component dir.
+                    "packages_file": generated[0],
                 }
             )
 
@@ -189,6 +197,20 @@ class AptPublisher(PublisherPlugin):
                     "    Example: deb [trusted=yes] http://mirror/ubuntu jammy main restricted universe multiverse"
                 )
                 print("    Configure a 'gpg' section to publish signed metadata instead.")
+
+    def _resolve_compression(self) -> CompressionFormat:
+        """Resolve the compression format for generated Packages indices.
+
+        Honors ``config.metadata.compression``. For APT, ``auto`` falls back to
+        gzip since Debian/Ubuntu repositories always provide a ``Packages.gz``.
+
+        Returns:
+            The compression format (gzip, zstandard, bzip2, or none).
+        """
+        setting = self.config.metadata.compression if self.config.metadata else "auto"
+        if setting == "auto":
+            return "gzip"
+        return setting
 
     def _group_packages_by_component_arch(
         self, packages: list[ContentItem]
@@ -255,17 +277,23 @@ class AptPublisher(PublisherPlugin):
         component_arch_path: Path,
         component: str,
         architecture: str,
-    ) -> Path:
-        """Generate Packages file for component/architecture.
+        compression: CompressionFormat = "gzip",
+    ) -> list[Path]:
+        """Generate Packages file(s) for component/architecture.
+
+        Writes the uncompressed ``Packages`` file plus a compressed variant
+        (unless ``compression`` is ``none``).
 
         Args:
             packages: List of content items
             component_arch_path: Path to component/architecture directory
             component: Component name
             architecture: Architecture name
+            compression: Compression format for the compressed Packages index
 
         Returns:
-            Path to generated Packages.gz file
+            List of generated paths; the uncompressed ``Packages`` first,
+            followed by the compressed variant (if any).
         """
         # Build Packages file content (RFC822 format)
         packages_content = []
@@ -382,18 +410,21 @@ class AptPublisher(PublisherPlugin):
         # Write uncompressed Packages file
         packages_file_path = component_arch_path / "Packages"
         packages_file_path.write_text(full_content, encoding="utf-8")
+        generated = [packages_file_path]
 
-        # Gzip it
-        packages_gz_path = component_arch_path / "Packages.gz"
-        with open(packages_file_path, "rb") as f_in:
-            with gzip.open(packages_gz_path, "wb") as f_out:
-                shutil.copyfileobj(f_in, f_out)
+        # Write the compressed variant (unless disabled)
+        if compression != "none":
+            ext = get_extension(compression)
+            compressed_path = component_arch_path / f"Packages{ext}"
+            compressed_path.write_bytes(compress_file(packages_file_path.read_bytes(), compression))
+            generated.append(compressed_path)
 
         print(
-            f"  ✓ Generated Packages for {component}/{architecture}: " f"{len(packages)} packages"
+            f"  ✓ Generated Packages for {component}/{architecture}: "
+            f"{len(packages)} packages ({compression})"
         )
 
-        return packages_gz_path
+        return generated
 
     def _publish_metadata_files(
         self, repository_files: list[RepositoryFile], dists_path: Path
@@ -509,44 +540,30 @@ class AptPublisher(PublisherPlugin):
         sha1sums = []
         sha256sums = []
 
-        # Collect all Packages and Packages.gz files
+        # Collect checksums for the uncompressed Packages and every compressed
+        # variant present in each component/architecture directory.
         for meta in published_metadata:
             component = meta["component"]
             architecture = meta["architecture"]
-            packages_gz_path = meta["packages_file"]
+            component_dir = meta["packages_file"].parent
 
-            # Get relative paths
             if architecture == "source":
-                packages_rel = f"{component}/source/Packages"
-                packages_gz_rel = f"{component}/source/Packages.gz"
+                rel_prefix = f"{component}/source"
             else:
-                packages_rel = f"{component}/binary-{architecture}/Packages"
-                packages_gz_rel = f"{component}/binary-{architecture}/Packages.gz"
+                rel_prefix = f"{component}/binary-{architecture}"
 
-            # Uncompressed Packages file
-            packages_path = packages_gz_path.parent / "Packages"
-            if packages_path.exists():
-                packages_data = packages_path.read_bytes()
-                packages_size = len(packages_data)
-                packages_md5 = hashlib.md5(packages_data).hexdigest()
-                packages_sha1 = hashlib.sha1(packages_data).hexdigest()
-                packages_sha256 = hashlib.sha256(packages_data).hexdigest()
+            for variant in _PACKAGES_VARIANTS:
+                variant_path = component_dir / variant
+                if not variant_path.exists():
+                    continue
 
-                md5sums.append(f" {packages_md5} {packages_size:8} {packages_rel}")
-                sha1sums.append(f" {packages_sha1} {packages_size:8} {packages_rel}")
-                sha256sums.append(f" {packages_sha256} {packages_size:8} {packages_rel}")
+                data = variant_path.read_bytes()
+                size = len(data)
+                rel = f"{rel_prefix}/{variant}"
 
-            # Compressed Packages.gz file
-            if packages_gz_path.exists():
-                packages_gz_data = packages_gz_path.read_bytes()
-                packages_gz_size = len(packages_gz_data)
-                packages_gz_md5 = hashlib.md5(packages_gz_data).hexdigest()
-                packages_gz_sha1 = hashlib.sha1(packages_gz_data).hexdigest()
-                packages_gz_sha256 = hashlib.sha256(packages_gz_data).hexdigest()
-
-                md5sums.append(f" {packages_gz_md5} {packages_gz_size:8} {packages_gz_rel}")
-                sha1sums.append(f" {packages_gz_sha1} {packages_gz_size:8} {packages_gz_rel}")
-                sha256sums.append(f" {packages_gz_sha256} {packages_gz_size:8} {packages_gz_rel}")
+                md5sums.append(f" {hashlib.md5(data).hexdigest()} {size:8} {rel}")
+                sha1sums.append(f" {hashlib.sha1(data).hexdigest()} {size:8} {rel}")
+                sha256sums.append(f" {hashlib.sha256(data).hexdigest()} {size:8} {rel}")
 
         # Add checksum sections
         if md5sums:
