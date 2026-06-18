@@ -446,6 +446,9 @@ def _publish_single_repository(
             click.echo(f"\n✗ Publishing failed: {e}", err=True)
             raise
     elif repo_config.type == "apt":
+        # Fall back to the global GPG signing config if the repo has none.
+        if repo_config.gpg is None and global_config.gpg is not None:
+            repo_config.gpg = global_config.gpg
         apt_publisher = AptPublisher(storage=storage, config=repo_config)
         # Publish repository
         try:
@@ -575,6 +578,9 @@ def _publish_repository_snapshot(
                 click.echo(f"\n✗ Publishing failed: {e}", err=True)
                 raise
         elif repo_config.type == "apt":
+            # Fall back to the global GPG signing config if the repo has none.
+            if repo_config.gpg is None and config.gpg is not None:
+                repo_config.gpg = config.gpg
             apt_publisher = AptPublisher(storage=storage, config=repo_config)
             # Publish snapshot
             try:

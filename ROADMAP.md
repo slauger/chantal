@@ -238,7 +238,8 @@
 - APT plugin implementation
 - InRelease/Release parsing
 - Packages.gz/xz parsing
-- GPG signature preservation
+- GPG signature preservation (mirror mode)
+- GPG signature generation for filtered mode (InRelease/Release.gpg) ✅ [#30](https://github.com/slauger/chantal/issues/30)
 - deb package handling
 - APT publishing (standard APT repo structure)
 - Content-addressed storage for debs

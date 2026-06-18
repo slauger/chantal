@@ -1,0 +1,55 @@
+# Filtered APT repository with GPG signing (Issue #30)
+#
+# In filtered mode Chantal regenerates the repository metadata, which
+# invalidates the upstream GPG signatures. Configuring a `gpg` section makes
+# Chantal sign the regenerated metadata with its own key, so APT clients can
+# verify the repository WITHOUT `[trusted=yes]`.
+#
+# Publishing produces:
+#   dists/<dist>/InRelease     - clearsigned Release
+#   dists/<dist>/Release.gpg   - detached signature
+#   key.gpg                    - public key for client distribution
+#
+# Client configuration (no [trusted=yes] required):
+#   wget -O /etc/apt/keyrings/chantal.asc \
+#     http://mirror.example.com/repos/ubuntu-jammy-web/key.gpg
+#   deb [signed-by=/etc/apt/keyrings/chantal.asc] \
+#     http://mirror.example.com/repos/ubuntu-jammy-web jammy main
+
+repositories:
+  - id: ubuntu-jammy-web
+    name: "Ubuntu 22.04 - Web Servers (signed, filtered)"
+    type: apt
+    feed: "http://archive.ubuntu.com/ubuntu"
+    enabled: true
+    mode: filtered
+
+    apt:
+      distribution: "jammy"
+      components:
+        - main
+      architectures:
+        - amd64
+
+    filters:
+      patterns:
+        include:
+          - "^nginx.*"
+          - "^apache2.*"
+      post_processing:
+        only_latest_version: true
+
+    # --- GPG signing ---------------------------------------------------------
+    gpg:
+      # Option A: use an existing key in the keyring
+      key_id: "ABCD1234EF567890"
+      gnupg_home: /etc/chantal/gnupg
+      passphrase_file: /etc/chantal/keys/passphrase.txt
+
+      # Option B (alternative): import a private key from a file
+      # key_file: /etc/chantal/keys/signing.asc
+
+      # Option C (alternative): let Chantal generate a key on first publish
+      # generate_key: true
+      # key_name: "Chantal Repository Signing Key"
+      # key_email: "repo@example.com"
