@@ -7,7 +7,7 @@ These models define the metadata schema for RPM packages stored in the generic
 ContentItem model.
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class RpmMetadata(BaseModel):
@@ -32,11 +32,8 @@ class RpmMetadata(BaseModel):
     conflicts: list[str] | None = Field(None, description="List of conflicts")
     obsoletes: list[str] | None = Field(None, description="List of obsoletes")
 
-    class Config:
-        """Pydantic configuration."""
-
-        # Allow extra fields for forward compatibility
-        extra = "allow"
+    # Allow extra fields for forward compatibility
+    model_config = ConfigDict(extra="allow")
 
     def get_nevra(self, name: str, version: str) -> str:
         """Get NEVRA string (Name-Epoch:Version-Release.Arch).

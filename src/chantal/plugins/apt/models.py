@@ -4,7 +4,7 @@ from __future__ import annotations
 Pydantic models for APT/DEB repository metadata.
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class DebMetadata(BaseModel):
@@ -74,10 +74,8 @@ class DebMetadata(BaseModel):
         default_factory=dict, description="Additional fields not explicitly modeled"
     )
 
-    class Config:
-        """Pydantic configuration."""
-
-        extra = "allow"  # Allow additional fields for forward compatibility
+    # Allow additional fields for forward compatibility
+    model_config = ConfigDict(extra="allow")
 
 
 class ReleaseMetadata(BaseModel):
@@ -120,10 +118,7 @@ class ReleaseMetadata(BaseModel):
     # Additional fields
     extra_fields: dict[str, str] = Field(default_factory=dict, description="Additional fields")
 
-    class Config:
-        """Pydantic configuration."""
-
-        extra = "allow"
+    model_config = ConfigDict(extra="allow")
 
 
 class SourcesMetadata(BaseModel):
@@ -179,7 +174,4 @@ class SourcesMetadata(BaseModel):
     # Additional fields
     extra_fields: dict[str, str] = Field(default_factory=dict, description="Additional fields")
 
-    class Config:
-        """Pydantic configuration."""
-
-        extra = "allow"
+    model_config = ConfigDict(extra="allow")

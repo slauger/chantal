@@ -11,7 +11,7 @@ import gzip
 import hashlib
 import shutil
 import xml.etree.ElementTree as ET
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from sqlalchemy.orm import Session
@@ -310,7 +310,7 @@ class RpmPublisher(PublisherPlugin):
 
             # Time (use current time for now)
             time_elem = ET.SubElement(pkg_elem, "time")
-            time_elem.set("file", str(int(datetime.utcnow().timestamp())))
+            time_elem.set("file", str(int(datetime.now(timezone.utc).timestamp())))
 
         # Write XML
         tree = ET.ElementTree(metadata)
@@ -437,7 +437,7 @@ class RpmPublisher(PublisherPlugin):
 
         # Revision (timestamp)
         revision = ET.SubElement(repomd, "revision")
-        revision.text = str(int(datetime.utcnow().timestamp()))
+        revision.text = str(int(datetime.now(timezone.utc).timestamp()))
 
         # Add data entry for each metadata file
         for file_type, file_path in metadata_files:
@@ -490,7 +490,7 @@ class RpmPublisher(PublisherPlugin):
             location.set("href", f"repodata/{file_path.name}")
 
             timestamp = ET.SubElement(data, "timestamp")
-            timestamp.text = str(int(datetime.utcnow().timestamp()))
+            timestamp.text = str(int(datetime.now(timezone.utc).timestamp()))
 
             size = ET.SubElement(data, "size")
             size.text = str(file_size)

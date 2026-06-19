@@ -9,7 +9,7 @@ The metadata is stored as JSON in the ContentItem.content_metadata field.
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class HelmMaintainer(BaseModel):
@@ -77,10 +77,8 @@ class HelmMetadata(BaseModel):
     kube_version: str | None = Field(None, alias="kubeVersion")
     app_version_field: str | None = Field(None, alias="appVersion")
 
-    class Config:
-        """Pydantic config."""
-
-        populate_by_name = True  # Allow both 'appVersion' and 'app_version'
+    # Allow both 'appVersion' and 'app_version'
+    model_config = ConfigDict(populate_by_name=True)
 
     def to_index_entry(self) -> dict[str, Any]:
         """Convert to Helm index.yaml entry format.

@@ -8,7 +8,7 @@ snapshots, and their relationships.
 """
 
 import enum
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import (
     JSON,
@@ -46,6 +46,15 @@ class Base(DeclarativeBase):
     pass
 
 
+def _utcnow() -> datetime:
+    """Current UTC time as a naive datetime.
+
+    Replaces the deprecated ``datetime.utcnow`` while preserving the existing
+    naive-UTC semantics used by all timestamp columns.
+    """
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
 # Association table for many-to-many relationship between repositories and content items
 # This tracks which content items are currently in a repository (the "latest" state)
 repository_content_items = Table(
@@ -53,7 +62,7 @@ repository_content_items = Table(
     Base.metadata,
     Column("repository_id", Integer, ForeignKey("repositories.id"), primary_key=True),
     Column("content_item_id", Integer, ForeignKey("content_items.id"), primary_key=True),
-    Column("added_at", DateTime, default=datetime.utcnow, nullable=False),
+    Column("added_at", DateTime, default=_utcnow, nullable=False),
 )
 
 # Association table for many-to-many relationship between snapshots and content items
@@ -72,7 +81,7 @@ repository_repository_files = Table(
     Base.metadata,
     Column("repository_id", Integer, ForeignKey("repositories.id"), primary_key=True),
     Column("repository_file_id", Integer, ForeignKey("repository_files.id"), primary_key=True),
-    Column("added_at", DateTime, default=datetime.utcnow, nullable=False),
+    Column("added_at", DateTime, default=_utcnow, nullable=False),
 )
 
 # Association table for many-to-many relationship between snapshots and repository files
@@ -105,9 +114,9 @@ class Repository(Base):
     snapshots_path: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Metadata
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+        DateTime, default=_utcnow, onupdate=_utcnow, nullable=False
     )
 
     # Sync state
@@ -173,7 +182,7 @@ class ContentItem(Base):
     content_metadata: Mapped[dict] = mapped_column(JSON, nullable=False)
 
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=False)
 
     # Reference counting (for garbage collection)
     reference_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
@@ -253,7 +262,7 @@ class Snapshot(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # State
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=False)
     is_published: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     published_path: Mapped[str | None] = mapped_column(Text, nullable=True)
 
@@ -341,9 +350,9 @@ class View(Base):
     repo_type: Mapped[str] = mapped_column(String(50), nullable=False)  # rpm, apt
 
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+        DateTime, default=_utcnow, onupdate=_utcnow, nullable=False
     )
 
     # Publishing status (for "latest" publish)
@@ -381,7 +390,7 @@ class ViewRepository(Base):
     order: Mapped[int] = mapped_column(Integer, nullable=False)
 
     # Timestamps
-    added_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    added_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=False)
 
     # Relationships
     view: Mapped[View] = relationship("View", back_populates="view_repositories")
@@ -411,7 +420,7 @@ class ViewSnapshot(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # State
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=False)
 
     # Which repository snapshots are included (JSON array of snapshot IDs)
     # Example: [12, 45, 67] - references Snapshot.id
@@ -485,9 +494,9 @@ class RepositoryFile(Base):
     #   {"kernel_version": "5.14.0-362.8.1.el9_3"}
 
     # Timestamps
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+        DateTime, default=_utcnow, onupdate=_utcnow, nullable=False
     )
 
     # Relationships (many-to-many like ContentItem)
