@@ -27,7 +27,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
-class RepositoryMode(str, enum.Enum):
+class RepositoryMode(enum.StrEnum):
     """Repository operation modes.
 
     - MIRROR: Full mirror, no filtering, metadata unchanged
