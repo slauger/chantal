@@ -226,8 +226,9 @@ class AptPublisher(PublisherPlugin):
         grouped: dict[tuple[str, str], list[ContentItem]] = {}
 
         for package in packages:
-            component = package.content_metadata.get("component", "main")
-            architecture = package.content_metadata.get("architecture", "amd64")
+            # Use `or` so an explicit None in the metadata still falls back.
+            component = package.content_metadata.get("component") or "main"
+            architecture = package.content_metadata.get("architecture") or "amd64"
 
             key = (component, architecture)
             if key not in grouped:
