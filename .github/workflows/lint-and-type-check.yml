@@ -95,7 +95,14 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
 
+      - name: Install rpm toolchain (for the real-rpm signature golden test)
+        if: matrix.plugin == 'rpm'
+        run: sudo apt-get update && sudo apt-get install -y rpm
+
       - name: Run end-to-end sync->publish test
+        env:
+          # Require the real-rpm signature golden test to run (not skip) on the rpm leg.
+          CHANTAL_REQUIRE_RPM_E2E: ${{ matrix.plugin == 'rpm' && '1' || '' }}
         run: |
           echo "Running E2E sync->publish for ${{ matrix.plugin }}..."
           pytest tests/e2e -v -s -m e2e -k ${{ matrix.plugin }}

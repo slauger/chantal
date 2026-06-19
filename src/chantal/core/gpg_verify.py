@@ -26,6 +26,10 @@ class GpgVerificationError(Exception):
     """Raised when verification cannot be performed (setup/import problems)."""
 
 
+class SignatureVerificationError(Exception):
+    """Raised to abort a sync when a signature check fails under a 'fail' policy."""
+
+
 class GpgVerifier:
     """Verify detached OpenPGP signatures against configured trusted keys.
 

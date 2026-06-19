@@ -1177,7 +1177,7 @@
           "type": "boolean"
         },
         "gpgcheck": {
-          "default": false,
+          "default": true,
           "title": "Gpgcheck",
           "type": "boolean"
         },

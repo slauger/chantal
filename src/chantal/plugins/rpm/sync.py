@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 from chantal.core.cache import MetadataCache
 from chantal.core.config import ProxyConfig, RepositoryConfig, SSLConfig
 from chantal.core.downloader import DownloadManager
+from chantal.core.gpg_verify import SignatureVerificationError
 from chantal.core.output import OutputLevel, SyncOutputter
 from chantal.core.storage import StorageManager
 from chantal.db.models import ContentItem, Repository, RepositoryFile
@@ -162,6 +163,9 @@ class RpmSyncPlugin:
         # Backward compatibility for parsers module
         self.session = self.downloader.session
 
+        # Lazily created during sync when package signature verification is on.
+        self._package_verifier: object | None = None
+
     def sync_repository(self, session: Session, repository: Repository) -> SyncResult:
         """Sync repository from upstream.
 
@@ -185,6 +189,9 @@ class RpmSyncPlugin:
             repomd_content = parsers.fetch_repomd_content(self.session, self.config.feed)
             self._verify_repomd_signature(repomd_content)
             repomd_root = ET.fromstring(repomd_content)
+
+            # Set up the reusable package-signature verifier (gpgcheck).
+            self._setup_package_verifier()
 
             # Step 2: Extract ALL metadata info (including primary.xml.gz)
             metadata_files = parsers.extract_all_metadata(repomd_root)
@@ -298,6 +305,10 @@ class RpmSyncPlugin:
                     packages_downloaded += 1
                     bytes_downloaded += downloaded_bytes
                     self.output.downloaded(downloaded_bytes / 1024 / 1024)
+                except SignatureVerificationError:
+                    # A 'fail' signature policy must abort the whole sync rather
+                    # than silently skipping the offending package.
+                    raise
                 except Exception as e:
                     self.output.error(f"Failed to download {nvra}: {e}")
                     # Continue with next package
@@ -407,6 +418,8 @@ class RpmSyncPlugin:
                 success=False,
                 error_message=str(e),
             )
+        finally:
+            self._teardown_package_verifier()
 
     def check_updates(self, session: Session, repository: Repository) -> CheckUpdatesResult:
         """Check for available package updates without downloading.
@@ -632,10 +645,75 @@ class RpmSyncPlugin:
     def _handle_verify_policy(self, policy: str, message: str) -> None:
         """Apply a signature-verification behavior policy (fail/warn/skip)."""
         if policy == "fail":
-            raise ValueError(f"Signature verification failed: {message}")
+            from chantal.core.gpg_verify import SignatureVerificationError
+
+            raise SignatureVerificationError(f"Signature verification failed: {message}")
         if policy == "warn":
             self.output.warning(f"Signature verification: {message}")
         # "skip": silently continue
+
+    def _setup_package_verifier(self) -> None:
+        """Create the reusable package verifier if gpgcheck is enabled."""
+        verify = self.config.verify
+        if verify and verify.enabled and verify.gpgcheck:
+            from chantal.core.gpg_verify import GpgVerifier
+
+            verifier = GpgVerifier(verify)
+            verifier.import_trusted_keys()
+            self._package_verifier = verifier
+
+    def _teardown_package_verifier(self) -> None:
+        """Release the package verifier's keyring, if any."""
+        verifier = self._package_verifier
+        if verifier is not None:
+            verifier.close()  # type: ignore[attr-defined]
+            self._package_verifier = None
+
+    def _verify_package_signature(self, rpm_path: Path, nvra: str) -> None:
+        """Verify a downloaded package's header signature (gpgcheck).
+
+        No-op unless a package verifier was set up. Reads the ``.rpm``, extracts
+        its header-only OpenPGP signature, verifies it against the trusted keys,
+        and applies the configured policy.
+        """
+        verifier = self._package_verifier
+        if verifier is None:
+            return
+
+        import mmap
+
+        from chantal.core.gpg_verify import GpgVerifier
+        from chantal.plugins.rpm.rpm_header import RpmFormatError, extract_header_signature
+
+        assert isinstance(verifier, GpgVerifier)
+        verify = self.config.verify
+        assert verify is not None
+
+        # mmap the file so only the header region (near the start) is read,
+        # not the whole - potentially multi-GB - package. Slicing an mmap yields
+        # real bytes, so the extracted blob/packet stay valid after it closes.
+        try:
+            with (
+                open(rpm_path, "rb") as fh,
+                mmap.mmap(fh.fileno(), 0, access=mmap.ACCESS_READ) as mm,
+            ):
+                extracted = extract_header_signature(mm)
+        except RpmFormatError as exc:
+            self._handle_verify_policy(verify.on_invalid_signature, f"{nvra}: {exc}")
+            return
+
+        if extracted is None:
+            self._handle_verify_policy(
+                verify.on_missing_signature, f"{nvra}: package has no GPG signature"
+            )
+            return
+
+        signature_packet, header_blob = extracted
+        if not verifier.verify_detached(header_blob, signature_packet):
+            self._handle_verify_policy(
+                verify.on_invalid_signature,
+                f"{nvra}: invalid or untrusted package signature",
+            )
 
     def _get_existing_packages(self, session: Session) -> dict[str, ContentItem]:
         """Get existing content items from database.
@@ -687,6 +765,13 @@ class RpmSyncPlugin:
                     bytes_downloaded += len(chunk)
 
                 tmp_file.flush()
+
+                # Verify the package's GPG signature (gpgcheck) before trusting it.
+                nvra = (
+                    f"{pkg_meta['name']}-{pkg_meta['version']}-"
+                    f"{pkg_meta['release']}.{pkg_meta['arch']}"
+                )
+                self._verify_package_signature(tmp_path, nvra)
 
                 # Extract filename from location
                 filename = Path(pkg_meta["location"]).name

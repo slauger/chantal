@@ -278,7 +278,7 @@ repositories:
 
 ## Upstream Signature Verification
 
-**Status:** ✅ Available (repository metadata) · 🚧 package signatures (follow-up)
+**Status:** ✅ Available (repository metadata **and** package signatures)
 
 Chantal always verifies **integrity** (SHA256 of every metadata file and package
 against `repomd.xml`/`primary.xml`). A `verify` section additionally checks
@@ -313,7 +313,7 @@ repositories without their own). Options:
 |--------|---------|
 | `enabled` | Turn verification on (default `false`) |
 | `repo_gpgcheck` | Verify the repository metadata signature (`repomd.xml.asc`) |
-| `gpgcheck` | Verify individual package signatures — **not yet implemented** (must be `false`; a follow-up) |
+| `gpgcheck` | Verify individual `.rpm` package signatures (header-only OpenPGP signature; default `true`; requires `repo_gpgcheck` so the authenticated metadata checksums bind the payload) |
 | `key_files` / `keys` | Trusted public keys (file paths / inline ASCII-armored) |
 | `trusted_fingerprints` | Optional allow-list of key fingerprints (pinning) |
 | `on_missing_signature` / `on_invalid_signature` | `fail` (default), `warn`, or `skip` |

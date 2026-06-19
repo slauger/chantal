@@ -258,9 +258,7 @@ class SignatureVerificationConfig(BaseModel):
 
     # What to verify
     repo_gpgcheck: bool = True  # verify repository metadata signature (repomd.xml.asc)
-    # Verify individual package signatures. Not yet implemented; enabling it is
-    # rejected by the validator so it can never be a silent no-op.
-    gpgcheck: bool = False
+    gpgcheck: bool = True  # verify individual package (.rpm) signatures
 
     # Trust anchors (public keys)
     key_files: list[str] = Field(
@@ -289,11 +287,12 @@ class SignatureVerificationConfig(BaseModel):
                 "Signature verification is enabled but no trusted key is configured. "
                 "Provide 'key_files' or 'keys'."
             )
-        if self.gpgcheck:
+        if self.gpgcheck and not self.repo_gpgcheck:
             raise ValueError(
-                "Package signature verification (gpgcheck) is not yet implemented; "
-                "set gpgcheck: false. Repository metadata verification (repo_gpgcheck) "
-                "is supported."
+                "gpgcheck requires repo_gpgcheck. A package's header-only signature proves "
+                "the vendor built that header, but does not by itself authenticate the package "
+                "payload; repo_gpgcheck authenticates the metadata checksums that bind the "
+                "downloaded bytes. Enable both (the default)."
             )
         if any(not fpr.strip() for fpr in self.trusted_fingerprints):
             raise ValueError("trusted_fingerprints must not contain empty entries")

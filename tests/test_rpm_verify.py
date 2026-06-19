@@ -63,9 +63,15 @@ class TestSignatureVerificationConfig:
         cfg = SignatureVerificationConfig(enabled=True, keys=["-----BEGIN PGP PUBLIC KEY-----"])
         assert cfg.enabled is True
 
-    def test_gpgcheck_rejected_until_implemented(self):
-        with pytest.raises(ValueError, match="not yet implemented"):
-            SignatureVerificationConfig(enabled=True, keys=["k"], gpgcheck=True)
+    def test_gpgcheck_accepted(self):
+        cfg = SignatureVerificationConfig(enabled=True, keys=["k"], gpgcheck=True)
+        assert cfg.gpgcheck is True
+
+    def test_gpgcheck_requires_repo_gpgcheck(self):
+        with pytest.raises(ValueError, match="requires repo_gpgcheck"):
+            SignatureVerificationConfig(
+                enabled=True, keys=["k"], gpgcheck=True, repo_gpgcheck=False
+            )
 
     def test_empty_fingerprint_rejected(self):
         with pytest.raises(ValueError, match="empty entries"):
@@ -149,3 +155,90 @@ class TestGpgVerifier:
         with GpgVerifier(cfg) as verifier:
             with pytest.raises(GpgVerificationError, match="not found"):
                 verifier.verify_detached(b"x", b"y")
+
+
+# --------------------------------------------------------------------------- #
+# RPM header parsing + package signature verification
+# --------------------------------------------------------------------------- #
+
+import struct  # noqa: E402
+
+from chantal.plugins.rpm.rpm_header import (  # noqa: E402
+    RPMTAG_RSAHEADER,
+    RpmFormatError,
+    extract_header_signature,
+)
+
+_LEAD = b"\xed\xab\xee\xdb" + b"\x00" * 92  # 96-byte lead
+
+
+def _build_header(items: list[tuple[int, bytes]]) -> bytes:
+    """Serialize a minimal RPM 'header' structure from (tag, raw_bytes) items."""
+    index = b""
+    store = b""
+    for tag, raw in items:
+        index += struct.pack(">IIII", tag, 7, len(store), len(raw))  # type 7 = BIN
+        store += raw
+    intro = b"\x8e\xad\xe8\x01" + b"\x00" * 4 + struct.pack(">II", len(items), len(store))
+    return intro + index + store
+
+
+def _build_rpm(main_blob: bytes, sig_packet: bytes) -> bytes:
+    """Assemble lead + signature header (RSAHEADER) + padding + main header."""
+    sig_header = _build_header([(RPMTAG_RSAHEADER, sig_packet)])
+    sig_end = _LEAD_SIZE_LOCAL + len(sig_header)
+    pad = b"\x00" * (-sig_end % 8)
+    return _LEAD + sig_header + pad + main_blob
+
+
+_LEAD_SIZE_LOCAL = 96
+
+
+class TestRpmHeaderParser:
+    def test_extract_round_trip(self):
+        main_blob = _build_header([(1000, b"name=demo\x00"), (1001, b"1.0\x00")])
+        rpm = _build_rpm(main_blob, b"FAKE-SIGNATURE-PACKET")
+        result = extract_header_signature(rpm)
+        assert result is not None
+        sig, blob = result
+        assert sig == b"FAKE-SIGNATURE-PACKET"
+        assert blob == main_blob
+
+    def test_unsigned_returns_none(self):
+        main_blob = _build_header([(1000, b"x")])
+        # signature header with a non-signature tag only
+        sig_header = _build_header([(1004, b"\x00" * 16)])  # MD5-ish, not a header sig
+        sig_end = 96 + len(sig_header)
+        rpm = _LEAD + sig_header + b"\x00" * (-sig_end % 8) + main_blob
+        assert extract_header_signature(rpm) is None
+
+    def test_not_an_rpm_raises(self):
+        with pytest.raises(RpmFormatError, match="bad lead magic"):
+            extract_header_signature(b"not an rpm" * 20)
+
+
+class TestPackageSignatureVerification:
+    def test_valid_package_signature(self, upstream_signer, verifier_home):
+        main_blob = _build_header([(1000, b"demo-1.0\x00")])
+        sig = upstream_signer.detach_sign(main_blob)  # detached OpenPGP signature
+        rpm = _build_rpm(main_blob, sig)
+        pub = upstream_signer.export_public_key().decode("utf-8")
+
+        extracted = extract_header_signature(rpm)
+        assert extracted is not None
+        packet, blob = extracted
+        with GpgVerifier(_verify_config(pub, verifier_home)) as verifier:
+            assert verifier.verify_detached(blob, packet) is True
+
+    def test_tampered_header_fails(self, upstream_signer, verifier_home):
+        main_blob = _build_header([(1000, b"demo-1.0\x00")])
+        sig = upstream_signer.detach_sign(main_blob)
+        rpm = bytearray(_build_rpm(main_blob, sig))
+        rpm[-1] ^= 0xFF  # corrupt the last byte of the main header blob
+        pub = upstream_signer.export_public_key().decode("utf-8")
+
+        extracted = extract_header_signature(bytes(rpm))
+        assert extracted is not None
+        packet, blob = extracted
+        with GpgVerifier(_verify_config(pub, verifier_home)) as verifier:
+            assert verifier.verify_detached(blob, packet) is False
