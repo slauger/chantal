@@ -79,12 +79,16 @@ def chantal_env(tmp_path: Path):
                 str(self.config_path),
                 *args,
             ]
+            # Echo the command and its output so the CI log shows what the
+            # end-to-end test actually does (run pytest with -s to stream it).
+            print(f"\n$ chantal {' '.join(args)}", flush=True)
             result = subprocess.run(cmd, capture_output=True, text=True)
+            if result.stdout:
+                print(result.stdout, end="", flush=True)
+            if result.stderr:
+                print(result.stderr, end="", flush=True)
             if check and result.returncode != 0:
-                raise AssertionError(
-                    f"command failed ({' '.join(args)}): rc={result.returncode}\n"
-                    f"STDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
-                )
+                raise AssertionError(f"command failed ({' '.join(args)}): rc={result.returncode}")
             return result
 
         def write_config(self, repo: dict) -> None:
@@ -102,9 +106,18 @@ def chantal_env(tmp_path: Path):
 
         def sync_and_publish(self, repo_id: str) -> Path:
             """Run sync + publish for repo_id; return the published target dir."""
-            self.run("repo", "sync", "--repo-id", repo_id)
+            self.run("repo", "sync", "--repo-id", repo_id, "-v")
             target = self.published / repo_id
             self.run("publish", "repo", "--repo-id", repo_id, "--target", str(target))
+            self._print_tree(target)
             return target
+
+        def _print_tree(self, target: Path) -> None:
+            print(f"\n=== published tree: {target} ===", flush=True)
+            for path in sorted(target.rglob("*")):
+                if path.is_file():
+                    print(
+                        f"  {path.relative_to(target)}  ({path.stat().st_size} bytes)", flush=True
+                    )
 
     return _Env()
