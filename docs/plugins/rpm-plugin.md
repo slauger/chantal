@@ -276,6 +276,50 @@ repositories:
 
 **Status:** Planned feature for uploading custom-built RPMs.
 
+## Upstream Signature Verification
+
+**Status:** ✅ Available (repository metadata) · 🚧 package signatures (follow-up)
+
+Chantal always verifies **integrity** (SHA256 of every metadata file and package
+against `repomd.xml`/`primary.xml`). A `verify` section additionally checks
+**authenticity** — that the upstream was signed by a key you trust — analogous
+to dnf's `repo_gpgcheck`.
+
+When enabled, the upstream `repodata/repomd.xml.asc` is fetched and verified
+against the configured trusted key(s). Because `repomd.xml` contains the
+checksums of every other metadata file, a valid signature there transitively
+authenticates the whole repository.
+
+```yaml
+repositories:
+  - id: rocky9-baseos
+    type: rpm
+    feed: https://download.rockylinux.org/pub/rocky/9/BaseOS/x86_64/os
+    verify:
+      enabled: true
+      repo_gpgcheck: true            # verify repomd.xml.asc
+      key_files:
+        - /etc/pki/rpm-gpg/RPM-GPG-KEY-Rocky-9
+      # keys: ["-----BEGIN PGP PUBLIC KEY BLOCK----- ..."]   # inline alternative
+      # trusted_fingerprints: ["<fpr>"]                       # optional pinning
+      on_missing_signature: fail     # fail | warn | skip
+      on_invalid_signature: fail
+```
+
+The `verify` section can also be set globally (as a fallback for all
+repositories without their own). Options:
+
+| Option | Meaning |
+|--------|---------|
+| `enabled` | Turn verification on (default `false`) |
+| `repo_gpgcheck` | Verify the repository metadata signature (`repomd.xml.asc`) |
+| `gpgcheck` | Verify individual package signatures — **not yet implemented** (must be `false`; a follow-up) |
+| `key_files` / `keys` | Trusted public keys (file paths / inline ASCII-armored) |
+| `trusted_fingerprints` | Optional allow-list of key fingerprints (pinning) |
+| `on_missing_signature` / `on_invalid_signature` | `fail` (default), `warn`, or `skip` |
+
+At least one of `key_files` or `keys` is required when `enabled: true`.
+
 ## How It Works
 
 ### Sync Process

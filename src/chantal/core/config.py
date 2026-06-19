@@ -242,6 +242,64 @@ class GpgConfig(BaseModel):
         return self.passphrase
 
 
+class SignatureVerificationConfig(BaseModel):
+    """Verify the authenticity of an upstream repository via GPG.
+
+    This is independent of :class:`GpgConfig` (which holds the *private* signing
+    key used to re-sign regenerated metadata). Verification needs *public* trust
+    anchors - the upstream vendor's public key(s).
+
+    Integrity (SHA256) is always checked during sync; this adds *authenticity*
+    (the metadata/packages were signed by a trusted key), analogous to dnf's
+    ``repo_gpgcheck`` / ``gpgcheck`` and apt's Release signature check.
+    """
+
+    enabled: bool = False
+
+    # What to verify
+    repo_gpgcheck: bool = True  # verify repository metadata signature (repomd.xml.asc)
+    # Verify individual package signatures. Not yet implemented; enabling it is
+    # rejected by the validator so it can never be a silent no-op.
+    gpgcheck: bool = False
+
+    # Trust anchors (public keys)
+    key_files: list[str] = Field(
+        default_factory=list, description="Paths to ASCII-armored public key files"
+    )
+    keys: list[str] = Field(default_factory=list, description="Inline ASCII-armored public keys")
+    trusted_fingerprints: list[str] = Field(
+        default_factory=list,
+        description="Optional allow-list of full key fingerprints (pinning)",
+    )
+
+    # Keyring location (a private temporary one is used if unset)
+    gnupg_home: str | None = None
+
+    # Behavior policy
+    on_missing_signature: Literal["fail", "warn", "skip"] = "fail"
+    on_invalid_signature: Literal["fail", "warn", "skip"] = "fail"
+
+    @model_validator(mode="after")
+    def validate_config(self) -> SignatureVerificationConfig:
+        """Validate the verification configuration when enabled."""
+        if not self.enabled:
+            return self
+        if not (self.key_files or self.keys):
+            raise ValueError(
+                "Signature verification is enabled but no trusted key is configured. "
+                "Provide 'key_files' or 'keys'."
+            )
+        if self.gpgcheck:
+            raise ValueError(
+                "Package signature verification (gpgcheck) is not yet implemented; "
+                "set gpgcheck: false. Repository metadata verification (repo_gpgcheck) "
+                "is supported."
+            )
+        if any(not fpr.strip() for fpr in self.trusted_fingerprints):
+            raise ValueError("trusted_fingerprints must not contain empty entries")
+        return self
+
+
 class MetadataConfig(BaseModel):
     """Metadata generation configuration (RPM, APT, etc.)."""
 
@@ -413,6 +471,9 @@ class RepositoryConfig(BaseModel):
 
     # GPG signing (APT filtered mode); falls back to global gpg config if unset
     gpg: GpgConfig | None = None
+
+    # Upstream signature verification; falls back to global verify config if unset
+    verify: SignatureVerificationConfig | None = None
 
     @field_validator("type")
     @classmethod
@@ -588,6 +649,8 @@ class GlobalConfig(BaseModel):
     download: DownloadConfig | None = Field(default_factory=DownloadConfig)
     # Global GPG signing fallback for repositories without their own gpg config
     gpg: GpgConfig | None = None
+    # Global upstream-verification fallback for repositories without their own
+    verify: SignatureVerificationConfig | None = None
     repositories: list[RepositoryConfig] = Field(default_factory=list)
     views: list[ViewConfig] = Field(default_factory=list)
 

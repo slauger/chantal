@@ -975,6 +975,17 @@
             }
           ],
           "default": null
+        },
+        "verify": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SignatureVerificationConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         }
       },
       "required": [
@@ -1150,6 +1161,84 @@
         }
       },
       "title": "ScheduleConfig",
+      "type": "object"
+    },
+    "SignatureVerificationConfig": {
+      "description": "Verify the authenticity of an upstream repository via GPG.\n\nThis is independent of :class:`GpgConfig` (which holds the *private* signing\nkey used to re-sign regenerated metadata). Verification needs *public* trust\nanchors - the upstream vendor's public key(s).\n\nIntegrity (SHA256) is always checked during sync; this adds *authenticity*\n(the metadata/packages were signed by a trusted key), analogous to dnf's\n``repo_gpgcheck`` / ``gpgcheck`` and apt's Release signature check.",
+      "properties": {
+        "enabled": {
+          "default": false,
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "repo_gpgcheck": {
+          "default": true,
+          "title": "Repo Gpgcheck",
+          "type": "boolean"
+        },
+        "gpgcheck": {
+          "default": false,
+          "title": "Gpgcheck",
+          "type": "boolean"
+        },
+        "key_files": {
+          "description": "Paths to ASCII-armored public key files",
+          "items": {
+            "type": "string"
+          },
+          "title": "Key Files",
+          "type": "array"
+        },
+        "keys": {
+          "description": "Inline ASCII-armored public keys",
+          "items": {
+            "type": "string"
+          },
+          "title": "Keys",
+          "type": "array"
+        },
+        "trusted_fingerprints": {
+          "description": "Optional allow-list of full key fingerprints (pinning)",
+          "items": {
+            "type": "string"
+          },
+          "title": "Trusted Fingerprints",
+          "type": "array"
+        },
+        "gnupg_home": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Gnupg Home"
+        },
+        "on_missing_signature": {
+          "default": "fail",
+          "enum": [
+            "fail",
+            "warn",
+            "skip"
+          ],
+          "title": "On Missing Signature",
+          "type": "string"
+        },
+        "on_invalid_signature": {
+          "default": "fail",
+          "enum": [
+            "fail",
+            "warn",
+            "skip"
+          ],
+          "title": "On Invalid Signature",
+          "type": "string"
+        }
+      },
+      "title": "SignatureVerificationConfig",
       "type": "object"
     },
     "SizeFilterConfig": {
@@ -1380,6 +1469,17 @@
       "anyOf": [
         {
           "$ref": "#/$defs/GpgConfig"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "verify": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SignatureVerificationConfig"
         },
         {
           "type": "null"

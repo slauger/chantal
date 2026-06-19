@@ -22,6 +22,29 @@ from chantal.core.cache import MetadataCache
 logger = logging.getLogger(__name__)
 
 
+def fetch_repomd_content(session: requests.Session, base_url: str) -> bytes:
+    """Fetch the raw ``repomd.xml`` bytes.
+
+    Returning the raw bytes lets callers verify the exact bytes they then parse
+    (the detached ``repomd.xml.asc`` signature is over these bytes).
+
+    Args:
+        session: Requests session (with auth/SSL configured)
+        base_url: Base URL of repository
+
+    Returns:
+        The raw ``repomd.xml`` content.
+
+    Raises:
+        requests.RequestException: On HTTP errors
+    """
+    repomd_url = urljoin(base_url + "/", "repodata/repomd.xml")
+    response = session.get(repomd_url, timeout=30)
+    response.raise_for_status()
+    content: bytes = response.content
+    return content
+
+
 def fetch_repomd_xml(session: requests.Session, base_url: str) -> ET.Element:
     """Fetch and parse repomd.xml.
 
@@ -36,10 +59,7 @@ def fetch_repomd_xml(session: requests.Session, base_url: str) -> ET.Element:
         requests.RequestException: On HTTP errors
         ET.ParseError: On XML parse errors
     """
-    repomd_url = urljoin(base_url + "/", "repodata/repomd.xml")
-    response = session.get(repomd_url, timeout=30)
-    response.raise_for_status()
-    return ET.fromstring(response.content)
+    return ET.fromstring(fetch_repomd_content(session, base_url))
 
 
 def extract_all_metadata(repomd_root: ET.Element) -> list[dict]:

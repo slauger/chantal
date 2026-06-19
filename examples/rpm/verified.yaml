@@ -1,0 +1,27 @@
+# RPM repository with upstream signature verification
+#
+# Chantal always checks integrity (SHA256). The `verify` section adds
+# authenticity: the upstream repomd.xml.asc is verified against a trusted key
+# (like dnf's repo_gpgcheck). Since repomd.xml carries the checksums of all
+# other metadata, a valid signature there authenticates the whole repository.
+#
+# `verify` can be set per-repository (below) or globally as a fallback.
+
+repositories:
+  - id: rocky9-baseos
+    name: "Rocky Linux 9 - BaseOS (verified)"
+    type: rpm
+    feed: "https://download.rockylinux.org/pub/rocky/9/BaseOS/x86_64/os"
+    enabled: true
+    mode: mirror
+
+    verify:
+      enabled: true
+      repo_gpgcheck: true
+      key_files:
+        - /etc/pki/rpm-gpg/RPM-GPG-KEY-Rocky-9
+      # Optional key pinning by fingerprint:
+      # trusted_fingerprints:
+      #   - "350D275D51953AAC1788576C70A7050025DB3973"
+      on_missing_signature: fail   # fail | warn | skip
+      on_invalid_signature: fail

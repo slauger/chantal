@@ -9,6 +9,7 @@ This module implements syncing RPM repositories from upstream sources.
 import hashlib
 import os
 import tempfile
+import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urljoin
@@ -174,10 +175,16 @@ class RpmSyncPlugin:
         try:
             self.output.header(repository.repo_id, "rpm", self.config.feed)
 
-            # Step 1: Fetch repomd.xml (always fresh, contains checksums)
+            # Step 1: Fetch repomd.xml ONCE (raw bytes), verify the signature on
+            # exactly those bytes, then parse the same bytes. repomd.xml carries
+            # the checksums of all other metadata, so a valid signature here
+            # transitively authenticates the whole repository - but only if the
+            # verified bytes are the bytes we actually parse (no re-fetch).
             self.output.phase("Fetching package list", number=1)
             self.output.info("Fetching repomd.xml...")
-            repomd_root = parsers.fetch_repomd_xml(self.session, self.config.feed)
+            repomd_content = parsers.fetch_repomd_content(self.session, self.config.feed)
+            self._verify_repomd_signature(repomd_content)
+            repomd_root = ET.fromstring(repomd_content)
 
             # Step 2: Extract ALL metadata info (including primary.xml.gz)
             metadata_files = parsers.extract_all_metadata(repomd_root)
@@ -584,6 +591,51 @@ class RpmSyncPlugin:
                 success=False,
                 error_message=str(e),
             )
+
+    def _verify_repomd_signature(self, repomd_content: bytes) -> None:
+        """Verify the upstream ``repomd.xml`` signature (repo_gpgcheck).
+
+        No-op unless verification is enabled for this repository. Verifies the
+        detached ``repomd.xml.asc`` against ``repomd_content`` (the exact bytes
+        that will be parsed) using the configured trusted keys, then applies the
+        configured behavior policy.
+
+        Args:
+            repomd_content: The raw ``repomd.xml`` bytes that will be parsed.
+        """
+        verify = self.config.verify
+        if not verify or not verify.enabled or not verify.repo_gpgcheck:
+            return
+
+        from chantal.core.gpg_verify import GpgVerifier
+
+        asc_url = urljoin(self.config.feed + "/", "repodata/repomd.xml.asc")
+        asc_response = self.session.get(asc_url, timeout=30)
+        if not asc_response.ok:
+            self._handle_verify_policy(
+                verify.on_missing_signature,
+                f"upstream repomd.xml.asc not found ({asc_response.status_code})",
+            )
+            return
+
+        with GpgVerifier(verify) as verifier:
+            valid = verifier.verify_detached(repomd_content, asc_response.content)
+
+        if valid:
+            self.output.info("✓ Verified upstream repomd.xml signature")
+        else:
+            self._handle_verify_policy(
+                verify.on_invalid_signature,
+                "upstream repomd.xml signature is invalid or not from a trusted key",
+            )
+
+    def _handle_verify_policy(self, policy: str, message: str) -> None:
+        """Apply a signature-verification behavior policy (fail/warn/skip)."""
+        if policy == "fail":
+            raise ValueError(f"Signature verification failed: {message}")
+        if policy == "warn":
+            self.output.warning(f"Signature verification: {message}")
+        # "skip": silently continue
 
     def _get_existing_packages(self, session: Session) -> dict[str, ContentItem]:
         """Get existing content items from database.

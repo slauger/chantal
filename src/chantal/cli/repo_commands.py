@@ -1061,6 +1061,10 @@ def _sync_single_repository(
     effective_proxy = repo_config.proxy if repo_config.proxy is not None else global_config.proxy
     effective_ssl = repo_config.ssl if repo_config.ssl is not None else global_config.ssl
 
+    # Upstream signature verification: repo-specific overrides global fallback
+    if repo_config.verify is None and global_config.verify is not None:
+        repo_config.verify = global_config.verify
+
     # Setup metadata cache (if enabled)
     cache = None
     cache_path = global_config.storage.get_cache_path()
