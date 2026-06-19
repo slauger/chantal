@@ -62,10 +62,11 @@ class MetadataFileInfo:
 
     file_type: str  # e.g., "primary", "updateinfo", "filelists", "other", "comps", "modules"
     location: str  # Relative path (e.g., "repodata/abc123-updateinfo.xml.gz")
-    checksum: str  # SHA256 checksum
+    checksum: str  # Checksum value from repomd.xml
     size: int  # File size in bytes
     open_checksum: str | None = None  # Checksum of uncompressed file
     open_size: int | None = None  # Size of uncompressed file
+    checksum_type: str | None = None  # Checksum algorithm (sha256/sha512/sha1)
 
 
 @dataclass
@@ -225,6 +226,7 @@ class RpmSyncPlugin:
                     checksum=primary_checksum,
                     cache=self.cache,
                     file_type="primary",
+                    checksum_type=primary_metadata.get("checksum_type"),
                 )
                 if from_cache:
                     self.output.verbose("  → primary.xml.gz loaded from cache")
@@ -336,6 +338,7 @@ class RpmSyncPlugin:
                         size=metadata_info["size"],
                         open_checksum=metadata_info.get("open_checksum"),
                         open_size=metadata_info.get("open_size"),
+                        checksum_type=metadata_info.get("checksum_type"),
                     )
                     from_cache = self._download_metadata_file(
                         mfi, session, repository, self.config.feed
@@ -468,6 +471,7 @@ class RpmSyncPlugin:
                     checksum=primary_checksum,
                     cache=self.cache,
                     file_type="primary",
+                    checksum_type=primary_metadata.get("checksum_type"),
                 )
                 if from_cache:
                     print("  → primary.xml.gz loaded from cache")
@@ -773,19 +777,22 @@ class RpmSyncPlugin:
                 )
                 self._verify_package_signature(tmp_path, nvra)
 
+                # Verify the package against the checksum declared in primary.xml,
+                # honoring its algorithm (sha256/sha512/sha1) rather than assuming
+                # sha256. The pool itself is always addressed by sha256.
+                if not parsers.verify_file_checksum(
+                    tmp_path, pkg_meta.get("checksum_type"), pkg_meta["sha256"]
+                ):
+                    algo = parsers.normalize_checksum_type(pkg_meta.get("checksum_type"))
+                    raise ValueError(f"{algo} checksum mismatch for {nvra}")
+
                 # Extract filename from location
                 filename = Path(pkg_meta["location"]).name
 
-                # Add to storage pool (will verify SHA256)
+                # Add to storage pool (computes the sha256 used for addressing)
                 sha256, pool_path, size_bytes = self.storage.add_package(
                     tmp_path, filename, verify_checksum=True
                 )
-
-                # Verify SHA256 matches metadata
-                if sha256 != pkg_meta["sha256"]:
-                    raise ValueError(
-                        f"SHA256 mismatch: expected {pkg_meta['sha256']}, got {sha256}"
-                    )
 
                 # Build RPM metadata
                 rpm_metadata = RpmMetadata(
@@ -868,7 +875,10 @@ class RpmSyncPlugin:
                 # Cache the compressed file
                 try:
                     cached_file = self.cache.put(
-                        metadata_info.checksum, response.content, metadata_info.file_type
+                        metadata_info.checksum,
+                        response.content,
+                        metadata_info.file_type,
+                        algorithm=parsers.normalize_checksum_type(metadata_info.checksum_type),
                     )
                     tmp_path = cached_file
                     cleanup_temp = False
@@ -912,17 +922,21 @@ class RpmSyncPlugin:
             # Extract filename from location
             filename = Path(metadata_info.location).name
 
-            # Add to storage pool using add_repository_file
+            # Verify the file against repomd.xml using the declared algorithm
+            # (sha256/sha512/sha1) before adding it to the pool.
+            if metadata_info.checksum and not parsers.verify_file_checksum(
+                tmp_path, metadata_info.checksum_type, metadata_info.checksum
+            ):
+                algo = parsers.normalize_checksum_type(metadata_info.checksum_type)
+                raise ValueError(
+                    f"{algo} checksum mismatch for {metadata_info.file_type}: "
+                    f"{metadata_info.location}"
+                )
+
+            # Add to storage pool using add_repository_file (sha256-addressed)
             sha256, pool_path, size_bytes = self.storage.add_repository_file(
                 tmp_path, filename, verify_checksum=True
             )
-
-            # Verify SHA256 matches metadata (if provided)
-            if metadata_info.checksum and sha256 != metadata_info.checksum:
-                raise ValueError(
-                    f"SHA256 mismatch for {metadata_info.file_type}: "
-                    f"expected {metadata_info.checksum}, got {sha256}"
-                )
 
             # Check if this RepositoryFile already exists
             existing_file = session.query(RepositoryFile).filter_by(sha256=sha256).first()
@@ -942,7 +956,7 @@ class RpmSyncPlugin:
                     size_bytes=size_bytes,
                     original_path=metadata_info.location,
                     file_metadata={
-                        "checksum_type": "sha256",
+                        "checksum_type": metadata_info.checksum_type or "sha256",
                         "open_checksum": metadata_info.open_checksum,
                         "open_size": metadata_info.open_size,
                     },

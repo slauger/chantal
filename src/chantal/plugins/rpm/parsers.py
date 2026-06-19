@@ -9,9 +9,11 @@ This module provides functions for parsing RPM repository metadata files.
 import bz2
 import configparser
 import gzip
+import hashlib
 import logging
 import lzma
 import xml.etree.ElementTree as ET
+from pathlib import Path
 from urllib.parse import urljoin
 
 import requests
@@ -20,6 +22,62 @@ import zstandard as zstd
 from chantal.core.cache import MetadataCache
 
 logger = logging.getLogger(__name__)
+
+# Map the checksum ``type`` attribute used in repomd.xml / primary.xml to a
+# hashlib algorithm name. RPM repositories use sha256 (common), sha512, or the
+# legacy sha1 (often written as "sha"). md5 is intentionally not accepted: it
+# provides no meaningful integrity guarantee and modern createrepo never emits
+# it.
+_CHECKSUM_ALGORITHMS = {
+    "sha": "sha1",
+    "sha1": "sha1",
+    "sha224": "sha224",
+    "sha256": "sha256",
+    "sha384": "sha384",
+    "sha512": "sha512",
+}
+
+
+def normalize_checksum_type(checksum_type: str | None) -> str:
+    """Resolve a repomd/primary checksum ``type`` to a hashlib algorithm name.
+
+    Defaults to sha256 when unspecified.
+
+    Raises:
+        ValueError: If the checksum type is not supported.
+    """
+    algo = _CHECKSUM_ALGORITHMS.get((checksum_type or "sha256").lower())
+    if algo is None:
+        raise ValueError(f"Unsupported checksum type: {checksum_type!r}")
+    return algo
+
+
+def verify_data_checksum(data: bytes, checksum_type: str | None, expected: str) -> bool:
+    """Return True if ``data`` matches ``expected`` under the declared algorithm.
+
+    Raises:
+        ValueError: If ``expected`` is empty (fail closed rather than skip).
+    """
+    if not expected:
+        raise ValueError("Cannot verify: empty expected checksum")
+    algo = normalize_checksum_type(checksum_type)
+    actual = hashlib.new(algo, data).hexdigest()
+    return actual.lower() == expected.lower()
+
+
+def verify_file_checksum(path: Path, checksum_type: str | None, expected: str) -> bool:
+    """Return True if the file at ``path`` matches ``expected`` (declared algorithm).
+
+    Raises:
+        ValueError: If ``expected`` is empty (fail closed rather than skip).
+    """
+    if not expected:
+        raise ValueError("Cannot verify: empty expected checksum")
+    digest = hashlib.new(normalize_checksum_type(checksum_type))
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest().lower() == expected.lower()
 
 
 def fetch_repomd_content(session: requests.Session, base_url: str) -> bytes:
@@ -122,6 +180,9 @@ def extract_all_metadata(repomd_root: ET.Element) -> list[dict]:
             if open_checksum_elem is None:
                 open_checksum_elem = data_elem.find("open-checksum")
             open_checksum = open_checksum_elem.text if open_checksum_elem is not None else None
+            open_checksum_type = (
+                open_checksum_elem.get("type") if open_checksum_elem is not None else None
+            )
 
             open_size_elem = data_elem.find("repo:open-size", ns)
             if open_size_elem is None:
@@ -137,8 +198,10 @@ def extract_all_metadata(repomd_root: ET.Element) -> list[dict]:
                 "file_type": file_type,
                 "location": location,
                 "checksum": checksum_elem.text,
+                "checksum_type": checksum_elem.get("type"),
                 "size": size,
                 "open_checksum": open_checksum,
+                "open_checksum_type": open_checksum_type,
                 "open_size": open_size,
             }
             metadata_files.append(metadata_info)
@@ -158,32 +221,37 @@ def fetch_metadata_with_cache(
     checksum: str,
     cache: MetadataCache | None = None,
     file_type: str = "metadata",
+    checksum_type: str | None = None,
 ) -> tuple[bytes, bool]:
-    """Download and decompress metadata file with optional caching.
+    """Download, verify and decompress a metadata file (with optional caching).
+
+    The compressed file is verified against the ``checksum`` from repomd.xml
+    using the declared ``checksum_type`` algorithm (sha256/sha512/sha1).
 
     Args:
         session: Requests session (with auth/SSL configured)
         base_url: Base URL of repository
         location: Relative path to metadata file (e.g., "repodata/abc-primary.xml.gz")
-        checksum: Expected SHA256 checksum
+        checksum: Expected checksum from repomd.xml
         cache: Optional MetadataCache instance
         file_type: Type hint for logging (e.g., "primary", "updateinfo")
+        checksum_type: Checksum algorithm from repomd.xml (defaults to sha256)
 
     Returns:
         Tuple of (decompressed XML content as bytes, from_cache boolean)
 
     Raises:
         requests.RequestException: On HTTP errors
-        ValueError: If compression format is unknown or checksum mismatch
+        ValueError: If compression format is unknown or the checksum mismatches
     """
-    # Try cache first if enabled
+    # Try cache first if enabled (re-verify in case the cache entry is corrupt).
     if cache:
         cached_file = cache.get(checksum, file_type)
         if cached_file:
-            # Read cached compressed file
             compressed_content = cached_file.read_bytes()
-            # Decompress and return
-            return _decompress_metadata(compressed_content, location), True
+            if verify_data_checksum(compressed_content, checksum_type, checksum):
+                return _decompress_metadata(compressed_content, location), True
+            logger.warning(f"Cached {file_type} failed checksum verification; re-downloading")
 
     # Cache miss or disabled - download from upstream
     metadata_url = urljoin(base_url + "/", location)
@@ -191,10 +259,15 @@ def fetch_metadata_with_cache(
     response = session.get(metadata_url, timeout=60)
     response.raise_for_status()
 
+    # Verify the downloaded file against repomd.xml before trusting it.
+    algo = normalize_checksum_type(checksum_type)
+    if not verify_data_checksum(response.content, checksum_type, checksum):
+        raise ValueError(f"{file_type} {algo} checksum mismatch for {location}")
+
     # Store in cache if enabled (compressed)
     if cache:
         try:
-            cache.put(checksum, response.content, file_type)
+            cache.put(checksum, response.content, file_type, algorithm=algo)
         except Exception as e:
             logger.warning(f"Failed to cache {file_type}: {e}")
 
@@ -326,6 +399,7 @@ def parse_primary_xml(xml_content: bytes) -> list[dict]:
                 "epoch": version_elem.get("epoch"),
                 "arch": arch_elem.text,
                 "sha256": checksum_elem.text,
+                "checksum_type": checksum_elem.get("type"),
                 "size_bytes": int(size_elem.get("package") or "0") if size_elem is not None else 0,
                 "location": location_elem.get("href"),
                 "summary": summary_elem.text if summary_elem is not None else None,
