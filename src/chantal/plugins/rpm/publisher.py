@@ -26,6 +26,11 @@ from chantal.plugins.rpm.compression import (
     add_compression_extension,
     compress_file,
 )
+from chantal.plugins.rpm.modules import (
+    compress_bytes,
+    decompress_bytes,
+    filter_modules_yaml,
+)
 from chantal.plugins.rpm.updateinfo import (
     UpdateInfoFilter,
     UpdateInfoGenerator,
@@ -165,6 +170,9 @@ class RpmPublisher(PublisherPlugin):
                 packages, repodata_path, published_metadata
             )
             published_metadata = self._filter_and_regenerate_other(
+                packages, repodata_path, published_metadata
+            )
+            published_metadata = self._filter_and_regenerate_modules(
                 packages, repodata_path, published_metadata
             )
 
@@ -570,6 +578,8 @@ class RpmPublisher(PublisherPlugin):
 
             # Compress it
             filtered_updateinfo_path = repodata_path / updateinfo_path.name
+            # Break the hardlink to the pool blob before overwriting in place.
+            filtered_updateinfo_path.unlink(missing_ok=True)
 
             # Determine compression based on extension
             if updateinfo_path.suffix == ".bz2":
@@ -641,6 +651,108 @@ class RpmPublisher(PublisherPlugin):
             Set of pkgid strings (SHA256 checksums)
         """
         return {pkg.sha256 for pkg in packages}
+
+    def _build_module_artifact_nevra_set(self, packages: list[ContentItem]) -> set[str]:
+        """Build the modulemd-style NEVRA set used to filter ``modules.yaml``.
+
+        modulemd ``data.artifacts.rpms`` entries are full NEVRAs with an
+        explicit epoch: ``name-epoch:version-release.arch`` (epoch defaults to
+        ``0`` when absent). This differs from :meth:`_build_package_nvra_set`,
+        which omits the epoch.
+
+        Args:
+            packages: List of ContentItem packages
+
+        Returns:
+            Set of NEVRA strings in modulemd artifact form.
+        """
+        nevras = set()
+
+        for pkg in packages:
+            name = pkg.name
+            version = pkg.version
+            meta = pkg.content_metadata or {}
+            release = meta.get("release", "")
+            arch = meta.get("arch", "")
+            epoch = meta.get("epoch")
+            epoch_str = str(epoch) if epoch not in (None, "") else "0"
+
+            if name and version and release and arch:
+                nevras.add(f"{name}-{epoch_str}:{version}-{release}.{arch}")
+
+        return nevras
+
+    def _filter_and_regenerate_modules(
+        self,
+        packages: list[ContentItem],
+        repodata_path: Path,
+        published_metadata: list[tuple[str, Path]],
+    ) -> list[tuple[str, Path]]:
+        """Filter ``modules.yaml`` (modulemd) to the published package set.
+
+        Prunes each module stream's RPM artifacts to the packages actually
+        published so downstream ``dnf module`` operations never reference a
+        missing RPM. If every stream is pruned away, ``modules.yaml`` is dropped
+        from the published set entirely.
+
+        Args:
+            packages: List of available ContentItem packages
+            repodata_path: Path to repodata directory
+            published_metadata: List of (file_type, file_path) tuples
+
+        Returns:
+            Updated list of (file_type, file_path) tuples.
+        """
+        modules_index = None
+        for i, (file_type, _file_path) in enumerate(published_metadata):
+            if file_type == "modules":
+                modules_index = i
+                break
+
+        if modules_index is None:
+            # No modules.yaml in this repository (the common case).
+            return published_metadata
+
+        modules_path = published_metadata[modules_index][1]
+
+        try:
+            available_nevras = self._build_module_artifact_nevra_set(packages)
+            suffix = modules_path.suffix
+
+            raw = decompress_bytes(modules_path.read_bytes(), suffix)
+            filtered = filter_modules_yaml(raw, available_nevras)
+
+            updated_metadata = published_metadata.copy()
+
+            if filtered is None:
+                # Nothing survived: drop modules.yaml so no dangling
+                # <data type="modules"> block is written.
+                modules_path.unlink(missing_ok=True)
+                updated_metadata.pop(modules_index)
+                print("Filtered modules: all streams pruned; dropping modules.yaml")
+                return updated_metadata
+
+            filtered_modules_path = repodata_path / modules_path.name
+            # The published file is a hardlink to the pool blob; remove it first
+            # so we write a fresh inode instead of truncating the shared pool
+            # file in place.
+            filtered_modules_path.unlink(missing_ok=True)
+            filtered_modules_path.write_bytes(compress_bytes(filtered, suffix))
+            updated_metadata[modules_index] = ("modules", filtered_modules_path)
+            print("Filtered modules: pruned module artifacts to published packages")
+            return updated_metadata
+
+        except Exception as e:
+            # Unlike updateinfo/filelists/other (where extra entries are
+            # harmless), an unfiltered modules.yaml would advertise module
+            # artifacts for packages that were filtered out, breaking downstream
+            # `dnf module` operations. Drop it rather than re-publish dangling
+            # metadata.
+            print(f"Warning: Failed to filter modules, dropping modules.yaml: {e}")
+            modules_path.unlink(missing_ok=True)
+            updated_metadata = published_metadata.copy()
+            updated_metadata.pop(modules_index)
+            return updated_metadata
 
     def _filter_and_regenerate_filelists(
         self,
@@ -735,6 +847,8 @@ class RpmPublisher(PublisherPlugin):
 
             # Compress it
             filtered_filelists_path = repodata_path / filelists_path.name
+            # Break the hardlink to the pool blob before overwriting in place.
+            filtered_filelists_path.unlink(missing_ok=True)
 
             # Determine compression based on extension
             if filelists_path.suffix == ".xz":
@@ -870,6 +984,8 @@ class RpmPublisher(PublisherPlugin):
 
             # Compress it
             filtered_other_path = repodata_path / other_path.name
+            # Break the hardlink to the pool blob before overwriting in place.
+            filtered_other_path.unlink(missing_ok=True)
 
             # Determine compression based on extension
             if other_path.suffix == ".xz":
