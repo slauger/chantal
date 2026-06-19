@@ -20,7 +20,7 @@ Chantal is a Python-based CLI tool for offline repository mirroring, inspired by
 
 - Version control (snapshots for rollback)
 - Efficient storage (deduplication across repos)
-- Support for multiple ecosystems (RPM, DEB/APT, PyPI)
+- Support for multiple ecosystems (RPM, DEB/APT, Helm, Alpine APK)
 - RHEL subscription support
 - Simple management
 
@@ -39,22 +39,9 @@ Chantal is a Python-based CLI tool for offline repository mirroring, inspired by
 +---------------------+----------------------------------+-------------------+
 | Alpine APK          | Alpine Linux packages            | ✅ **Available**  |
 +---------------------+----------------------------------+-------------------+
-| PyPI                | Python Package Index             | 🚧 Planned        |
-+---------------------+----------------------------------+-------------------+
-| npm/yarn            | Node.js package registries       | 🚧 Planned        |
-+---------------------+----------------------------------+-------------------+
-| RubyGems            | Ruby package registry            | 🔬 Research       |
-+---------------------+----------------------------------+-------------------+
-| NuGet               | .NET package registry            | 🔬 Research       |
-+---------------------+----------------------------------+-------------------+
-| Go Modules          | Go package repositories          | 🔬 Research       |
-+---------------------+----------------------------------+-------------------+
-| Terraform Provider  | Terraform provider registry      | 🔬 Research       |
-+---------------------+----------------------------------+-------------------+
 
-**Legend:** ✅ Available | 🚧 Planned | 🔬 Research Phase
-
-See `GitHub Issues <https://github.com/slauger/chantal/issues>`_ for details and progress.
+Additional package ecosystems are tracked on the
+`GitHub Issues <https://github.com/slauger/chantal/issues>`_ tracker.
 
 Features
 --------
@@ -65,8 +52,6 @@ Features
   - ✅ **DEB/APT** (Debian, Ubuntu) - *Available now*
   - ✅ **Helm Charts** (Kubernetes chart repositories) - *Available now*
   - ✅ **Alpine APK** (Alpine Linux packages) - *Available now*
-  - 🚧 **PyPI, npm** - *Planned*
-  - 🔬 **RubyGems, NuGet, Go Modules, Terraform** - *Research phase*
 
 - 📦 **Deduplication** - Content-addressed storage (SHA256), packages stored once
 - 📸 **Snapshots** - Immutable point-in-time repository states for patch management

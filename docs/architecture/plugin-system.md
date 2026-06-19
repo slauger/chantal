@@ -1,6 +1,6 @@
 # Plugin System
 
-Chantal uses a plugin architecture to support different repository types (RPM, DEB/APT, PyPI, etc.).
+Chantal uses a plugin architecture to support different repository types (RPM, DEB/APT, Helm, Alpine APK).
 
 ## Overview
 
@@ -96,39 +96,29 @@ class PublisherPlugin(ABC):
 - Creates hardlinks to pool
 - Compresses metadata with gzip
 
-**File:** `src/chantal/plugins/rpm.py`, `src/chantal/plugins/rpm_sync.py`
+**File:** `src/chantal/plugins/rpm/sync.py`, `src/chantal/plugins/rpm/publisher.py`
 
-### DEB/APT Plugin
+### APT/DEB Plugin
 
-**Status:** 🚧 Planned
+**Status:** ✅ Available
 
-**Sync Plugin:** `DebSyncPlugin` (planned)
-- Fetch `InRelease` / `Release`
-- Parse `Packages.gz`
-- Download DEB packages
+**Sync Plugin:** `AptSyncPlugin`
+- Fetches `InRelease` / `Release`
+- Parses `Packages(.gz)`
+- Downloads DEB packages
 
-**Publisher Plugin:** `DebPublisher` (planned)
-- Generate `InRelease` / `Release`
-- Generate `Packages.gz`
-- Sign with GPG
+**Publisher Plugin:** `AptPublisher`
+- Generates `Packages` indices and the `Release` file
+- Signs metadata with GPG in filtered mode (`InRelease`, `Release.gpg`)
 
-**Challenges:**
-- APT signatures must remain valid
-- Complex metadata structure
-- Multiple compression formats
+**File:** `src/chantal/plugins/apt/sync.py`, `src/chantal/plugins/apt/publisher.py`
 
-### PyPI Plugin
+### Helm & Alpine APK Plugins
 
-**Status:** 🚧 Planned
+**Status:** ✅ Available
 
-**Sync Plugin:** `PypiSyncPlugin` (planned)
-- Fetch simple index (HTML)
-- Parse package links
-- Download wheels and source distributions
-
-**Publisher Plugin:** `PypiPublisher` (planned)
-- Generate simple index HTML
-- Generate JSON API (optional)
+- **Helm:** `HelmSyncPlugin` / `HelmPublisher` - HTTP and OCI registries, `index.yaml`
+- **APK:** `ApkSyncPlugin` / `ApkPublisher` - `APKINDEX.tar.gz`, RSA index signing
 
 ## Plugin Registration
 
@@ -139,14 +129,16 @@ Plugins are registered in the plugin registry:
 
 SYNC_PLUGINS = {
     'rpm': RpmSyncPlugin,
-    'apt': DebSyncPlugin,  # Future
-    'pypi': PypiSyncPlugin,  # Future
+    'apt': AptSyncPlugin,
+    'helm': HelmSyncPlugin,
+    'apk': ApkSyncPlugin,
 }
 
 PUBLISHER_PLUGINS = {
     'rpm': RpmPublisher,
-    'apt': DebPublisher,  # Future
-    'pypi': PypiPublisher,  # Future
+    'apt': AptPublisher,
+    'helm': HelmPublisher,
+    'apk': ApkPublisher,
 }
 ```
 
@@ -207,7 +199,7 @@ PUBLISHER_PLUGINS['my_type'] = MyPublisher
 ```python
 # In src/chantal/core/config.py
 class RepositoryConfig(BaseModel):
-    type: Literal['rpm', 'apt', 'pypi', 'my_type']
+    type: Literal['rpm', 'apt', 'helm', 'apk', 'my_type']
 ```
 
 ## Plugin Lifecycle

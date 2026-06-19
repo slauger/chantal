@@ -18,7 +18,7 @@ repositories:
 **Required Fields:**
 - `id`: Unique identifier (alphanumeric, hyphens, underscores)
 - `name`: Human-readable name
-- `type`: Repository type (`rpm`, `apt`, `helm`, `apk`, future: `pypi`, `npm`)
+- `type`: Repository type (`rpm`, `apt`, `helm`, `apk`)
 - `feed`: Upstream repository URL
 - `enabled`: Whether to include in `--all` operations
 
@@ -144,28 +144,13 @@ repositories:
 
 **Optional APT Configuration:**
 - `apt.include_source_packages`: Whether to sync source packages (default: false)
-- `mode`: Repository mode (currently only `mirror` supported, `filtered` planned for Phase 2)
+- `mode`: Repository mode (`mirror`, `filtered`, or `hosted`; defaults to `filtered`)
 
 **Feed URL Requirements:**
 - Must point to APT repository base URL
 - Distribution Release file location: `{feed}/dists/{distribution}/Release`
 
 See [APT Plugin Documentation](../plugins/apt-plugin.md) for detailed examples and configuration options.
-
-### PyPI Repositories (Future)
-
-For Python package mirroring:
-
-```yaml
-repositories:
-  - id: pypi-mirror
-    name: PyPI Mirror
-    type: pypi
-    feed: https://pypi.org/simple/
-    enabled: true
-```
-
-**Note:** PyPI support is planned for v2.0.
 
 ## Advanced Options
 

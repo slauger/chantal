@@ -262,7 +262,7 @@ Update `src/chantal/core/config.py`:
 class RepositoryConfig(BaseModel):
     id: str
     name: str
-    type: Literal['rpm', 'apt', 'pypi', 'my_type']  # Add your type
+    type: Literal['rpm', 'apt', 'helm', 'apk', 'my_type']  # Add your type
     feed: str
     enabled: bool = True
     # ... other fields
