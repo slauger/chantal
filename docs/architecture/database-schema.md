@@ -51,7 +51,7 @@ Configured repositories from YAML.
 class Repository(Base):
     id: str               # Primary key (from config)
     name: str             # Human-readable name
-    type: str             # Repository type (rpm, apt, pypi)
+    type: str             # Repository type (rpm, apt, helm, apk)
     feed_url: str         # Upstream URL
     enabled: bool         # Whether enabled
 

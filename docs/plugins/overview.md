@@ -4,7 +4,7 @@ Chantal's plugin architecture enables support for different repository types.
 
 ## What are Plugins?
 
-Plugins extend Chantal to support different repository types like RPM, DEB/APT, PyPI, etc. Each repository type requires two types of plugins:
+Plugins extend Chantal to support different repository types: RPM, DEB/APT, Helm, and Alpine APK. Each repository type requires two types of plugins:
 
 1. **Sync Plugin** - Downloads and stores packages from upstream
 2. **Publisher Plugin** - Creates publishable repositories with correct metadata
@@ -17,8 +17,8 @@ Plugins extend Chantal to support different repository types like RPM, DEB/APT, 
 | [APT/DEB](apt-plugin.md) | Sync + Publisher | ✅ Available | Debian/Ubuntu APT repositories |
 | [Helm](helm-plugin.md) | Sync + Publisher | ✅ Available | Kubernetes Helm chart repositories |
 | [Alpine APK](apk-plugin.md) | Sync + Publisher | ✅ Available | Alpine Linux package repositories |
-| PyPI | Sync + Publisher | 🚧 Planned | Python Package Index |
-| npm | Sync + Publisher | 🚧 Planned | Node.js package repositories |
+
+Additional package ecosystems are tracked on the [GitHub Issues](https://github.com/slauger/chantal/issues) tracker.
 
 ## Plugin Architecture
 
@@ -93,15 +93,17 @@ For Debian/Ubuntu-based distributions.
 
 **See:** [APT Plugin Documentation](apt-plugin.md)
 
-### PyPI Plugin (Planned)
+### Helm Plugin
 
-For Python Package Index mirroring.
+For Kubernetes Helm chart repositories (HTTP and OCI registries).
 
-**Planned features:**
-- Simple Index API (PEP 503)
-- Wheel and source distribution support
-- JSON API generation
-- Requirements.txt filtering
+**See:** [Helm Plugin Documentation](helm-plugin.md)
+
+### Alpine APK Plugin
+
+For Alpine Linux package repositories.
+
+**See:** [Alpine APK Plugin Documentation](apk-plugin.md)
 
 ## Creating Custom Plugins
 

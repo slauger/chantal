@@ -27,7 +27,7 @@ Chantal follows a clean, modular architecture designed for simplicity and extens
                      │
 ┌────────────────────▼────────────────────────────────────┐
 │                 Plugin Layer                            │
-│  • Sync Plugins (RPM, APT, PyPI)                        │
+│  • Sync Plugins (RPM, APT, Helm, APK)                   │
 │  • Publisher Plugins (metadata generation)              │
 └────────────────────┬────────────────────────────────────┘
                      │
@@ -139,8 +139,9 @@ pool/
 
 **Plugins:**
 - `RpmSyncPlugin` - RPM/DNF/YUM repositories
-- `DebSyncPlugin` - APT repositories (future)
-- `PypiSyncPlugin` - Python Package Index (future)
+- `AptSyncPlugin` - Debian/Ubuntu APT repositories
+- `HelmSyncPlugin` - Helm chart repositories (HTTP and OCI)
+- `ApkSyncPlugin` - Alpine APK repositories
 
 **Key Files:**
 - `src/chantal/plugins/base.py` - Base plugin interface
