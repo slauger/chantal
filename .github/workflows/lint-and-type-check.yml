@@ -98,4 +98,4 @@ jobs:
       - name: Run end-to-end sync->publish test
         run: |
           echo "Running E2E sync->publish for ${{ matrix.plugin }}..."
-          pytest tests/e2e -v -m e2e -k ${{ matrix.plugin }}
+          pytest tests/e2e -v -s -m e2e -k ${{ matrix.plugin }}
