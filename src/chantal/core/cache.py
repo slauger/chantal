@@ -87,13 +87,22 @@ class MetadataCache:
         logger.info(f"Cache hit for {file_type}: {checksum[:16]}...")
         return cache_file
 
-    def put(self, checksum: str, content: bytes, file_type: str = "metadata") -> Path:
+    def put(
+        self,
+        checksum: str,
+        content: bytes,
+        file_type: str = "metadata",
+        algorithm: str = "sha256",
+    ) -> Path:
         """Store file in cache.
 
         Args:
-            checksum: SHA256 checksum of the file
+            checksum: Checksum of the file (used as the cache key)
             content: File content (compressed .xml.gz)
             file_type: Type hint for logging
+            algorithm: hashlib algorithm name the checksum was computed with
+                (e.g. "sha256", "sha512", "sha1"). Repositories may publish
+                metadata checksums in algorithms other than sha256.
 
         Returns:
             Path to cached file
@@ -107,9 +116,9 @@ class MetadataCache:
 
         cache_file = self.cache_path / f"{checksum}.xml.gz"
 
-        # Verify checksum matches content
-        actual_checksum = hashlib.sha256(content).hexdigest()
-        if actual_checksum != checksum:
+        # Verify checksum matches content (using the declared algorithm).
+        actual_checksum = hashlib.new(algorithm, content).hexdigest()
+        if actual_checksum.lower() != checksum.lower():
             logger.warning(
                 f"Checksum mismatch: expected {checksum[:16]}..., got {actual_checksum[:16]}..."
             )
