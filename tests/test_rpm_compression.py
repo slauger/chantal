@@ -217,8 +217,7 @@ class TestCompressionRatios:
     """Test compression effectiveness."""
 
     # XML data compresses well
-    TEST_XML = (
-        b"""<?xml version="1.0" encoding="UTF-8"?>
+    TEST_XML = b"""<?xml version="1.0" encoding="UTF-8"?>
 <metadata xmlns="http://linux.duke.edu/metadata/common" packages="100">
     <package type="rpm">
         <name>nginx</name>
@@ -229,9 +228,7 @@ class TestCompressionRatios:
         <description>Nginx is a web server with a strong focus on high concurrency, performance and low memory usage.</description>
     </package>
 </metadata>
-"""
-        * 100
-    )  # Repeat to make it larger
+""" * 100  # Repeat to make it larger
 
     def test_gzip_compresses(self) -> None:
         """Test that gzip actually compresses."""
