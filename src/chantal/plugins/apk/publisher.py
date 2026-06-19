@@ -17,8 +17,9 @@ from sqlalchemy.orm import Session
 
 from chantal.core.config import RepositoryConfig
 from chantal.core.storage import StorageManager
-from chantal.db.models import ContentItem, Repository, Snapshot
+from chantal.db.models import ContentItem, Repository, RepositoryMode, Snapshot
 from chantal.plugins.apk.models import ApkMetadata
+from chantal.plugins.apk.signing import ApkSigner, ApkSigningError
 from chantal.plugins.base import PublisherPlugin
 
 logger = logging.getLogger(__name__)
@@ -140,7 +141,34 @@ class ApkPublisher(PublisherPlugin):
             session, repository, arch_path, config, packages, snapshot=snapshot
         )
 
+        # In filtered mode the regenerated APKINDEX invalidates any upstream
+        # signature. Sign it with our RSA key when configured so clients can
+        # verify it without --allow-untrusted. Mirror mode keeps upstream as-is.
+        if repository.mode == RepositoryMode.FILTERED:
+            gpg_config = config.gpg
+            if gpg_config is not None and gpg_config.enabled:
+                self._sign_index(arch_path / "APKINDEX.tar.gz", target_path, config)
+
         logger.info(f"Published {len(packages)} packages to {arch_path}")
+
+    def _sign_index(self, index_path: Path, target_path: Path, config: RepositoryConfig) -> None:
+        """Sign the APKINDEX.tar.gz with RSA and publish the public key.
+
+        Args:
+            index_path: Path to the generated APKINDEX.tar.gz.
+            target_path: Repository root where the public key is published.
+            config: Repository configuration (gpg section + display name).
+        """
+        gpg_config = config.gpg
+        assert gpg_config is not None
+        try:
+            signer = ApkSigner(gpg_config, default_name=config.display_name)
+            outputs = signer.sign_index_file(index_path, repo_root=target_path)
+            logger.info(f"Signed APKINDEX.tar.gz with RSA key '{signer.key_name}'")
+            for name in outputs:
+                logger.info(f"Published {name}")
+        except ApkSigningError as exc:
+            raise RuntimeError(f"APK signing failed for repo '{config.id}': {exc}") from exc
 
     def _publish_metadata_files(
         self,
@@ -164,6 +192,13 @@ class ApkPublisher(PublisherPlugin):
             packages: List of packages (for fallback generation)
             snapshot: Optional snapshot model instance
         """
+        # In filtered mode the published package set differs from upstream, so
+        # always regenerate the index (never hardlink the upstream APKINDEX -
+        # that would also be unsafe to sign, since it shares the pool inode).
+        if repository.mode == RepositoryMode.FILTERED:
+            self._generate_apkindex(packages, arch_path)
+            return
+
         # Find APKINDEX.tar.gz RepositoryFile
         apkindex_file = None
 

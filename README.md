@@ -31,7 +31,7 @@ A Python-based CLI tool for offline repository mirroring, inspired by pulp-admin
 - 🔐 **RHEL CDN Support** - Client certificate authentication for Red Hat repos
 - 🎯 **Smart Filtering** - Pattern-based package filtering with post-processing
 - 🪞 **Mirror & Filtered Modes** - Full metadata mirroring or filtered repos with regenerated metadata
-- 🔏 **GPG Metadata Signing** - Sign regenerated metadata in filtered mode: APT (InRelease/Release.gpg) and RPM (repomd.xml.asc) so clients can verify the repo
+- 🔏 **Metadata Signing** - Sign regenerated metadata in filtered mode: APT (InRelease/Release.gpg), RPM (repomd.xml.asc) and APK (RSA-signed APKINDEX) so clients can verify the repo
 - ⚡ **Fast Updates** - Check for updates without downloading (like `dnf check-update`)
 - 🚀 **Metadata Caching** - SHA256-based cache for RPM metadata (90-95% faster syncs for RHEL)
 

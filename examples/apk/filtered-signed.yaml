@@ -1,0 +1,49 @@
+# Filtered Alpine APK repository with RSA index signing
+#
+# In filtered mode Chantal regenerates APKINDEX.tar.gz for the filtered package
+# set, which invalidates any upstream signature. A `gpg` section makes Chantal
+# sign the regenerated index with an RSA key (APK's own scheme, like
+# abuild-sign - NOT GnuPG) so clients can verify it without --allow-untrusted.
+#
+# Signing is OPTIONAL: without a `gpg` section the index is published unsigned
+# (clients then need `apk --allow-untrusted`).
+#
+# Publishing produces:
+#   <branch>/<repo>/<arch>/APKINDEX.tar.gz   - signed (.SIGN.RSA256.<name> prepended)
+#   <name>.rsa.pub                           - public key for client distribution
+#
+# Client:
+#   wget -O /etc/apk/keys/chantal.rsa.pub \
+#     http://mirror.example.com/repos/alpine-edge-web/chantal.rsa.pub
+#   echo "http://mirror.example.com/repos/alpine-edge-web/edge/main" \
+#     >> /etc/apk/repositories
+#   apk update
+
+repositories:
+  - id: alpine-edge-web
+    name: "Alpine edge - Web (signed, filtered)"
+    type: apk
+    feed: "https://dl-cdn.alpinelinux.org/alpine/edge/main"
+    enabled: true
+    mode: filtered
+
+    apk:
+      branch: edge
+      repository: main
+      architecture: x86_64
+
+    filters:
+      patterns:
+        include:
+          - "^nginx.*"
+
+    # --- RSA index signing (optional) ---------------------------------------
+    gpg:
+      # RSA private key in PEM form
+      key_file: /etc/chantal/keys/alpine.rsa
+      passphrase_file: /etc/chantal/keys/passphrase.txt
+      public_key_name: chantal.rsa.pub   # published at the repo root
+
+      # Alternative: let Chantal generate an RSA keypair on first publish
+      # generate_key: true
+      # key_name: chantal
