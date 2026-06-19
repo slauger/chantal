@@ -189,6 +189,12 @@ class AptSyncPlugin:
                     logger.error(f"Failed to parse Packages file: {e}")
                     continue
 
+                # Component comes from the repository layout, not the Packages
+                # stanza - propagate it onto each package.
+                for pkg in packages:
+                    if not pkg.component:
+                        pkg.component = metadata_info.component
+
                 self.output.verbose(f"  Found {len(packages)} packages")
                 all_packages.extend(packages)
 

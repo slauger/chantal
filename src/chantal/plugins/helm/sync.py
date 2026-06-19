@@ -166,7 +166,7 @@ class HelmSyncer:
                     sha256=sha256,
                     filename=Path(chart_url).name,
                     size_bytes=size,
-                    pool_path=pool_path,
+                    pool_path=str(pool_path),
                     content_type="helm",
                     content_metadata=metadata.model_dump(mode="json"),
                 )
