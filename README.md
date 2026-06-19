@@ -69,7 +69,7 @@ cd chantal
 pip install -e .
 ```
 
-**Requirements:** Python 3.10+, PostgreSQL or SQLite
+**Requirements:** Python 3.12+, PostgreSQL or SQLite
 
 ### Basic Usage
 

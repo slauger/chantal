@@ -217,7 +217,7 @@ pool/
 ## Technology Stack
 
 ### Runtime
-- **Python 3.10+** - Required for Path.hardlink_to()
+- **Python 3.12+** - Required for Path.hardlink_to()
 - **SQLAlchemy** - Database ORM
 - **Alembic** - Database migrations
 - **Click** - CLI framework

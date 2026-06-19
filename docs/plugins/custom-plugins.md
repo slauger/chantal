@@ -11,7 +11,7 @@ Custom plugins allow you to extend Chantal to support new repository types. Each
 
 ## Prerequisites
 
-- Python 3.10+
+- Python 3.12+
 - Understanding of Chantal's architecture
 - Knowledge of target repository format
 

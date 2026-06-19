@@ -1,6 +1,6 @@
 """Tests for Views functionality."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from sqlalchemy import create_engine
@@ -400,7 +400,7 @@ def test_view_publish_state(db_session):
 
     # Mark as published
     view.is_published = True
-    view.published_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    view.published_at = datetime.now(UTC).replace(tzinfo=None)
     view.published_path = "/var/www/repos/views/test-view/latest"
     db_session.commit()
 
@@ -430,7 +430,7 @@ def test_view_snapshot_publish_state(db_session):
 
     # Mark as published
     view_snapshot.is_published = True
-    view_snapshot.published_at = datetime.now(timezone.utc).replace(tzinfo=None)
+    view_snapshot.published_at = datetime.now(UTC).replace(tzinfo=None)
     view_snapshot.published_path = "/var/www/repos/views/test-view/snapshots/snapshot-1"
     db_session.commit()
 

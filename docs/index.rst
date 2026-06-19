@@ -8,8 +8,8 @@ Chantal Documentation
 .. image:: https://img.shields.io/badge/version-1.0-blue
    :alt: Version 1.0
 
-.. image:: https://img.shields.io/badge/python-3.10+-blue
-   :alt: Python 3.10+
+.. image:: https://img.shields.io/badge/python-3.12+-blue
+   :alt: Python 3.12+
 
 Overview
 --------

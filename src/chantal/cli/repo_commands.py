@@ -2,7 +2,7 @@ from __future__ import annotations
 
 """Repository management commands."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import click
 from sqlalchemy.orm import Session
@@ -1085,7 +1085,7 @@ def _sync_single_repository(
         # Create sync history entry
         sync_history = SyncHistory(
             repository_id=repository.id,
-            started_at=datetime.now(timezone.utc),
+            started_at=datetime.now(UTC),
             status="running",
         )
         session.add(sync_history)
@@ -1103,7 +1103,7 @@ def _sync_single_repository(
             rpm_result = sync_plugin.sync_repository(session, repository)
 
             # Update sync history with results
-            sync_history.completed_at = datetime.now(timezone.utc)
+            sync_history.completed_at = datetime.now(UTC)
             if rpm_result.success:
                 sync_history.status = "success"
                 sync_history.packages_added = rpm_result.packages_downloaded
@@ -1112,7 +1112,7 @@ def _sync_single_repository(
                 sync_history.bytes_downloaded = rpm_result.bytes_downloaded
 
                 # Update last sync timestamp
-                repository.last_sync_at = datetime.now(timezone.utc)
+                repository.last_sync_at = datetime.now(UTC)
                 session.commit()
 
                 click.echo("\n✓ Sync completed successfully!")
@@ -1129,7 +1129,7 @@ def _sync_single_repository(
                 click.echo(f"\n✗ Sync failed: {rpm_result.error_message}", err=True)
 
         except Exception as e:
-            sync_history.completed_at = datetime.now(timezone.utc)
+            sync_history.completed_at = datetime.now(UTC)
             sync_history.status = "failed"
             sync_history.error_message = str(e)
             session.commit()
@@ -1140,7 +1140,7 @@ def _sync_single_repository(
         # Create sync history entry
         sync_history = SyncHistory(
             repository_id=repository.id,
-            started_at=datetime.now(timezone.utc),
+            started_at=datetime.now(UTC),
             status="running",
         )
         session.add(sync_history)
@@ -1157,7 +1157,7 @@ def _sync_single_repository(
             stats = helm_syncer.sync_repository(session, repository, repo_config)
 
             # Update sync history with results
-            sync_history.completed_at = datetime.now(timezone.utc)
+            sync_history.completed_at = datetime.now(UTC)
             sync_history.status = "success"
             sync_history.packages_added = stats["charts_added"]
             sync_history.packages_updated = stats["charts_updated"]
@@ -1165,7 +1165,7 @@ def _sync_single_repository(
             sync_history.bytes_downloaded = stats["bytes_downloaded"]
 
             # Update last sync timestamp
-            repository.last_sync_at = datetime.now(timezone.utc)
+            repository.last_sync_at = datetime.now(UTC)
             session.commit()
 
             # Display result
@@ -1176,7 +1176,7 @@ def _sync_single_repository(
             click.echo(f"  Data transferred: {stats['bytes_downloaded'] / 1024 / 1024:.2f} MB")
 
         except Exception as e:
-            sync_history.completed_at = datetime.now(timezone.utc)
+            sync_history.completed_at = datetime.now(UTC)
             sync_history.status = "failed"
             sync_history.error_message = str(e)
             session.commit()
@@ -1187,7 +1187,7 @@ def _sync_single_repository(
         # Create sync history entry
         sync_history = SyncHistory(
             repository_id=repository.id,
-            started_at=datetime.now(timezone.utc),
+            started_at=datetime.now(UTC),
             status="running",
         )
         session.add(sync_history)
@@ -1204,7 +1204,7 @@ def _sync_single_repository(
             stats = apk_syncer.sync_repository(session, repository, repo_config)
 
             # Update sync history with results
-            sync_history.completed_at = datetime.now(timezone.utc)
+            sync_history.completed_at = datetime.now(UTC)
             sync_history.status = "success"
             sync_history.packages_added = stats["packages_added"]
             sync_history.packages_updated = stats["packages_updated"]
@@ -1212,7 +1212,7 @@ def _sync_single_repository(
             sync_history.bytes_downloaded = stats["bytes_downloaded"]
 
             # Update last sync timestamp
-            repository.last_sync_at = datetime.now(timezone.utc)
+            repository.last_sync_at = datetime.now(UTC)
             session.commit()
 
             # Display result
@@ -1227,7 +1227,7 @@ def _sync_single_repository(
                 )
 
         except Exception as e:
-            sync_history.completed_at = datetime.now(timezone.utc)
+            sync_history.completed_at = datetime.now(UTC)
             sync_history.status = "failed"
             sync_history.error_message = str(e)
             session.commit()
@@ -1238,7 +1238,7 @@ def _sync_single_repository(
         # Create sync history entry
         sync_history = SyncHistory(
             repository_id=repository.id,
-            started_at=datetime.now(timezone.utc),
+            started_at=datetime.now(UTC),
             status="running",
         )
         session.add(sync_history)
@@ -1255,7 +1255,7 @@ def _sync_single_repository(
             apt_result = apt_syncer.sync_repository(session, repository)
 
             # Update sync history with results
-            sync_history.completed_at = datetime.now(timezone.utc)
+            sync_history.completed_at = datetime.now(UTC)
             if apt_result.success:
                 sync_history.status = "success"
                 sync_history.packages_added = apt_result.packages_downloaded
@@ -1264,7 +1264,7 @@ def _sync_single_repository(
                 sync_history.bytes_downloaded = apt_result.bytes_downloaded
 
                 # Update last sync timestamp
-                repository.last_sync_at = datetime.now(timezone.utc)
+                repository.last_sync_at = datetime.now(UTC)
                 session.commit()
 
                 click.echo("\n✓ APT sync completed successfully!")
@@ -1282,7 +1282,7 @@ def _sync_single_repository(
                 click.echo(f"\n✗ APT sync failed: {apt_result.error_message}")
 
         except Exception as e:
-            sync_history.completed_at = datetime.now(timezone.utc)
+            sync_history.completed_at = datetime.now(UTC)
             sync_history.status = "failed"
             sync_history.error_message = str(e)
             session.commit()
