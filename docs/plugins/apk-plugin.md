@@ -24,7 +24,7 @@ The APK plugin consists of:
 - ✅ Multi-architecture support (x86_64, aarch64, armhf, armv7, x86)
 - ✅ **Mirror Mode** - Byte-for-byte identical repositories with snapshot versioning
 - ✅ RSA signing of the regenerated APKINDEX.tar.gz in filtered mode
-- 🚧 Package (.apk) signing/verification - Planned
+- ℹ️ Individual `.apk` packages are served unmodified and keep their upstream signatures (Chantal does not re-sign packages)
 
 ## Index Signing (Filtered Mode)
 
