@@ -92,6 +92,33 @@ def stats(ctx: click.Context, repo_id: str) -> None:
 
 # ============================================================================
 # Register Command Groups
+@cli.command("schema")
+@click.option(
+    "--output",
+    "-o",
+    type=click.Path(path_type=Path),
+    default=None,
+    help="Write the schema to this file instead of stdout.",
+)
+def schema(output: Path | None) -> None:
+    """Output the JSON Schema for the configuration file.
+
+    The schema is generated from the configuration models and can be used by
+    editors (e.g. the VS Code YAML extension) to validate and autocomplete
+    config.yaml files.
+    """
+    import json
+
+    from chantal.core.config import generate_json_schema
+
+    text = json.dumps(generate_json_schema(), indent=2) + "\n"
+    if output:
+        output.write_text(text, encoding="utf-8")
+        click.echo(f"Wrote configuration schema to {output}")
+    else:
+        click.echo(text, nl=False)
+
+
 # ============================================================================
 
 # Register all command groups

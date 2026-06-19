@@ -16,7 +16,7 @@ repositories:
 
     # Retention policy
     retention:
-      policy: keep_latest  # Keep only recent versions
+      policy: keep-last-n  # Keep only recent versions
       keep_count: 3  # Keep last 3 versions for rollback
 
     # Sync schedule (optional)

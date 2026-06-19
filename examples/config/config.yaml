@@ -1,6 +1,12 @@
+# yaml-language-server: $schema=../../docs/schema/chantal-config.schema.json
 # Chantal Configuration Example
 # This is the main configuration file for Chantal.
 # Copy to /etc/chantal/config.yaml or ~/.config/chantal/config.yaml
+#
+# The modeline above enables validation and autocompletion in editors that
+# support JSON Schema for YAML (e.g. the VS Code "YAML" extension by Red Hat).
+# For configs outside this repo, point $schema at the raw URL instead - see
+# docs/schema/README.md.
 
 # Database configuration
 database:

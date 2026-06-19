@@ -1,0 +1,1421 @@
+{
+  "$defs": {
+    "ApkConfig": {
+      "description": "Alpine APK-specific configuration.",
+      "properties": {
+        "branch": {
+          "title": "Branch",
+          "type": "string"
+        },
+        "repository": {
+          "default": "main",
+          "title": "Repository",
+          "type": "string"
+        },
+        "architecture": {
+          "default": "x86_64",
+          "title": "Architecture",
+          "type": "string"
+        }
+      },
+      "required": [
+        "branch"
+      ],
+      "title": "ApkConfig",
+      "type": "object"
+    },
+    "AptConfig": {
+      "description": "APT/DEB-specific configuration.",
+      "properties": {
+        "distribution": {
+          "title": "Distribution",
+          "type": "string"
+        },
+        "components": {
+          "description": "Repository components (main, restricted, universe, multiverse, contrib, non-free)",
+          "items": {
+            "type": "string"
+          },
+          "title": "Components",
+          "type": "array"
+        },
+        "architectures": {
+          "description": "Architectures to mirror (amd64, arm64, i386, armhf, all)",
+          "items": {
+            "type": "string"
+          },
+          "title": "Architectures",
+          "type": "array"
+        },
+        "include_source_packages": {
+          "default": false,
+          "description": "Include source packages (.dsc, .orig.tar.gz, etc.)",
+          "title": "Include Source Packages",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "distribution"
+      ],
+      "title": "AptConfig",
+      "type": "object"
+    },
+    "AuthConfig": {
+      "description": "Repository authentication configuration.",
+      "properties": {
+        "type": {
+          "title": "Type",
+          "type": "string"
+        },
+        "cert_dir": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cert Dir"
+        },
+        "cert_file": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cert File"
+        },
+        "key_file": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Key File"
+        },
+        "username": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Username"
+        },
+        "password": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Password"
+        },
+        "token": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Token"
+        },
+        "headers": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Headers"
+        },
+        "verify_ssl": {
+          "default": true,
+          "title": "Verify Ssl",
+          "type": "boolean"
+        },
+        "ca_bundle": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ca Bundle"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "AuthConfig",
+      "type": "object"
+    },
+    "CacheConfig": {
+      "description": "Metadata cache configuration.",
+      "properties": {
+        "enabled": {
+          "default": false,
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "max_age_hours": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Age Hours"
+        }
+      },
+      "title": "CacheConfig",
+      "type": "object"
+    },
+    "DatabaseConfig": {
+      "description": "Database configuration.",
+      "properties": {
+        "url": {
+          "default": "sqlite:///chantal.db",
+          "title": "Url",
+          "type": "string"
+        },
+        "pool_size": {
+          "default": 5,
+          "title": "Pool Size",
+          "type": "integer"
+        },
+        "max_overflow": {
+          "default": 10,
+          "title": "Max Overflow",
+          "type": "integer"
+        },
+        "echo": {
+          "default": false,
+          "title": "Echo",
+          "type": "boolean"
+        }
+      },
+      "title": "DatabaseConfig",
+      "type": "object"
+    },
+    "DebFilterConfig": {
+      "description": "DEB/APT-specific filters (future support).",
+      "properties": {
+        "components": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ListFilterConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "priorities": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ListFilterConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "sections": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ListFilterConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "DebFilterConfig",
+      "type": "object"
+    },
+    "DownloadConfig": {
+      "description": "Download configuration for file downloads.",
+      "properties": {
+        "backend": {
+          "default": "requests",
+          "title": "Backend",
+          "type": "string"
+        },
+        "parallel": {
+          "default": 1,
+          "title": "Parallel",
+          "type": "integer"
+        },
+        "timeout": {
+          "default": 300,
+          "title": "Timeout",
+          "type": "integer"
+        },
+        "retry_attempts": {
+          "default": 3,
+          "title": "Retry Attempts",
+          "type": "integer"
+        },
+        "verify_checksum": {
+          "default": true,
+          "title": "Verify Checksum",
+          "type": "boolean"
+        }
+      },
+      "title": "DownloadConfig",
+      "type": "object"
+    },
+    "FilterConfig": {
+      "description": "Package filtering configuration.\n\nSupports both new structure and legacy flat structure for backward compatibility.\n\nStructure:\n- metadata: Generic filters (all package types)\n- rpm/deb/helm: Plugin-specific filters\n- patterns: Generic regex patterns\n- post_processing: Applied after all filters",
+      "properties": {
+        "metadata": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GenericMetadataFilterConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "patterns": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PatternFilterConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "post_processing": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PostProcessingConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "rpm": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RpmFilterConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "deb": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DebFilterConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "include_packages": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Include Packages"
+        },
+        "exclude_packages": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Exclude Packages"
+        },
+        "include_architectures": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Include Architectures"
+        },
+        "exclude_architectures": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Exclude Architectures"
+        }
+      },
+      "title": "FilterConfig",
+      "type": "object"
+    },
+    "GenericMetadataFilterConfig": {
+      "description": "Generic metadata filters (work for all package types).",
+      "properties": {
+        "size_bytes": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SizeFilterConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "build_time": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TimeFilterConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "architectures": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ListFilterConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "GenericMetadataFilterConfig",
+      "type": "object"
+    },
+    "GpgConfig": {
+      "description": "GPG signing configuration for APT repositories.\n\nUsed to sign regenerated metadata (Release) in filtered mode so that\nclients can verify the repository without ``[trusted=yes]``.\n\nThe signing key can be provided in three ways (checked in this order):\n\n1. ``key_file`` - import a private (secret) key from an ASCII-armored file.\n2. ``key_id`` - use a key already present in the keyring / ``gnupg_home``.\n3. ``generate_key`` - generate a new keypair if none of the above is set.",
+      "properties": {
+        "enabled": {
+          "default": true,
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "key_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Key ID or fingerprint of the signing key to use",
+          "title": "Key Id"
+        },
+        "key_file": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Path to ASCII-armored private key file to import before signing",
+          "title": "Key File"
+        },
+        "passphrase": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Signing key passphrase (inline; prefer passphrase_file)",
+          "title": "Passphrase"
+        },
+        "passphrase_file": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Path to a file containing the signing key passphrase",
+          "title": "Passphrase File"
+        },
+        "gnupg_home": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "GNUPGHOME directory holding the keyring",
+          "title": "Gnupg Home"
+        },
+        "public_key_file": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Path to the public key to publish for clients (exported from the keyring if not set)",
+          "title": "Public Key File"
+        },
+        "public_key_name": {
+          "default": "key.gpg",
+          "description": "Filename of the published public key inside the repository root",
+          "title": "Public Key Name",
+          "type": "string"
+        },
+        "generate_key": {
+          "default": false,
+          "description": "Generate a new signing keypair if no key is provided",
+          "title": "Generate Key",
+          "type": "boolean"
+        },
+        "key_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Real name for a generated key (defaults to repository name)",
+          "title": "Key Name"
+        },
+        "key_email": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Email for a generated key (defaults to chantal@localhost)",
+          "title": "Key Email"
+        }
+      },
+      "title": "GpgConfig",
+      "type": "object"
+    },
+    "ListFilterConfig": {
+      "description": "Generic list-based filtering (include/exclude).",
+      "properties": {
+        "include": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Include"
+        },
+        "exclude": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Exclude"
+        }
+      },
+      "title": "ListFilterConfig",
+      "type": "object"
+    },
+    "MetadataConfig": {
+      "description": "Metadata generation configuration (RPM, APT, etc.).",
+      "properties": {
+        "compression": {
+          "default": "auto",
+          "description": "Compression format for generated metadata. 'auto' uses same as upstream.",
+          "enum": [
+            "auto",
+            "gzip",
+            "zstandard",
+            "bzip2",
+            "none"
+          ],
+          "title": "Compression",
+          "type": "string"
+        }
+      },
+      "title": "MetadataConfig",
+      "type": "object"
+    },
+    "PatternFilterConfig": {
+      "description": "Pattern-based filters (regex).",
+      "properties": {
+        "include": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Include"
+        },
+        "exclude": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Exclude"
+        }
+      },
+      "title": "PatternFilterConfig",
+      "type": "object"
+    },
+    "PostProcessingConfig": {
+      "description": "Post-processing configuration (applied after filtering).",
+      "properties": {
+        "only_latest_version": {
+          "default": false,
+          "title": "Only Latest Version",
+          "type": "boolean"
+        },
+        "only_latest_n_versions": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Only Latest N Versions"
+        }
+      },
+      "title": "PostProcessingConfig",
+      "type": "object"
+    },
+    "ProxyConfig": {
+      "description": "HTTP proxy configuration.",
+      "properties": {
+        "http_proxy": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Http Proxy"
+        },
+        "https_proxy": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Https Proxy"
+        },
+        "no_proxy": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "No Proxy"
+        },
+        "username": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Username"
+        },
+        "password": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Password"
+        }
+      },
+      "title": "ProxyConfig",
+      "type": "object"
+    },
+    "RepositoryConfig": {
+      "description": "Repository configuration.",
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "type": {
+          "title": "Type",
+          "type": "string"
+        },
+        "feed": {
+          "title": "Feed",
+          "type": "string"
+        },
+        "enabled": {
+          "default": true,
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "mode": {
+          "default": "filtered",
+          "enum": [
+            "mirror",
+            "filtered",
+            "hosted"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "tags": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Tags"
+        },
+        "auth": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AuthConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "latest_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Latest Path"
+        },
+        "snapshots_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Snapshots Path"
+        },
+        "retention": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RetentionConfig"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "schedule": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ScheduleConfig"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "filters": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FilterConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "proxy": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ProxyConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "ssl": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SSLConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "cache_enabled": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cache Enabled"
+        },
+        "apk": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ApkConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "apt": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AptConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "metadata": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MetadataConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Metadata generation configuration (compression, etc.)"
+        },
+        "gpg": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GpgConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "feed"
+      ],
+      "title": "RepositoryConfig",
+      "type": "object"
+    },
+    "RetentionConfig": {
+      "description": "Package retention policy configuration.",
+      "properties": {
+        "policy": {
+          "default": "mirror",
+          "title": "Policy",
+          "type": "string"
+        },
+        "keep_count": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Keep Count"
+        }
+      },
+      "title": "RetentionConfig",
+      "type": "object"
+    },
+    "RpmFilterConfig": {
+      "description": "RPM-specific filters.",
+      "properties": {
+        "exclude_source_rpms": {
+          "default": false,
+          "title": "Exclude Source Rpms",
+          "type": "boolean"
+        },
+        "groups": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ListFilterConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "licenses": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ListFilterConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "vendors": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ListFilterConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "epochs": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ListFilterConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "RpmFilterConfig",
+      "type": "object"
+    },
+    "SSLConfig": {
+      "description": "SSL/TLS configuration for HTTPS connections.",
+      "properties": {
+        "ca_bundle": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ca Bundle"
+        },
+        "ca_cert": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ca Cert"
+        },
+        "verify": {
+          "default": true,
+          "title": "Verify",
+          "type": "boolean"
+        },
+        "client_cert": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Client Cert"
+        },
+        "client_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Client Key"
+        }
+      },
+      "title": "SSLConfig",
+      "type": "object"
+    },
+    "ScheduleConfig": {
+      "description": "Repository sync schedule configuration.",
+      "properties": {
+        "enabled": {
+          "default": false,
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "cron": {
+          "default": "0 2 * * *",
+          "title": "Cron",
+          "type": "string"
+        },
+        "create_snapshot": {
+          "default": false,
+          "title": "Create Snapshot",
+          "type": "boolean"
+        },
+        "snapshot_name_template": {
+          "default": "{repo_id}-{date}",
+          "title": "Snapshot Name Template",
+          "type": "string"
+        }
+      },
+      "title": "ScheduleConfig",
+      "type": "object"
+    },
+    "SizeFilterConfig": {
+      "description": "Size-based filtering.",
+      "properties": {
+        "min": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Min"
+        },
+        "max": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max"
+        }
+      },
+      "title": "SizeFilterConfig",
+      "type": "object"
+    },
+    "StorageConfig": {
+      "description": "Storage paths configuration.",
+      "properties": {
+        "base_path": {
+          "default": "/var/lib/chantal",
+          "title": "Base Path",
+          "type": "string"
+        },
+        "pool_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pool Path"
+        },
+        "published_path": {
+          "default": "/var/www/repos",
+          "title": "Published Path",
+          "type": "string"
+        },
+        "temp_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Temp Path"
+        },
+        "cache_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cache Path"
+        }
+      },
+      "title": "StorageConfig",
+      "type": "object"
+    },
+    "TimeFilterConfig": {
+      "description": "Time-based filtering.",
+      "properties": {
+        "newer_than": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Newer Than"
+        },
+        "older_than": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Older Than"
+        },
+        "last_n_days": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last N Days"
+        }
+      },
+      "title": "TimeFilterConfig",
+      "type": "object"
+    },
+    "ViewConfig": {
+      "description": "View configuration - groups multiple repositories into one virtual repository.",
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "repos": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Repos",
+          "type": "array"
+        },
+        "publish_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Publish Path"
+        }
+      },
+      "required": [
+        "name",
+        "repos"
+      ],
+      "title": "ViewConfig",
+      "type": "object"
+    }
+  },
+  "description": "Global Chantal configuration.",
+  "properties": {
+    "database": {
+      "$ref": "#/$defs/DatabaseConfig"
+    },
+    "storage": {
+      "$ref": "#/$defs/StorageConfig"
+    },
+    "cache": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CacheConfig"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "proxy": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ProxyConfig"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "ssl": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SSLConfig"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "download": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DownloadConfig"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "gpg": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/GpgConfig"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "repositories": {
+      "items": {
+        "$ref": "#/$defs/RepositoryConfig"
+      },
+      "title": "Repositories",
+      "type": "array"
+    },
+    "views": {
+      "items": {
+        "$ref": "#/$defs/ViewConfig"
+      },
+      "title": "Views",
+      "type": "array"
+    },
+    "include": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Include"
+    }
+  },
+  "title": "Chantal Configuration",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/slauger/chantal/main/docs/schema/chantal-config.schema.json"
+}
