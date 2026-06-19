@@ -21,8 +21,8 @@ The Helm plugin consists of:
 - ✅ Chart deduplication via content-addressed storage
 - ✅ Snapshot support
 - ✅ **Mirror Mode** - Byte-for-byte identical repositories with snapshot versioning
-- 🚧 Chart signing/verification - Planned
-- 🚧 OCI registry support - Planned
+- ✅ OCI registry support (`oci://` chart repositories)
+- ℹ️ Charts are served unmodified; Chantal does not sign or re-sign charts (upstream Helm provenance `.prov` files are preserved if present)
 
 ## Repository Modes
 

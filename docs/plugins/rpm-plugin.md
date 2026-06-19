@@ -45,7 +45,10 @@ The RPM plugin consists of:
 
 **Planned:**
 - 🚧 Delta RPMs
-- 🚧 GPG signature verification of upstream packages during sync
+
+**Note:** RPM packages are served unmodified and keep their upstream signatures
+(verified client-side with `gpgcheck=1`). Chantal signs only the repository
+metadata (`repomd.xml.asc`) in filtered mode and does not re-sign packages.
 
 ## Configuration
 
