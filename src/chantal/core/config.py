@@ -726,6 +726,27 @@ class ConfigLoader:
         return all_repos, all_views
 
 
+def generate_json_schema() -> dict[str, Any]:
+    """Generate the JSON Schema for the Chantal configuration file.
+
+    The schema is derived from the :class:`GlobalConfig` Pydantic model, so it
+    is always in sync with the actual configuration validation. It can be used
+    by editors (e.g. the VS Code YAML extension) for validation and
+    autocompletion of ``config.yaml`` files.
+
+    Returns:
+        A JSON Schema (draft 2020-12) document as a dictionary.
+    """
+    schema = GlobalConfig.model_json_schema()
+    schema["$schema"] = "https://json-schema.org/draft/2020-12/schema"
+    schema["$id"] = (
+        "https://raw.githubusercontent.com/slauger/chantal/main/"
+        "docs/schema/chantal-config.schema.json"
+    )
+    schema["title"] = "Chantal Configuration"
+    return schema
+
+
 def load_config(config_path: Path | None = None) -> GlobalConfig:
     """Load configuration from file.
 

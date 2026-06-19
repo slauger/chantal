@@ -18,7 +18,7 @@ repositories:
           # Core build tools
           - "^build-base$"
           - "^gcc$"
-          - "^g++$"
+          - "^g\\+\\+$"
           - "^make$"
           - "^cmake$"
           - "^autoconf$"

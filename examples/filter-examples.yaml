@@ -87,7 +87,7 @@ repositories:
   # ========================================
   - id: example-deb
     name: DEB-Specific Filters Example
-    type: deb  # When APT support is added
+    type: apt
     feed: http://deb.debian.org/debian
     enabled: false
     filters:
