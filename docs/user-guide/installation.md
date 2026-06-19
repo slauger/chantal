@@ -2,7 +2,7 @@
 
 ## Requirements
 
-- **Python 3.10+** (required for `Path.hardlink_to()`)
+- **Python 3.12+** (required for `Path.hardlink_to()`)
 - **PostgreSQL or SQLite** (for metadata storage)
 
 ## Installation Steps

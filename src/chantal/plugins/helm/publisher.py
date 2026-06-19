@@ -9,7 +9,7 @@ This module implements publishing for Helm chart repositories.
 import logging
 import os
 import shutil
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -201,7 +201,7 @@ class HelmPublisher(PublisherPlugin):
         index: dict[str, Any] = {
             "apiVersion": "v1",
             "entries": {},
-            "generated": datetime.now(timezone.utc).replace(tzinfo=None).isoformat() + "Z",
+            "generated": datetime.now(UTC).replace(tzinfo=None).isoformat() + "Z",
         }
         entries: dict[str, list[dict[str, Any]]] = index["entries"]
 

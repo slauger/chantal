@@ -8,7 +8,7 @@ snapshots, and their relationships.
 """
 
 import enum
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import (
     JSON,
@@ -27,7 +27,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
-class RepositoryMode(str, enum.Enum):
+class RepositoryMode(enum.StrEnum):
     """Repository operation modes.
 
     - MIRROR: Full mirror, no filtering, metadata unchanged
@@ -52,7 +52,7 @@ def _utcnow() -> datetime:
     Replaces the deprecated ``datetime.utcnow`` while preserving the existing
     naive-UTC semantics used by all timestamp columns.
     """
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 # Association table for many-to-many relationship between repositories and content items

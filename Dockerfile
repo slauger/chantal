@@ -3,17 +3,17 @@
 # Build stage
 FROM registry.access.redhat.com/ubi9/ubi:latest AS builder
 
-# Install Python 3.11 and build dependencies
+# Install Python 3.12 and build dependencies
 RUN dnf install -y \
-    python3.11 \
-    python3.11-pip \
-    python3.11-devel \
+    python3.12 \
+    python3.12-pip \
+    python3.12-devel \
     gcc \
     postgresql-devel \
     && dnf clean all
 
 # Create virtual environment
-RUN python3.11 -m venv /opt/venv
+RUN python3.12 -m venv /opt/venv
 
 # Enable virtual environment
 ENV PATH="/opt/venv/bin:$PATH"
@@ -32,7 +32,7 @@ FROM registry.access.redhat.com/ubi9/ubi-minimal:latest
 
 # Install runtime dependencies
 RUN microdnf install -y \
-    python3.11 \
+    python3.12 \
     libpq \
     shadow-utils \
     && microdnf clean all

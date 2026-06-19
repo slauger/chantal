@@ -8,7 +8,7 @@ This module implements publishing for APT repositories with Debian package metad
 
 import hashlib
 import shutil
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from sqlalchemy.orm import Session
@@ -511,7 +511,7 @@ class AptPublisher(PublisherPlugin):
         release_lines.append(f"Codename: {self.apt_config.distribution}")
 
         # Date
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         # Format: "Thu, 12 Jan 2026 10:30:45 UTC"
         date_str = now.strftime("%a, %d %b %Y %H:%M:%S UTC")
         release_lines.append(f"Date: {date_str}")
