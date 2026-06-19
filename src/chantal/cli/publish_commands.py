@@ -429,6 +429,9 @@ def _publish_single_repository(
             click.echo(f"\n✗ Publishing failed: {e}", err=True)
             raise
     elif repo_config.type == "apk":
+        # Fall back to the global GPG/signing config if the repo has none.
+        if repo_config.gpg is None and global_config.gpg is not None:
+            repo_config.gpg = global_config.gpg
         apk_publisher = ApkPublisher(storage=storage)
         # Publish repository
         try:

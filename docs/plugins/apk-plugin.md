@@ -23,7 +23,72 @@ The APK plugin consists of:
 - ✅ Snapshot support
 - ✅ Multi-architecture support (x86_64, aarch64, armhf, armv7, x86)
 - ✅ **Mirror Mode** - Byte-for-byte identical repositories with snapshot versioning
-- 🚧 Package signing/verification - Planned
+- ✅ RSA signing of the regenerated APKINDEX.tar.gz in filtered mode
+- 🚧 Package (.apk) signing/verification - Planned
+
+## Index Signing (Filtered Mode)
+
+**Status:** ✅ Available
+
+In filtered mode the published package set differs from upstream, so Chantal
+**regenerates** `APKINDEX.tar.gz`. That invalidates any upstream signature, so
+configure a `gpg` section to have Chantal sign the regenerated index with an
+**RSA key** (APK's own signing scheme - *not* GPG).
+
+When signing is enabled, publishing produces:
+
+- a signed `APKINDEX.tar.gz` (a `.SIGN.RSA256.<name>` signature segment prepended
+  to the index), and
+- `<repo-root>/<name>.rsa.pub` - the public key for client distribution.
+
+> APK uses RSA index signing (like `abuild-sign`), independent of the GPG signing
+> used by the APT/RPM plugins. The `gpg` config block is reused as the generic
+> "signing" section; for APK its `key_file` is an **RSA private key (PEM)**.
+
+### Configuration
+
+```yaml
+repositories:
+  - id: alpine-edge-filtered
+    type: apk
+    feed: https://dl-cdn.alpinelinux.org/alpine/edge/main
+    mode: filtered
+    apk:
+      branch: edge
+      repository: main
+      architecture: x86_64
+    filters:
+      patterns:
+        include: ["^nginx.*"]
+    gpg:
+      # RSA private key (PEM); or set generate_key: true to create one
+      key_file: /etc/chantal/keys/alpine.rsa
+      passphrase_file: /etc/chantal/keys/passphrase.txt
+      public_key_name: chantal.rsa.pub   # published at the repo root
+```
+
+| Option | Meaning for APK |
+|--------|-----------------|
+| `enabled` | Enable/disable signing (default: `true`) |
+| `key_file` | RSA **private** key (PEM) to sign with |
+| `generate_key` | Generate an RSA keypair on demand |
+| `passphrase` / `passphrase_file` | Private key passphrase |
+| `public_key_name` | Published public key filename (default: `<key_name>.rsa.pub`) |
+
+### Client configuration
+
+Install the public key into the apk keyring, then use the repo normally:
+
+```bash
+wget -O /etc/apk/keys/chantal.rsa.pub \
+  http://mirror.example.com/repos/alpine-edge-filtered/chantal.rsa.pub
+echo "http://mirror.example.com/repos/alpine-edge-filtered/edge/main" \
+  >> /etc/apk/repositories
+apk update
+```
+
+(Without a configured key, the index is published unsigned and clients need
+`apk --allow-untrusted`.)
 
 ## Repository Modes
 

@@ -44,8 +44,11 @@ dependencies = [
     # Compression
     "zstandard>=0.23.0",  # >=0.23.0 includes type stubs
 
-    # GPG signing (APT filtered mode)
+    # GPG signing (APT/RPM filtered mode)
     "python-gnupg>=0.5.0",
+
+    # RSA signing of APK indexes (APKINDEX.tar.gz)
+    "cryptography>=42.0",
 
     # Progress & UI
     "tqdm>=4.66.0",
