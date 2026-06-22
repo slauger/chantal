@@ -7,7 +7,7 @@ This module provides Pydantic models for configuration validation and
 YAML-based configuration loading with include support.
 """
 
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, Literal
 
 import yaml
@@ -270,6 +270,19 @@ class SignatureVerificationConfig(BaseModel):
         description="Optional allow-list of full key fingerprints (pinning)",
     )
 
+    # Publish the trusted upstream key into the published repository so that
+    # downstream clients can verify the mirrored packages (gpgcheck=1). The
+    # mirrored .rpm files retain their upstream signatures, so clients need the
+    # upstream key. ``{repo_id}`` is substituted with the repository id; an empty
+    # value disables publishing. Relative subdirectories are supported.
+    client_key_name: str = Field(
+        "RPM-GPG-KEY-{repo_id}",
+        description=(
+            "Filename for the trusted upstream public key written into the "
+            "published repository root (empty disables; '{repo_id}' is substituted)"
+        ),
+    )
+
     # Keyring location (a private temporary one is used if unset)
     gnupg_home: str | None = None
 
@@ -296,6 +309,14 @@ class SignatureVerificationConfig(BaseModel):
             )
         if any(not fpr.strip() for fpr in self.trusted_fingerprints):
             raise ValueError("trusted_fingerprints must not contain empty entries")
+        name = self.client_key_name
+        if name:
+            pure = PurePosixPath(name)
+            if pure.is_absolute() or ".." in pure.parts:
+                raise ValueError(
+                    "client_key_name must be a relative path within the repository "
+                    "(no leading '/' or '..')"
+                )
         return self
 
 

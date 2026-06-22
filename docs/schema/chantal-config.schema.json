@@ -1205,6 +1205,12 @@
           "title": "Trusted Fingerprints",
           "type": "array"
         },
+        "client_key_name": {
+          "default": "RPM-GPG-KEY-{repo_id}",
+          "description": "Filename for the trusted upstream public key written into the published repository root (empty disables; '{repo_id}' is substituted)",
+          "title": "Client Key Name",
+          "type": "string"
+        },
         "gnupg_home": {
           "anyOf": [
             {

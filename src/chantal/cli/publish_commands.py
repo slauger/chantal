@@ -401,6 +401,9 @@ def _publish_single_repository(
         # Fall back to the global GPG signing config if the repo has none.
         if repo_config.gpg is None and global_config.gpg is not None:
             repo_config.gpg = global_config.gpg
+        # Fall back to the global verification config (trusted upstream keys).
+        if repo_config.verify is None and global_config.verify is not None:
+            repo_config.verify = global_config.verify
         rpm_publisher = RpmPublisher(storage=storage)
         # Publish repository
         try:
@@ -555,6 +558,9 @@ def _publish_repository_snapshot(
             # Fall back to the global GPG signing config if the repo has none.
             if repo_config.gpg is None and config.gpg is not None:
                 repo_config.gpg = config.gpg
+            # Fall back to the global verification config (trusted upstream keys).
+            if repo_config.verify is None and config.verify is not None:
+                repo_config.verify = config.verify
             rpm_publisher = RpmPublisher(storage=storage)
             # Publish snapshot
             try:
@@ -577,12 +583,21 @@ def _publish_repository_snapshot(
                 click.echo(f"  Packages directory: {target_path}/Packages")
                 click.echo(f"  Metadata directory: {target_path}/repodata")
                 click.echo()
+                client_key = None
+                if repo_config.verify is not None and repo_config.verify.enabled:
+                    client_key = (repo_config.verify.client_key_name or "").replace(
+                        "{repo_id}", repo_config.id
+                    )
                 click.echo("Configure your package manager:")
                 click.echo(f"  [{repository.repo_id}-snapshot-{snapshot}]")
                 click.echo(f"  name={repository.repo_id} Snapshot {snapshot}")
                 click.echo(f"  baseurl=file://{target_path}")
                 click.echo("  enabled=1")
-                click.echo("  gpgcheck=0")
+                if client_key:
+                    click.echo("  gpgcheck=1")
+                    click.echo(f"  gpgkey=file://{target_path}/{client_key}")
+                else:
+                    click.echo("  gpgcheck=0")
             except Exception as e:
                 click.echo(f"\n✗ Publishing failed: {e}", err=True)
                 raise
