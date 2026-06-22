@@ -10,7 +10,7 @@ Supports mirror mode (1:1 copy with all metadata and GPG signatures preserved).
 import logging
 import tempfile
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from urllib.parse import urljoin
 
 from sqlalchemy.orm import Session
@@ -637,6 +637,13 @@ class AptSyncPlugin:
 
         return metadata_files
 
+    @staticmethod
+    def _by_hash_url(dists_url: str, relative_path: str, checksum: str) -> str:
+        """Build the by-hash URL for an index (sibling ``by-hash/SHA256/<h>``)."""
+        parent = PurePosixPath(relative_path).parent
+        prefix = "" if str(parent) == "." else f"{parent}/"
+        return urljoin(dists_url, f"{prefix}by-hash/SHA256/{checksum}")
+
     def _download_metadata_file(
         self,
         session: Session,
@@ -663,9 +670,27 @@ class AptSyncPlugin:
             tmp_path = Path(tmp_file.name)
 
             try:
-                # Download file
-                response = self.session.get(metadata_url, timeout=120)
-                response.raise_for_status()
+                # Download file. With by-hash enabled, fetch the content-addressed
+                # copy first (atomic during upstream updates) and fall back to the
+                # plain path when upstream has no by-hash tree.
+                response = None
+                if self.apt_config.by_hash:
+                    by_hash_url = self._by_hash_url(
+                        dists_url, metadata_info.relative_path, metadata_info.checksum
+                    )
+                    try:
+                        candidate = self.session.get(by_hash_url, timeout=120)
+                        candidate.raise_for_status()
+                        response = candidate
+                    except Exception as by_hash_error:
+                        logger.debug(
+                            f"by-hash fetch failed for {metadata_info.relative_path}, "
+                            f"falling back to the plain path: {by_hash_error}"
+                        )
+                        response = None
+                if response is None:
+                    response = self.session.get(metadata_url, timeout=120)
+                    response.raise_for_status()
 
                 # Write to temp file
                 tmp_file.write(response.content)

@@ -28,6 +28,7 @@ The APT plugin consists of:
 - ✅ Source package mirroring (`.dsc` / `.orig.tar.*` / `.debian.tar.*`) + `Sources` regeneration
 - ✅ `Contents-<arch>` index mirroring (apt-file; mirror mode)
 - ✅ Translation/i18n mirroring (`i18n/Translation-*` + `i18n/Index`; mirror mode)
+- ✅ `by-hash` acquisition and publishing (`Acquire-By-Hash`)
 - ✅ Version filtering (only latest)
 
 **Metadata Support:**
@@ -179,6 +180,14 @@ The `apt` section in repository configuration supports these options:
     regenerating localized descriptions for the filtered set would require
     remapping each kept package's `Description-md5`; the full descriptions are
     already carried inline in the regenerated `Packages`.
+
+- **`by_hash`** (boolean, default: false)
+  - On **sync**, fetch each index from `by-hash/SHA256/<checksum>` (falling back
+    to the plain path when upstream has no by-hash tree) so a mirror stays
+    consistent while upstream is being updated.
+  - On **publish**, emit `by-hash/SHA256/<sha256>` copies of every regenerated
+    index (Packages/Sources/Contents/Translation) and set `Acquire-By-Hash: yes`
+    in the generated `Release`. Recommended `true` for modern apt clients.
 
 - **`flat_repository`** (boolean, default: false)
   - Support for flat repositories (no dists/ structure)

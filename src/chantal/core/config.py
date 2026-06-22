@@ -173,6 +173,15 @@ class AptConfig(BaseModel):
             "descriptions). Mirror mode only."
         ),
     )
+    by_hash: bool = Field(
+        default=False,
+        description=(
+            "Use/publish by-hash indices. On sync, fetch indices via "
+            "by-hash/SHA256/<checksum> (falling back to the plain path). On "
+            "publish, emit by-hash/SHA256/ copies and set Acquire-By-Hash: yes "
+            "in the generated Release."
+        ),
+    )
 
 
 class GpgConfig(BaseModel):

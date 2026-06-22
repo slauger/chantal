@@ -387,6 +387,21 @@ class TestReleaseFileParsing:
         ]
 
 
+class TestByHashUrl:
+    """Tests for by-hash URL construction."""
+
+    def test_nested_index(self):
+        url = AptSyncPlugin._by_hash_url(
+            "http://h/dists/jammy/", "main/binary-amd64/Packages.gz", "abc123"
+        )
+        assert url == "http://h/dists/jammy/main/binary-amd64/by-hash/SHA256/abc123"
+
+    def test_top_level_index(self):
+        # A suite-level file (parent == ".") must not get a "./" prefix.
+        url = AptSyncPlugin._by_hash_url("http://h/dists/jammy/", "Contents-amd64.gz", "deadbeef")
+        assert url == "http://h/dists/jammy/by-hash/SHA256/deadbeef"
+
+
 class TestMetadataFileInfo:
     """Tests for MetadataFileInfo dataclass."""
 
