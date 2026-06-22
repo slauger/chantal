@@ -91,7 +91,7 @@ def chantal_env(tmp_path: Path):
                 raise AssertionError(f"command failed ({' '.join(args)}): rc={result.returncode}")
             return result
 
-        def write_config(self, repo: dict) -> None:
+        def write_config(self, repo: dict, extra: dict | None = None) -> None:
             config = {
                 "database": {"url": f"sqlite:///{self.db_path}"},
                 "storage": {
@@ -101,6 +101,8 @@ def chantal_env(tmp_path: Path):
                 },
                 "repositories": [repo],
             }
+            if extra:
+                config.update(extra)
             self.config_path.write_text(yaml.safe_dump(config), encoding="utf-8")
             self.run("db", "init")
 

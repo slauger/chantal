@@ -317,8 +317,32 @@ repositories without their own). Options:
 | `key_files` / `keys` | Trusted public keys (file paths / inline ASCII-armored) |
 | `trusted_fingerprints` | Optional allow-list of key fingerprints (pinning) |
 | `on_missing_signature` / `on_invalid_signature` | `fail` (default), `warn`, or `skip` |
+| `client_key_name` | Filename of the trusted upstream key written into the published repo root (default `RPM-GPG-KEY-{repo_id}`; `{repo_id}` is substituted; empty disables) |
 
 At least one of `key_files` or `keys` is required when `enabled: true`.
+
+### Distributing the upstream key to clients
+
+The mirrored `.rpm` files keep their **upstream** signatures, so a downstream
+client that enables `gpgcheck=1` needs the upstream vendor's public key. When
+`verify` is enabled, chantal publishes the configured trust anchor(s) into the
+repository root as `RPM-GPG-KEY-<repo-id>` (in **both** mirror and filtered
+mode). Clients reference it via `gpgkey=`:
+
+```ini
+[rocky9-baseos]
+baseurl = http://mirror.example.com/repos/rocky9-baseos/
+gpgcheck = 1
+gpgkey = http://mirror.example.com/repos/rocky9-baseos/RPM-GPG-KEY-rocky9-baseos
+```
+
+Set `client_key_name: ""` to disable publishing (e.g. if you distribute the key
+out-of-band). Multiple trusted keys are concatenated into the one file.
+
+> **Trust note:** the published key travels over the same channel as the repo it
+> secures, so a man-in-the-middle on that channel could swap both. Serve the
+> mirror over HTTPS and/or import the key once out-of-band (e.g. via a
+> `*-release` RPM) for real authenticity rather than mere corruption-resistance.
 
 ## How It Works
 

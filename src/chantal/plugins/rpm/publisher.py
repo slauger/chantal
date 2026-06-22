@@ -195,6 +195,12 @@ class RpmPublisher(PublisherPlugin):
             if gpg_config is not None and gpg_config.enabled:
                 self._sign_repomd(repomd_path, target_path, gpg_config, config)
 
+        # Publish the trusted upstream key(s) so downstream clients can verify
+        # the mirrored packages (gpgcheck=1). Packages retain their upstream
+        # signatures in both mirror and filtered mode, so this is mode-agnostic.
+        if config is not None:
+            self._publish_upstream_key(target_path, config)
+
         # Publish kickstart/installer files
         kickstart_files = [rf for rf in repository_files if rf.file_category == "kickstart"]
 
@@ -224,6 +230,68 @@ class RpmPublisher(PublisherPlugin):
                     print(f"  ✓ Published {name}")
         except GpgSigningError as exc:
             raise RuntimeError(f"GPG signing failed for repo '{config.id}': {exc}") from exc
+
+    def _publish_upstream_key(self, target_path: Path, config: RepositoryConfig) -> None:
+        """Write the trusted upstream public key(s) into the repository root.
+
+        Downstream clients reference this file via ``gpgkey=`` to verify the
+        mirrored packages, which keep their upstream signatures. The key material
+        is the same trust anchor configured for sync-time verification
+        (``verify.key_files`` + ``verify.keys``); it is written verbatim as a
+        single (possibly multi-key) ASCII-armored file. No-op when verification
+        is not configured, disabled, has no key material, or the filename is
+        empty.
+
+        Args:
+            target_path: Repository root where the key file is written.
+            config: Repository configuration (provides ``verify`` and ``id``).
+        """
+        verify = config.verify
+        if verify is None or not verify.enabled:
+            return
+
+        key_name = (verify.client_key_name or "").replace("{repo_id}", config.id)
+        if not key_name:
+            # Publishing explicitly disabled.
+            return
+
+        # Confine the output to the repository tree (the literal name is also
+        # validated in config, but config.id substitution is guarded here too).
+        key_path = (target_path / key_name).resolve()
+        if not key_path.is_relative_to(target_path.resolve()):
+            raise ValueError(f"client_key_name escapes the repository root: {key_name!r}")
+
+        # Avoid clobbering the metadata-signing public key published by
+        # _sign_repomd (GpgConfig.public_key_name).
+        gpg_config = config.gpg
+        if gpg_config is not None and gpg_config.enabled:
+            signing_key_path = (target_path / gpg_config.public_key_name).resolve()
+            if key_path == signing_key_path:
+                print(
+                    f"  ! Skipping upstream key: client_key_name '{key_name}' collides with "
+                    f"the metadata-signing key '{gpg_config.public_key_name}'"
+                )
+                return
+
+        blocks: list[str] = []
+        for key_file in verify.key_files:
+            path = Path(key_file)
+            if not path.is_file():
+                raise FileNotFoundError(f"Trusted key file not found: {key_file}")
+            text = path.read_text(encoding="utf-8").strip()
+            if text:
+                blocks.append(text)
+        for inline in verify.keys:
+            text = inline.strip()
+            if text:
+                blocks.append(text)
+
+        if not blocks:
+            return
+
+        key_path.parent.mkdir(parents=True, exist_ok=True)
+        key_path.write_text("\n".join(blocks) + "\n", encoding="utf-8")
+        print(f"  ✓ Published upstream trusted key {key_name}")
 
     def _detect_upstream_compression(
         self, repository_files: list[RepositoryFile]
