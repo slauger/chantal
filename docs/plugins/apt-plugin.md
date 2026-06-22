@@ -26,6 +26,7 @@ The APT plugin consists of:
 - ✅ Component filtering (main, contrib, non-free, etc.)
 - ✅ Pattern-based package filtering
 - ✅ Source package mirroring (`.dsc` / `.orig.tar.*` / `.debian.tar.*`) + `Sources` regeneration
+- ✅ `Contents-<arch>` index mirroring (apt-file; mirror mode)
 - ✅ Version filtering (only latest)
 
 **Metadata Support:**
@@ -39,7 +40,6 @@ The APT plugin consists of:
 
 **Planned:**
 - 🚧 Translation files (i18n)
-- 🚧 Contents indices
 - 🚧 diff/Index support
 
 ## Configuration
@@ -159,6 +159,17 @@ The `apt` section in repository configuration supports these options:
     differ from binary names, e.g. source `foo` → binary `libfoo1`); priority
     and `only_latest_version` are binary-only.
   - Note: source packages require significant additional space.
+
+- **`include_contents`** (boolean, default: false)
+  - Mirror `Contents-<arch>` indices (the file→package map used by `apt-file`),
+    including `Contents-all` and `udeb` variants where present, at both the
+    component-scoped (`<component>/Contents-<arch>`) and suite-level paths.
+  - **Mirror mode only**: the indices are republished verbatim and referenced in
+    the regenerated `Release`. In **filtered mode** Contents are **dropped** —
+    regenerating an accurate index would require per-`.deb` file-list extraction
+    that chantal does not perform, and shipping the upstream one would reference
+    packages that were filtered out.
+  - Note: Contents files are large (tens to hundreds of MB).
 
 - **`flat_repository`** (boolean, default: false)
   - Support for flat repositories (no dists/ structure)

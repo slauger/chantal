@@ -183,12 +183,15 @@ class AptPublisher(PublisherPlugin):
             )
 
         # In mirror mode, publish all metadata files (Release, InRelease, etc.)
+        # and the Contents indices (filtered mode drops Contents entirely).
+        contents_files: list[tuple[str, Path]] = []
         if mode == RepositoryMode.MIRROR:
             self._publish_metadata_files(repository_files, dists_path)
+            contents_files = self._publish_contents_files(repository_files, dists_path)
 
         # Generate Release file (always generated, even in mirror mode for completeness)
         release_file = self._generate_release_file(
-            dists_path, published_metadata, repository_files, mode
+            dists_path, published_metadata, repository_files, mode, extra_files=contents_files
         )
 
         # In filtered mode the regenerated Release invalidates upstream signatures.
@@ -541,6 +544,11 @@ class AptPublisher(PublisherPlugin):
             if repo_file.file_category != "metadata":
                 continue
 
+            # Contents indices are placed by _publish_contents_files at their
+            # full dists-relative path (this method flattens nested paths).
+            if repo_file.file_type == "Contents":
+                continue
+
             # Get pool path
             pool_file_path = self.storage.pool_path / repo_file.pool_path
 
@@ -581,12 +589,47 @@ class AptPublisher(PublisherPlugin):
 
             print(f"  ✓ Published {repo_file.file_type}: {relative_path}")
 
+    def _publish_contents_files(
+        self, repository_files: list[RepositoryFile], dists_path: Path
+    ) -> list[tuple[str, Path]]:
+        """Publish Contents-<arch> indices at their dists-relative location.
+
+        Contents indices are stored with a dists-relative ``original_path``
+        (e.g. ``main/Contents-amd64.gz``) and republished verbatim. Returns
+        ``(relative_path, published_path)`` tuples so the regenerated Release
+        can reference them.
+        """
+        import os
+
+        published: list[tuple[str, Path]] = []
+        for repo_file in repository_files:
+            if repo_file.file_type != "Contents":
+                continue
+
+            pool_file_path = self.storage.pool_path / repo_file.pool_path
+            if not pool_file_path.exists():
+                print(f"Warning: Pool file not found: {pool_file_path}")
+                continue
+
+            relative_path = repo_file.original_path
+            target_path = dists_path / relative_path
+            target_path.parent.mkdir(parents=True, exist_ok=True)
+            if target_path.exists():
+                target_path.unlink()
+            os.link(pool_file_path, target_path)
+
+            published.append((relative_path, target_path))
+            print(f"  ✓ Published Contents: {relative_path}")
+
+        return published
+
     def _generate_release_file(
         self,
         dists_path: Path,
         published_metadata: list[dict],
         repository_files: list[RepositoryFile],
         mode: str,
+        extra_files: list[tuple[str, Path]] | None = None,
     ) -> Path:
         """Generate Release file for the distribution.
 
@@ -595,6 +638,8 @@ class AptPublisher(PublisherPlugin):
             published_metadata: List of metadata info dicts
             repository_files: List of repository files
             mode: Repository mode
+            extra_files: Additional (dists-relative path, file) entries to
+                checksum into Release (e.g. Contents indices).
 
         Returns:
             Path to generated Release file
@@ -665,6 +710,15 @@ class AptPublisher(PublisherPlugin):
                 md5sums.append(f" {hashlib.md5(data).hexdigest()} {size:8} {rel}")
                 sha1sums.append(f" {hashlib.sha1(data).hexdigest()} {size:8} {rel}")
                 sha256sums.append(f" {hashlib.sha256(data).hexdigest()} {size:8} {rel}")
+
+        # Extra metadata files (e.g. Contents indices) referenced by their
+        # dists-relative path.
+        for rel, file_path in extra_files or []:
+            data = file_path.read_bytes()
+            size = len(data)
+            md5sums.append(f" {hashlib.md5(data).hexdigest()} {size:8} {rel}")
+            sha1sums.append(f" {hashlib.sha1(data).hexdigest()} {size:8} {rel}")
+            sha256sums.append(f" {hashlib.sha256(data).hexdigest()} {size:8} {rel}")
 
         # Add checksum sections
         if md5sums:
