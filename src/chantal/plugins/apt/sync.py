@@ -302,6 +302,10 @@ class AptSyncPlugin:
 
         release_content = None
         inrelease_downloaded = False
+        # Raw bytes kept for signature verification (the exact signed material).
+        inrelease_bytes: bytes | None = None
+        release_bytes: bytes | None = None
+        release_gpg_bytes: bytes | None = None
 
         # Try InRelease (preferred)
         try:
@@ -309,6 +313,7 @@ class AptSyncPlugin:
             response = self.session.get(inrelease_url, timeout=60)
             response.raise_for_status()
             release_content = response.text
+            inrelease_bytes = response.content
             inrelease_downloaded = True
 
             # Store InRelease as RepositoryFile
@@ -334,6 +339,7 @@ class AptSyncPlugin:
                 response = self.session.get(release_url, timeout=60)
                 response.raise_for_status()
                 release_content = response.text
+                release_bytes = response.content
 
                 # Store Release file
                 self._store_file_as_repository_file(
@@ -351,6 +357,7 @@ class AptSyncPlugin:
                 try:
                     gpg_response = self.session.get(release_gpg_url, timeout=60)
                     gpg_response.raise_for_status()
+                    release_gpg_bytes = gpg_response.content
 
                     self._store_file_as_repository_file(
                         session=session,
@@ -372,24 +379,37 @@ class AptSyncPlugin:
         if not release_content:
             raise Exception("Failed to download Release metadata")
 
+        # Verify the upstream Release signature (authenticity) before trusting
+        # any of its checksums. When verification is enabled this returns the
+        # exact signed payload to parse (closing a TOCTOU/canonicalization gap);
+        # when disabled it returns None and the legacy strip path is used.
+        verified_payload = self._verify_release_signature(
+            inrelease_bytes=inrelease_bytes,
+            release_bytes=release_bytes,
+            release_gpg_bytes=release_gpg_bytes,
+        )
+
         # Parse Release file
         try:
-            # Remove GPG signature if present (from InRelease)
-            release_text = release_content
-            if "-----BEGIN PGP SIGNED MESSAGE-----" in release_content:
-                # Extract content between headers and signature
-                lines = release_content.split("\n")
-                content_lines = []
-                in_content = False
-                for line in lines:
-                    if line.startswith("Hash:"):
-                        in_content = True
-                        continue
-                    if in_content and line.startswith("-----BEGIN PGP SIGNATURE-----"):
-                        break
-                    if in_content:
-                        content_lines.append(line)
-                release_text = "\n".join(content_lines)
+            if verified_payload is not None:
+                release_text = verified_payload.decode("utf-8")
+            else:
+                # Remove GPG signature if present (from InRelease)
+                release_text = release_content
+                if "-----BEGIN PGP SIGNED MESSAGE-----" in release_content:
+                    # Extract content between headers and signature
+                    lines = release_content.split("\n")
+                    content_lines = []
+                    in_content = False
+                    for line in lines:
+                        if line.startswith("Hash:"):
+                            in_content = True
+                            continue
+                        if in_content and line.startswith("-----BEGIN PGP SIGNATURE-----"):
+                            break
+                        if in_content:
+                            content_lines.append(line)
+                    release_text = "\n".join(content_lines)
 
             release_metadata = parse_release_file(release_text)
             self.output.verbose(
@@ -409,6 +429,75 @@ class AptSyncPlugin:
 
         except Exception as e:
             raise Exception(f"Failed to parse Release file: {e}") from e
+
+    def _verify_release_signature(
+        self,
+        *,
+        inrelease_bytes: bytes | None,
+        release_bytes: bytes | None,
+        release_gpg_bytes: bytes | None,
+    ) -> bytes | None:
+        """Verify the upstream ``Release`` signature (authenticity).
+
+        No-op (returns ``None``) unless verification is enabled for this
+        repository. When enabled it verifies the clearsigned ``InRelease`` (if
+        present) or the detached ``Release.gpg`` over ``Release`` against the
+        configured trusted keys, applies the behavior policy on a missing or
+        invalid signature, and returns the *verified* payload bytes to be
+        parsed.
+
+        Returns:
+            The verified Release payload bytes, or ``None`` when verification is
+            disabled or skipped (policy ``skip``/``warn``).
+        """
+        verify = self.config.verify
+        if not verify or not verify.enabled or not verify.repo_gpgcheck:
+            return None
+
+        from chantal.core.gpg_verify import GpgVerifier
+
+        with GpgVerifier(verify) as verifier:
+            if inrelease_bytes is not None:
+                payload = verifier.verify_clearsigned(inrelease_bytes)
+                if payload is not None:
+                    self.output.info("✓ Verified upstream InRelease signature")
+                    return payload
+                self._handle_verify_policy(
+                    verify.on_invalid_signature,
+                    "upstream InRelease signature is invalid or not from a trusted key",
+                )
+                return None
+
+            if release_bytes is not None:
+                if release_gpg_bytes is None:
+                    self._handle_verify_policy(
+                        verify.on_missing_signature,
+                        "upstream Release.gpg not available",
+                    )
+                    return None
+                if verifier.verify_detached(release_bytes, release_gpg_bytes):
+                    self.output.info("✓ Verified upstream Release signature")
+                    return release_bytes
+                self._handle_verify_policy(
+                    verify.on_invalid_signature,
+                    "upstream Release signature is invalid or not from a trusted key",
+                )
+                return None
+
+        self._handle_verify_policy(
+            verify.on_missing_signature, "no upstream Release signature available"
+        )
+        return None
+
+    def _handle_verify_policy(self, policy: str, message: str) -> None:
+        """Apply a signature-verification behavior policy (fail/warn/skip)."""
+        if policy == "fail":
+            from chantal.core.gpg_verify import SignatureVerificationError
+
+            raise SignatureVerificationError(f"Signature verification failed: {message}")
+        if policy == "warn":
+            self.output.warning(f"Signature verification: {message}")
+        # "skip": silently continue
 
     def _build_metadata_file_list(self, release_metadata: dict) -> list[MetadataFileInfo]:
         """Build list of metadata files to download based on configuration.

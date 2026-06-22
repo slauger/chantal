@@ -133,6 +133,33 @@ class GpgVerifier:
             return self._fingerprint_pinned(verified.fingerprint)
         return True
 
+    def verify_clearsigned(self, blob: bytes) -> bytes | None:
+        """Verify an inline-clearsigned document (e.g. APT ``InRelease``).
+
+        Unlike a detached signature, a clearsigned document embeds both the
+        payload and the signature. Verifying and then re-extracting the payload
+        separately would be a TOCTOU gap, so this returns the exact bytes that
+        were covered by the verified signature.
+
+        Args:
+            blob: The full ASCII-armored clearsigned document.
+
+        Returns:
+            The verified signed payload bytes if the signature is valid AND made
+            by a trusted (and, when pinned, allow-listed) key; otherwise None.
+        """
+        self._ensure_keys()
+
+        # For a sign-only (clearsigned) message, python-gnupg's ``decrypt``
+        # performs signature verification and returns the canonical signed
+        # payload in ``.data``.
+        result = self.gpg.decrypt(blob)
+        if not getattr(result, "valid", False):
+            return None
+        if self.config.trusted_fingerprints and not self._fingerprint_pinned(result.fingerprint):
+            return None
+        return bytes(result.data)
+
     def _fingerprint_pinned(self, fingerprint: str | None) -> bool:
         """Check the signing key fingerprint against the pin allow-list.
 

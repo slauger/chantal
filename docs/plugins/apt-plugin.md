@@ -463,6 +463,58 @@ See [Filters Configuration](../configuration/filters.md) for complete documentat
 | Client Trust | Automatic (GPG) | GPG (signed-by) or manual (trusted=yes) |
 | Use Case | Exact mirrors | Curated subsets |
 
+## Upstream Signature Verification
+
+**Status:** ✅ Available
+
+Chantal always verifies **integrity** (SHA256 of `Packages`/`.deb` against the
+`Release` checksums). A `verify` section additionally checks **authenticity** —
+that the upstream `Release` was signed by a key you trust — analogous to apt's
+own `Release` signature check.
+
+When enabled, the upstream `InRelease` (inline-clearsigned) is verified against
+the configured trusted key(s), and the **verified payload** is what gets parsed
+(so the checksum chain that gates every subsequent download is anchored to the
+signature). If only the split `Release` + `Release.gpg` form is published, the
+detached signature is verified instead. Since `Release` carries the checksums of
+`Packages`, a valid signature there transitively authenticates the whole repo.
+
+```yaml
+repositories:
+  - id: ubuntu-jammy
+    type: apt
+    feed: http://archive.ubuntu.com/ubuntu
+    apt:
+      distribution: jammy
+      components: [main]
+      architectures: [amd64]
+    verify:
+      enabled: true
+      key_files:
+        - /usr/share/keyrings/ubuntu-archive-keyring.gpg
+      # keys: ["-----BEGIN PGP PUBLIC KEY BLOCK----- ..."]   # inline alternative
+      # trusted_fingerprints: ["<fpr>"]                        # optional pinning
+      on_missing_signature: fail     # fail | warn | skip
+      on_invalid_signature: fail
+```
+
+The `verify` section can also be set globally (a fallback for all repositories
+without their own). Notes specific to APT:
+
+- Verification is gated on `enabled` (and `repo_gpgcheck`, default `true`). The
+  RPM-only `gpgcheck` field has no APT meaning and is ignored — APT package
+  authenticity is transitive via the signed `Release` → `Packages` → SHA256
+  chain, so there is no per-`.deb` signature step. To turn verification off,
+  set `enabled: false` (the simple off-switch); don't toggle `repo_gpgcheck`
+  on its own, as the shared validator couples it to the RPM `gpgcheck` field.
+- A failed check under `on_invalid_signature: fail` (or a missing signature
+  under `on_missing_signature: fail`) aborts the sync before any metadata is
+  trusted or any package is downloaded.
+
+> **Note:** this verifies the *upstream* signature on sync. Re-signing the
+> regenerated metadata for *your* clients (filtered mode) is the separate `gpg`
+> section below.
+
 ## GPG Signing (Filtered Mode)
 
 **Status:** ✅ Available
