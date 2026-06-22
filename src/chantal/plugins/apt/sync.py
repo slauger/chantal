@@ -20,8 +20,12 @@ from chantal.core.downloader import DownloadManager
 from chantal.core.output import OutputLevel, SyncOutputter
 from chantal.core.storage import StorageManager
 from chantal.db.models import ContentItem, Repository, RepositoryFile
-from chantal.plugins.apt.models import DebMetadata
-from chantal.plugins.apt.parsers import parse_packages_from_bytes, parse_release_file
+from chantal.plugins.apt.models import DebMetadata, SourcesMetadata
+from chantal.plugins.apt.parsers import (
+    parse_packages_from_bytes,
+    parse_release_file,
+    parse_sources_from_bytes,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -247,6 +251,14 @@ class AptSyncPlugin:
                 self.output.update_progress()
 
             self.output.finish_progress()
+
+            # Source packages (.dsc, .orig.tar.*, .debian.tar.*/.diff.gz)
+            if self.apt_config.include_source_packages:
+                src_downloaded, src_bytes = self._sync_source_packages(
+                    session, repository, metadata_files
+                )
+                packages_downloaded += src_downloaded
+                bytes_downloaded += src_bytes
 
             # Sync complete
             self.output.summary(
@@ -920,3 +932,249 @@ class AptSyncPlugin:
             filtered = list(by_name_arch.values())
 
         return filtered
+
+    # ------------------------------------------------------------------ #
+    # Source packages
+    # ------------------------------------------------------------------ #
+
+    def _sync_source_packages(
+        self,
+        session: Session,
+        repository: Repository,
+        metadata_files: list[MetadataFileInfo],
+    ) -> tuple[int, int]:
+        """Download source package artifacts referenced by the Sources indices.
+
+        Returns:
+            Tuple of (artifacts_downloaded, bytes_downloaded).
+        """
+        import gzip
+
+        # Collect source stanzas from every Sources index.
+        all_sources: list[SourcesMetadata] = []
+        for metadata_info in metadata_files:
+            if metadata_info.file_type != "Sources":
+                continue
+            sources_path = self._get_metadata_file_path(session, metadata_info, repository)
+            if not sources_path or not sources_path.exists():
+                logger.warning(f"Sources file not found in storage: {metadata_info.relative_path}")
+                continue
+            try:
+                content = gzip.decompress(sources_path.read_bytes())
+                stanzas = parse_sources_from_bytes(content, compressed=False)
+            except Exception as e:
+                logger.error(f"Failed to parse Sources file: {e}")
+                continue
+            for src in stanzas:
+                if not src.component:
+                    src.component = metadata_info.component
+            all_sources.extend(stanzas)
+
+        if not all_sources:
+            return 0, 0
+
+        self.output.info(f"Total source packages found: {len(all_sources)}")
+
+        if repository.mode == "filtered":
+            all_sources = self._apply_source_filters(all_sources, self.config)
+            self.output.info(f"After filtering: {len(all_sources)} source packages")
+
+        artifacts = self._flatten_source_artifacts(all_sources)
+        if not artifacts:
+            return 0, 0
+
+        existing = self._get_existing_source_artifacts(session)
+        downloaded = 0
+        total_bytes = 0
+
+        self.output.start_progress(len(artifacts), "Downloading source artifacts", "files")
+        for art in artifacts:
+            try:
+                if art["sha256"] in existing:
+                    existing_item = existing[art["sha256"]]
+                    if repository not in existing_item.repositories:
+                        existing_item.repositories.append(repository)
+                        session.commit()
+                    self.output.update_progress()
+                    continue
+
+                directory = art["directory"]
+                rel = f"{directory}/{art['filename']}" if directory else art["filename"]
+                url = urljoin(self.config.feed + "/", rel)
+                bytes_dl, item = self._download_source_artifact(url, art, session, repository)
+                # Record in-run so a duplicate sha256 later in the same set links
+                # instead of re-inserting (ContentItem.sha256 is unique).
+                existing[art["sha256"]] = item
+                total_bytes += bytes_dl
+                downloaded += 1
+            except Exception as e:
+                session.rollback()
+                logger.error(f"Failed to download source artifact {art['filename']}: {e}")
+                self.output.error(f"{art['filename']}: {e}")
+            self.output.update_progress()
+        self.output.finish_progress()
+
+        return downloaded, total_bytes
+
+    def _flatten_source_artifacts(self, sources: list[SourcesMetadata]) -> list[dict]:
+        """Flatten source stanzas into per-artifact download descriptors.
+
+        The ``Checksums-Sha256`` block is authoritative for the artifact set;
+        MD5 (``Files``) and SHA1 (``Checksums-Sha1``) are merged in by filename
+        so the publisher can regenerate a faithful ``Sources`` index.
+        """
+        artifacts: list[dict] = []
+        for src in sources:
+            if not src.checksums_sha256:
+                # Modern Debian/Ubuntu always ship Checksums-Sha256; without it
+                # we cannot verify the artifacts, so skip them visibly.
+                if src.files:
+                    self.output.warning(
+                        f"Source package {src.package} {src.version} has no SHA256 "
+                        "checksums; skipping its artifacts"
+                    )
+                continue
+            md5_by_name = {f["filename"]: f["checksum"] for f in src.files}
+            sha1_by_name = {f["filename"]: f["checksum"] for f in src.checksums_sha1}
+            source_format = src.extra_fields.get("Format")
+            for entry in src.checksums_sha256:
+                filename = entry["filename"]
+                artifacts.append(
+                    {
+                        "filename": filename,
+                        "sha256": entry["checksum"],
+                        "size": int(entry["size"]) if entry.get("size") else 0,
+                        "md5": md5_by_name.get(filename),
+                        "sha1": sha1_by_name.get(filename),
+                        "directory": src.directory or "",
+                        "source_package": src.package,
+                        "source_version": src.version,
+                        "component": src.component,
+                        "binary": src.binary,
+                        "maintainer": src.maintainer,
+                        "priority": src.priority,
+                        "section": src.section,
+                        "source_architecture": src.architecture,
+                        "source_format": source_format,
+                    }
+                )
+        return artifacts
+
+    def _get_existing_source_artifacts(self, session: Session) -> dict[str, ContentItem]:
+        """Return existing source-artifact content items keyed by SHA256."""
+        items = session.query(ContentItem).filter(ContentItem.content_type == "deb-source").all()
+        return {item.sha256: item for item in items}
+
+    def _apply_source_filters(
+        self, sources: list[SourcesMetadata], config: RepositoryConfig
+    ) -> list[SourcesMetadata]:
+        """Filter source stanzas by component and name patterns.
+
+        Reuses the binary component/pattern filters (matched on the *source*
+        package name). Priority and only_latest_version are binary-only.
+        """
+        if not config.filters:
+            return sources
+
+        filtered = sources
+
+        if config.filters.deb and config.filters.deb.components:
+            if config.filters.deb.components.include:
+                filtered = [
+                    s
+                    for s in filtered
+                    if s.component and s.component in config.filters.deb.components.include
+                ]
+            if config.filters.deb.components.exclude:
+                filtered = [
+                    s
+                    for s in filtered
+                    if not (s.component and s.component in config.filters.deb.components.exclude)
+                ]
+
+        if config.filters.patterns:
+            if config.filters.patterns.include:
+                import re
+
+                include_patterns = [re.compile(p) for p in config.filters.patterns.include]
+                filtered = [
+                    s for s in filtered if any(p.match(s.package) for p in include_patterns)
+                ]
+            if config.filters.patterns.exclude:
+                import re
+
+                exclude_patterns = [re.compile(p) for p in config.filters.patterns.exclude]
+                filtered = [
+                    s for s in filtered if not any(p.match(s.package) for p in exclude_patterns)
+                ]
+
+        return filtered
+
+    def _download_source_artifact(
+        self,
+        url: str,
+        art: dict,
+        session: Session,
+        repository: Repository,
+    ) -> tuple[int, ContentItem]:
+        """Download one source artifact and store it as a ContentItem.
+
+        Returns:
+            Tuple of (bytes_downloaded, the created ContentItem).
+        """
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".src") as tmp_file:
+            tmp_path = Path(tmp_file.name)
+            try:
+                response = self.session.get(url, stream=True, timeout=300)
+                response.raise_for_status()
+
+                bytes_downloaded = 0
+                for chunk in response.iter_content(chunk_size=65536):
+                    tmp_file.write(chunk)
+                    bytes_downloaded += len(chunk)
+                tmp_file.flush()
+
+                filename = Path(art["filename"]).name
+                sha256, pool_path, size_bytes = self.storage.add_package(
+                    tmp_path, filename, verify_checksum=True
+                )
+                if sha256 != art["sha256"]:
+                    raise ValueError(
+                        f"SHA256 mismatch for {filename}: expected {art['sha256']}, got {sha256}"
+                    )
+
+                content_metadata = {
+                    "component": art["component"],
+                    "architecture": "source",
+                    "source_package": art["source_package"],
+                    "source_version": art["source_version"],
+                    "directory": art["directory"],
+                    "binary": art["binary"],
+                    "maintainer": art["maintainer"],
+                    "priority": art["priority"],
+                    "section": art["section"],
+                    "source_architecture": art["source_architecture"],
+                    "source_format": art.get("source_format"),
+                    "md5sum": art["md5"],
+                    "sha1": art["sha1"],
+                }
+                content_item = ContentItem(
+                    content_type="deb-source",
+                    name=art["source_package"],
+                    version=art["source_version"],
+                    sha256=sha256,
+                    size_bytes=size_bytes,
+                    pool_path=pool_path,
+                    filename=filename,
+                    content_metadata=content_metadata,
+                )
+                session.add(content_item)
+                session.commit()
+
+                content_item.repositories.append(repository)
+                session.commit()
+
+                return bytes_downloaded, content_item
+            finally:
+                if tmp_path.exists():
+                    tmp_path.unlink()

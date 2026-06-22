@@ -160,6 +160,7 @@ class SourcesMetadata(BaseModel):
     vcs_bzr: str | None = Field(None, description="Bazaar repository URL")
 
     # Files
+    component: str | None = None  # repository component, set from the index path
     directory: str | None = Field(None, description="Directory in pool/")
     files: list[dict[str, str]] = Field(
         default_factory=list, description="Source files (dsc, orig.tar.gz, debian.tar.xz)"

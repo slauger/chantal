@@ -16,6 +16,7 @@ from chantal.plugins.apt.parsers import (
     parse_rfc822_file,
     parse_rfc822_stanza,
     parse_sources_file,
+    parse_sources_from_bytes,
     parse_sources_gz,
 )
 
@@ -561,3 +562,36 @@ Version: 1.18.0"""
             assert sources[0].package == "nginx"
         finally:
             tmp_path.unlink()
+
+    def test_parse_sources_from_bytes(self):
+        """Sources parsed from raw bytes, with the multi-file checksum block."""
+        content = (
+            "Package: demo\n"
+            "Binary: demo, demo-dev\n"
+            "Version: 1.0-1\n"
+            "Architecture: any\n"
+            "Directory: pool/main/d/demo\n"
+            "Checksums-Sha256:\n"
+            " aaaa 18 demo_1.0.dsc\n"
+            " bbbb 100 demo_1.0.orig.tar.gz\n"
+            " cccc 50 demo_1.0-1.debian.tar.xz\n"
+        )
+        sources = parse_sources_from_bytes(content.encode("utf-8"), compressed=False)
+        assert len(sources) == 1
+        src = sources[0]
+        assert src.package == "demo"
+        assert src.binary == ["demo", "demo-dev"]
+        assert src.directory == "pool/main/d/demo"
+        names = {f["filename"] for f in src.checksums_sha256}
+        assert names == {
+            "demo_1.0.dsc",
+            "demo_1.0.orig.tar.gz",
+            "demo_1.0-1.debian.tar.xz",
+        }
+
+    def test_parse_sources_from_bytes_compressed(self):
+        """Sources parsed from gzip-compressed bytes."""
+        content = "Package: demo\nVersion: 1.0\nDirectory: pool/main/d/demo\n"
+        sources = parse_sources_from_bytes(gzip.compress(content.encode("utf-8")), compressed=True)
+        assert len(sources) == 1
+        assert sources[0].package == "demo"
