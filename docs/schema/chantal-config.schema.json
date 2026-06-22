@@ -52,6 +52,12 @@
           "description": "Include source packages (.dsc, .orig.tar.gz, etc.)",
           "title": "Include Source Packages",
           "type": "boolean"
+        },
+        "include_contents": {
+          "default": false,
+          "description": "Mirror Contents-<arch> indices (apt-file). Large; mirror mode only.",
+          "title": "Include Contents",
+          "type": "boolean"
         }
       },
       "required": [

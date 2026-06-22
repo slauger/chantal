@@ -240,6 +240,94 @@ class TestReleaseFileParsing:
         # Additional metadata files are discovered but handled separately
         # This test verifies the basic structure is working
 
+    def test_build_metadata_file_list_contents(self):
+        """Contents indices are discovered in mirror mode and dropped in filtered."""
+        from chantal.core.config import AptConfig, RepositoryConfig
+
+        release_metadata = {
+            "components": ["main"],
+            "architectures": ["amd64"],
+            "sha256": {
+                "main/binary-amd64/Packages.gz": ("abc", 1000),
+                "main/Contents-amd64.gz": ("def", 5000),
+            },
+        }
+        repo_config = RepositoryConfig(
+            id="test-repo",
+            name="Test Repo",
+            type="apt",
+            feed="https://example.com/repo",
+            mode="mirror",
+            apt=AptConfig(
+                distribution="jammy",
+                components=["main"],
+                architectures=["amd64"],
+                include_contents=True,
+            ),
+        )
+        plugin = AptSyncPlugin(storage=None, config=repo_config, proxy_config=None, ssl_config=None)
+
+        mirror = plugin._build_metadata_file_list(release_metadata, "mirror")
+        contents = [f for f in mirror if f.file_type == "Contents"]
+        assert len(contents) == 1
+        assert contents[0].relative_path == "main/Contents-amd64.gz"
+
+        # Filtered mode drops Contents entirely.
+        filtered = plugin._build_metadata_file_list(release_metadata, "filtered")
+        assert not [f for f in filtered if f.file_type == "Contents"]
+
+        # Default (include_contents=False) discovers no Contents.
+        repo_config.apt.include_contents = False
+        none = plugin._build_metadata_file_list(release_metadata, "mirror")
+        assert not [f for f in none if f.file_type == "Contents"]
+
+    def test_build_metadata_file_list_contents_variants_and_dedup(self):
+        """Contents-all/udeb/.xz variants are picked up; suite-level deduped."""
+        from chantal.core.config import AptConfig, RepositoryConfig
+
+        release_metadata = {
+            "components": ["main", "universe"],
+            "architectures": ["amd64"],
+            "sha256": {
+                "main/binary-amd64/Packages.gz": ("p1", 1),
+                "universe/binary-amd64/Packages.gz": ("p2", 1),
+                "main/Contents-amd64.xz": ("c1", 1),  # .xz variant
+                "main/Contents-all.gz": ("c2", 1),  # arch "all"
+                "universe/Contents-udeb-amd64.gz": ("c3", 1),  # udeb variant
+                "Contents-amd64.gz": ("c4", 1),  # suite-level (no component)
+            },
+        }
+        repo_config = RepositoryConfig(
+            id="test-repo",
+            name="Test Repo",
+            type="apt",
+            feed="https://example.com/repo",
+            mode="mirror",
+            apt=AptConfig(
+                distribution="jammy",
+                components=["main", "universe"],
+                architectures=["amd64"],
+                include_contents=True,
+            ),
+        )
+        plugin = AptSyncPlugin(storage=None, config=repo_config, proxy_config=None, ssl_config=None)
+
+        contents = [
+            f.relative_path
+            for f in plugin._build_metadata_file_list(release_metadata, "mirror")
+            if f.file_type == "Contents"
+        ]
+        # Each present variant discovered exactly once (suite-level not duplicated
+        # across the two components).
+        assert sorted(contents) == sorted(
+            [
+                "main/Contents-amd64.xz",
+                "main/Contents-all.gz",
+                "universe/Contents-udeb-amd64.gz",
+                "Contents-amd64.gz",
+            ]
+        )
+
 
 class TestMetadataFileInfo:
     """Tests for MetadataFileInfo dataclass."""

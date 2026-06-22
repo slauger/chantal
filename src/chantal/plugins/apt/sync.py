@@ -135,7 +135,7 @@ class AptSyncPlugin:
 
             # Phase 2: Download Packages.gz/Sources.gz for all components/architectures
             self.output.phase("Downloading repository metadata", number=2)
-            metadata_files = self._build_metadata_file_list(release_metadata)
+            metadata_files = self._build_metadata_file_list(release_metadata, repository.mode)
             self.output.info(f"Found {len(metadata_files)} metadata files to download")
 
             metadata_downloaded = 0
@@ -511,11 +511,14 @@ class AptSyncPlugin:
             self.output.warning(f"Signature verification: {message}")
         # "skip": silently continue
 
-    def _build_metadata_file_list(self, release_metadata: dict) -> list[MetadataFileInfo]:
+    def _build_metadata_file_list(
+        self, release_metadata: dict, mode: str = "mirror"
+    ) -> list[MetadataFileInfo]:
         """Build list of metadata files to download based on configuration.
 
         Args:
             release_metadata: Parsed Release metadata
+            mode: Repository mode (Contents are mirror-only)
 
         Returns:
             List of MetadataFileInfo objects
@@ -579,6 +582,35 @@ class AptSyncPlugin:
                             architecture=None,
                         )
                     )
+
+            # Contents-<arch> indices (apt-file). Mirror mode only: regenerating
+            # a filtered Contents would need per-.deb file lists we do not
+            # extract, and shipping the upstream one would reference removed
+            # packages. Only download them when they will also be published
+            # (mirror), so non-mirror modes don't fetch huge unused files.
+            if self.apt_config.include_contents and mode == "mirror":
+                seen = {m.relative_path for m in metadata_files}
+                for arch in [*architectures, "all"]:
+                    for variant in ("", "udeb-"):
+                        base = f"Contents-{variant}{arch}"
+                        # Component-scoped (modern) first, then suite-level.
+                        for rel_base in (f"{component}/{base}", base):
+                            for ext in (".gz", ".xz", ""):
+                                path = f"{rel_base}{ext}"
+                                if path in seen or path not in sha256_checksums:
+                                    continue
+                                checksum, size = sha256_checksums[path]
+                                metadata_files.append(
+                                    MetadataFileInfo(
+                                        file_type="Contents",
+                                        relative_path=path,
+                                        checksum=checksum,
+                                        size=size,
+                                        component=component,
+                                        architecture=arch,
+                                    )
+                                )
+                                seen.add(path)
 
         return metadata_files
 

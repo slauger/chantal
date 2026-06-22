@@ -162,6 +162,10 @@ class AptConfig(BaseModel):
     include_source_packages: bool = Field(
         default=False, description="Include source packages (.dsc, .orig.tar.gz, etc.)"
     )
+    include_contents: bool = Field(
+        default=False,
+        description="Mirror Contents-<arch> indices (apt-file). Large; mirror mode only.",
+    )
 
 
 class GpgConfig(BaseModel):
