@@ -6,6 +6,15 @@
 # other metadata, a valid signature there authenticates the whole repository.
 #
 # `verify` can be set per-repository (below) or globally as a fallback.
+#
+# The mirrored .rpm files keep their upstream signatures, so chantal also writes
+# the trusted upstream key into the published repository root (default file name
+# `RPM-GPG-KEY-<repo-id>`). Downstream clients reference it to enable gpgcheck=1:
+#
+#   [rocky9-baseos]
+#   baseurl = http://mirror.example.com/repos/rocky9-baseos/
+#   gpgcheck = 1
+#   gpgkey  = http://mirror.example.com/repos/rocky9-baseos/RPM-GPG-KEY-rocky9-baseos
 
 repositories:
   - id: rocky9-baseos
@@ -25,3 +34,7 @@ repositories:
       #   - "350D275D51953AAC1788576C70A7050025DB3973"
       on_missing_signature: fail   # fail | warn | skip
       on_invalid_signature: fail
+      # Filename of the trusted upstream key published into the repo root for
+      # clients ('{repo_id}' is substituted). Set to "" to disable publishing
+      # (e.g. if you distribute the key out-of-band via a *-release RPM).
+      # client_key_name: "RPM-GPG-KEY-{repo_id}"
