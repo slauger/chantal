@@ -631,6 +631,37 @@ class AptPublisher(PublisherPlugin):
 
         return published
 
+    def _emit_by_hash(
+        self, file_path: Path, sha256_hex: str, emitted: dict[Path, set[str]]
+    ) -> None:
+        """Hardlink ``file_path`` into its sibling ``by-hash/SHA256/<sha>`` dir.
+
+        apt fetches indices from these content-addressed copies so a mirror
+        stays consistent while it is being updated. The emitted sha is recorded
+        in ``emitted`` so stale entries can be pruned afterwards.
+        """
+        import os
+
+        by_hash_dir = file_path.parent / "by-hash" / "SHA256"
+        by_hash_dir.mkdir(parents=True, exist_ok=True)
+        target = by_hash_dir / sha256_hex
+        if target.exists():
+            target.unlink()
+        os.link(file_path, target)
+        emitted.setdefault(by_hash_dir, set()).add(sha256_hex)
+
+    def _prune_by_hash(self, emitted: dict[Path, set[str]]) -> None:
+        """Remove by-hash entries left over from previous publishes.
+
+        Content-addressed by-hash files are never overwritten in place, so a
+        republish into an existing target would otherwise accumulate stale
+        entries indefinitely.
+        """
+        for by_hash_dir, keep in emitted.items():
+            for entry in by_hash_dir.iterdir():
+                if entry.is_file() and entry.name not in keep:
+                    entry.unlink()
+
     def _generate_release_file(
         self,
         dists_path: Path,
@@ -687,7 +718,13 @@ class AptPublisher(PublisherPlugin):
         # Description
         release_lines.append(f"Description: {self.config.name}")
 
+        # Advertise by-hash availability for the indices listed below.
+        if self.apt_config.by_hash:
+            release_lines.append("Acquire-By-Hash: yes")
+
         # Build file checksums
+        by_hash = self.apt_config.by_hash
+        by_hash_emitted: dict[Path, set[str]] = {}
         md5sums = []
         sha1sums = []
         sha256sums = []
@@ -715,18 +752,27 @@ class AptPublisher(PublisherPlugin):
                 size = len(data)
                 rel = f"{rel_prefix}/{variant}"
 
+                sha = hashlib.sha256(data).hexdigest()
                 md5sums.append(f" {hashlib.md5(data).hexdigest()} {size:8} {rel}")
                 sha1sums.append(f" {hashlib.sha1(data).hexdigest()} {size:8} {rel}")
-                sha256sums.append(f" {hashlib.sha256(data).hexdigest()} {size:8} {rel}")
+                sha256sums.append(f" {sha} {size:8} {rel}")
+                if by_hash:
+                    self._emit_by_hash(variant_path, sha, by_hash_emitted)
 
         # Extra metadata files (e.g. Contents indices) referenced by their
         # dists-relative path.
         for rel, file_path in extra_files or []:
             data = file_path.read_bytes()
             size = len(data)
+            sha = hashlib.sha256(data).hexdigest()
             md5sums.append(f" {hashlib.md5(data).hexdigest()} {size:8} {rel}")
             sha1sums.append(f" {hashlib.sha1(data).hexdigest()} {size:8} {rel}")
-            sha256sums.append(f" {hashlib.sha256(data).hexdigest()} {size:8} {rel}")
+            sha256sums.append(f" {sha} {size:8} {rel}")
+            if by_hash:
+                self._emit_by_hash(file_path, sha, by_hash_emitted)
+
+        if by_hash:
+            self._prune_by_hash(by_hash_emitted)
 
         # Add checksum sections
         if md5sums:

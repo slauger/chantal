@@ -64,6 +64,12 @@
           "description": "Mirror i18n/Translation-* files and i18n/Index (localized package descriptions). Mirror mode only.",
           "title": "Include Translations",
           "type": "boolean"
+        },
+        "by_hash": {
+          "default": false,
+          "description": "Use/publish by-hash indices. On sync, fetch indices via by-hash/SHA256/<checksum> (falling back to the plain path). On publish, emit by-hash/SHA256/ copies and set Acquire-By-Hash: yes in the generated Release.",
+          "title": "By Hash",
+          "type": "boolean"
         }
       },
       "required": [
