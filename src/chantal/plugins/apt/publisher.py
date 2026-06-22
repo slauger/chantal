@@ -183,15 +183,18 @@ class AptPublisher(PublisherPlugin):
             )
 
         # In mirror mode, publish all metadata files (Release, InRelease, etc.)
-        # and the Contents indices (filtered mode drops Contents entirely).
-        contents_files: list[tuple[str, Path]] = []
+        # and the verbatim Contents/Translation indices (filtered mode drops
+        # them entirely).
+        passthrough_files: list[tuple[str, Path]] = []
         if mode == RepositoryMode.MIRROR:
             self._publish_metadata_files(repository_files, dists_path)
-            contents_files = self._publish_contents_files(repository_files, dists_path)
+            passthrough_files = self._publish_passthrough_files(
+                repository_files, dists_path, ("Contents", "Translation")
+            )
 
         # Generate Release file (always generated, even in mirror mode for completeness)
         release_file = self._generate_release_file(
-            dists_path, published_metadata, repository_files, mode, extra_files=contents_files
+            dists_path, published_metadata, repository_files, mode, extra_files=passthrough_files
         )
 
         # In filtered mode the regenerated Release invalidates upstream signatures.
@@ -544,9 +547,10 @@ class AptPublisher(PublisherPlugin):
             if repo_file.file_category != "metadata":
                 continue
 
-            # Contents indices are placed by _publish_contents_files at their
-            # full dists-relative path (this method flattens nested paths).
-            if repo_file.file_type == "Contents":
+            # Contents/Translation indices are placed by
+            # _publish_passthrough_files at their full dists-relative path (this
+            # method flattens nested paths).
+            if repo_file.file_type in ("Contents", "Translation"):
                 continue
 
             # Get pool path
@@ -589,13 +593,17 @@ class AptPublisher(PublisherPlugin):
 
             print(f"  ✓ Published {repo_file.file_type}: {relative_path}")
 
-    def _publish_contents_files(
-        self, repository_files: list[RepositoryFile], dists_path: Path
+    def _publish_passthrough_files(
+        self,
+        repository_files: list[RepositoryFile],
+        dists_path: Path,
+        file_types: tuple[str, ...],
     ) -> list[tuple[str, Path]]:
-        """Publish Contents-<arch> indices at their dists-relative location.
+        """Publish verbatim metadata indices at their dists-relative location.
 
-        Contents indices are stored with a dists-relative ``original_path``
-        (e.g. ``main/Contents-amd64.gz``) and republished verbatim. Returns
+        Used for Contents and i18n/Translation indices, which are stored with a
+        dists-relative ``original_path`` (e.g. ``main/Contents-amd64.gz`` or
+        ``main/i18n/Translation-en.gz``) and republished verbatim. Returns
         ``(relative_path, published_path)`` tuples so the regenerated Release
         can reference them.
         """
@@ -603,7 +611,7 @@ class AptPublisher(PublisherPlugin):
 
         published: list[tuple[str, Path]] = []
         for repo_file in repository_files:
-            if repo_file.file_type != "Contents":
+            if repo_file.file_type not in file_types:
                 continue
 
             pool_file_path = self.storage.pool_path / repo_file.pool_path
@@ -619,7 +627,7 @@ class AptPublisher(PublisherPlugin):
             os.link(pool_file_path, target_path)
 
             published.append((relative_path, target_path))
-            print(f"  ✓ Published Contents: {relative_path}")
+            print(f"  ✓ Published {repo_file.file_type}: {relative_path}")
 
         return published
 

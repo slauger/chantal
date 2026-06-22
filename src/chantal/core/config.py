@@ -166,6 +166,13 @@ class AptConfig(BaseModel):
         default=False,
         description="Mirror Contents-<arch> indices (apt-file). Large; mirror mode only.",
     )
+    include_translations: bool = Field(
+        default=False,
+        description=(
+            "Mirror i18n/Translation-* files and i18n/Index (localized package "
+            "descriptions). Mirror mode only."
+        ),
+    )
 
 
 class GpgConfig(BaseModel):
