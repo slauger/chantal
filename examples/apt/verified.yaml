@@ -1,0 +1,35 @@
+# APT repository with upstream signature verification
+#
+# Chantal always checks integrity (SHA256 of Packages/.deb against Release).
+# The `verify` section adds authenticity: the upstream InRelease/Release
+# signature is verified against a trusted key before any checksum is trusted
+# (like apt's own Release signature check). Because Release carries the
+# checksums of Packages, a valid signature authenticates the whole repository.
+#
+# `verify` can be set per-repository (below) or globally as a fallback.
+
+repositories:
+  - id: ubuntu-jammy
+    name: "Ubuntu 22.04 - main (verified)"
+    type: apt
+    feed: "http://archive.ubuntu.com/ubuntu"
+    enabled: true
+    mode: mirror
+
+    apt:
+      distribution: "jammy"
+      components:
+        - main
+      architectures:
+        - amd64
+
+    verify:
+      enabled: true
+      key_files:
+        - /usr/share/keyrings/ubuntu-archive-keyring.gpg
+      # keys: ["-----BEGIN PGP PUBLIC KEY BLOCK----- ..."]   # inline alternative
+      # Optional key pinning by fingerprint:
+      # trusted_fingerprints:
+      #   - "790BC7277767219C42C86F933B4FE6ACC0B21F32"
+      on_missing_signature: fail   # fail | warn | skip
+      on_invalid_signature: fail
