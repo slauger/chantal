@@ -328,6 +328,64 @@ class TestReleaseFileParsing:
             ]
         )
 
+    def test_build_metadata_file_list_translations(self):
+        """i18n Translation files + Index are discovered (mirror only)."""
+        from chantal.core.config import AptConfig, RepositoryConfig
+
+        release_metadata = {
+            "components": ["main", "universe"],
+            "architectures": ["amd64"],
+            "sha256": {
+                "main/binary-amd64/Packages.gz": ("p1", 1),
+                "universe/binary-amd64/Packages.gz": ("p2", 1),
+                "main/i18n/Translation-en.gz": ("t1", 1),
+                "main/i18n/Translation-de.xz": ("t2", 1),
+                "main/i18n/Index": ("t3", 1),
+                "universe/i18n/Translation-en.gz": ("t4", 1),
+            },
+        }
+        repo_config = RepositoryConfig(
+            id="test-repo",
+            name="Test Repo",
+            type="apt",
+            feed="https://example.com/repo",
+            mode="mirror",
+            apt=AptConfig(
+                distribution="jammy",
+                components=["main", "universe"],
+                architectures=["amd64"],
+                include_translations=True,
+            ),
+        )
+        plugin = AptSyncPlugin(storage=None, config=repo_config, proxy_config=None, ssl_config=None)
+
+        translations = [
+            f.relative_path
+            for f in plugin._build_metadata_file_list(release_metadata, "mirror")
+            if f.file_type == "Translation"
+        ]
+        assert sorted(translations) == sorted(
+            [
+                "main/i18n/Translation-en.gz",
+                "main/i18n/Translation-de.xz",
+                "main/i18n/Index",
+                "universe/i18n/Translation-en.gz",
+            ]
+        )
+
+        # Filtered mode drops Translation; default flag discovers none.
+        assert not [
+            f
+            for f in plugin._build_metadata_file_list(release_metadata, "filtered")
+            if f.file_type == "Translation"
+        ]
+        repo_config.apt.include_translations = False
+        assert not [
+            f
+            for f in plugin._build_metadata_file_list(release_metadata, "mirror")
+            if f.file_type == "Translation"
+        ]
+
 
 class TestMetadataFileInfo:
     """Tests for MetadataFileInfo dataclass."""

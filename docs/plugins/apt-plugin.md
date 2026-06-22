@@ -27,6 +27,7 @@ The APT plugin consists of:
 - ✅ Pattern-based package filtering
 - ✅ Source package mirroring (`.dsc` / `.orig.tar.*` / `.debian.tar.*`) + `Sources` regeneration
 - ✅ `Contents-<arch>` index mirroring (apt-file; mirror mode)
+- ✅ Translation/i18n mirroring (`i18n/Translation-*` + `i18n/Index`; mirror mode)
 - ✅ Version filtering (only latest)
 
 **Metadata Support:**
@@ -39,7 +40,6 @@ The APT plugin consists of:
 - ✅ Dependency metadata (Depends, Recommends, Suggests, Conflicts, etc.)
 
 **Planned:**
-- 🚧 Translation files (i18n)
 - 🚧 diff/Index support
 
 ## Configuration
@@ -170,6 +170,15 @@ The `apt` section in repository configuration supports these options:
     that chantal does not perform, and shipping the upstream one would reference
     packages that were filtered out.
   - Note: Contents files are large (tens to hundreds of MB).
+
+- **`include_translations`** (boolean, default: false)
+  - Mirror the `i18n/Translation-<lang>.{gz,xz,bz2}` files (localized package
+    descriptions) and the `i18n/Index`, for every language/variant present in
+    `Release`, republished verbatim and referenced in the regenerated `Release`.
+  - **Mirror mode only** (dropped in filtered mode, like `include_contents`):
+    regenerating localized descriptions for the filtered set would require
+    remapping each kept package's `Description-md5`; the full descriptions are
+    already carried inline in the regenerated `Packages`.
 
 - **`flat_repository`** (boolean, default: false)
   - Support for flat repositories (no dists/ structure)

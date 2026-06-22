@@ -612,6 +612,29 @@ class AptSyncPlugin:
                                 )
                                 seen.add(path)
 
+            # i18n Translation files + i18n/Index (localized descriptions).
+            # Mirror mode only (same rationale as Contents). A prefix scan
+            # captures every present language, compression variant and the
+            # Index in one pass.
+            if self.apt_config.include_translations and mode == "mirror":
+                seen = {m.relative_path for m in metadata_files}
+                prefix = f"{component}/i18n/"
+                for path in sha256_checksums:
+                    if path in seen or not path.startswith(prefix):
+                        continue
+                    checksum, size = sha256_checksums[path]
+                    metadata_files.append(
+                        MetadataFileInfo(
+                            file_type="Translation",
+                            relative_path=path,
+                            checksum=checksum,
+                            size=size,
+                            component=component,
+                            architecture=None,
+                        )
+                    )
+                    seen.add(path)
+
         return metadata_files
 
     def _download_metadata_file(
