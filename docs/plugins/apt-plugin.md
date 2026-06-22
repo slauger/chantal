@@ -25,7 +25,7 @@ The APT plugin consists of:
 - ✅ Architecture filtering (amd64, arm64, armhf, i386, all, etc.)
 - ✅ Component filtering (main, contrib, non-free, etc.)
 - ✅ Pattern-based package filtering
-- ✅ Source package exclusion
+- ✅ Source package mirroring (`.dsc` / `.orig.tar.*` / `.debian.tar.*`) + `Sources` regeneration
 - ✅ Version filtering (only latest)
 
 **Metadata Support:**
@@ -41,7 +41,6 @@ The APT plugin consists of:
 - 🚧 Translation files (i18n)
 - 🚧 Contents indices
 - 🚧 diff/Index support
-- 🚧 Source package syncing
 
 ## Configuration
 
@@ -151,8 +150,15 @@ The `apt` section in repository configuration supports these options:
 ### Optional Options
 
 - **`include_source_packages`** (boolean, default: false)
-  - Whether to sync source packages (.dsc, .tar.gz, etc.)
-  - Note: Source packages are stored separately and require significant space
+  - Sync source packages: download the `.dsc` / `.orig.tar.*` / `.debian.tar.*`
+    artifacts referenced by the `Sources` index, verify each against its
+    `Checksums-Sha256` entry, and publish them under `<component>/source/` with a
+    regenerated `Sources` index (referenced from `Release`).
+  - In filtered mode, source stanzas are filtered by component and by the
+    `filters.patterns` rules **matched on the source-package name** (which can
+    differ from binary names, e.g. source `foo` → binary `libfoo1`); priority
+    and `only_latest_version` are binary-only.
+  - Note: source packages require significant additional space.
 
 - **`flat_repository`** (boolean, default: false)
   - Support for flat repositories (no dists/ structure)

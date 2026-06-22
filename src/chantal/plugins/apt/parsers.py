@@ -511,3 +511,22 @@ def parse_sources_gz(file_path: Path) -> list[SourcesMetadata]:
     with gzip.open(file_path, "rt", encoding="utf-8") as f:
         content = f.read()
     return parse_sources_file(content)
+
+
+def parse_sources_from_bytes(data: bytes, compressed: bool = False) -> list[SourcesMetadata]:
+    """
+    Parse Sources file from bytes.
+
+    Args:
+        data: Sources file data
+        compressed: Whether data is gzip-compressed
+
+    Returns:
+        List of SourcesMetadata objects
+    """
+    if compressed:
+        with gzip.open(BytesIO(data), "rt", encoding="utf-8") as f:
+            content = f.read()
+    else:
+        content = data.decode("utf-8")
+    return parse_sources_file(content)

@@ -24,6 +24,9 @@ from chantal.plugins.rpm.compression import CompressionFormat, compress_file, ge
 # Used when collecting checksums for the Release file.
 _PACKAGES_VARIANTS = ("Packages", "Packages.gz", "Packages.xz", "Packages.zst", "Packages.bz2")
 
+# Sources index variants (the source-package analog of _PACKAGES_VARIANTS).
+_SOURCES_VARIANTS = ("Sources", "Sources.gz", "Sources.xz", "Sources.zst", "Sources.bz2")
+
 
 class AptPublisher(PublisherPlugin):
     """Publisher for APT/DEB repositories.
@@ -160,10 +163,15 @@ class AptPublisher(PublisherPlugin):
                 component_packages, component_arch_path, component, architecture
             )
 
-            # Generate Packages file(s) (uncompressed + configured compression)
-            generated = self._generate_packages_file(
-                component_packages, component_arch_path, component, architecture, compression
-            )
+            # Generate the index: Sources for the source group, Packages else.
+            if architecture == "source":
+                generated = self._generate_sources_file(
+                    component_packages, component_arch_path, component, compression
+                )
+            else:
+                generated = self._generate_packages_file(
+                    component_packages, component_arch_path, component, architecture, compression
+                )
 
             published_metadata.append(
                 {
@@ -427,6 +435,96 @@ class AptPublisher(PublisherPlugin):
 
         return generated
 
+    def _generate_sources_file(
+        self,
+        packages: list[ContentItem],
+        source_path: Path,
+        component: str,
+        compression: CompressionFormat = "gzip",
+    ) -> list[Path]:
+        """Generate a ``Sources`` index for source-package artifacts.
+
+        Each source ``ContentItem`` is one artifact file; they are regrouped by
+        (source package, source version) into one stanza listing all artifacts
+        with their MD5/SHA1/SHA256 checksums.
+
+        Returns:
+            The generated paths; uncompressed ``Sources`` first, then the
+            compressed variant (if any).
+        """
+        groups: dict[tuple[str, str], list[ContentItem]] = {}
+        for pkg in packages:
+            key = (
+                pkg.content_metadata.get("source_package") or pkg.name,
+                pkg.content_metadata.get("source_version") or pkg.version,
+            )
+            groups.setdefault(key, []).append(pkg)
+
+        stanzas: list[str] = []
+        for (src_name, src_version), artifacts in groups.items():
+            meta = artifacts[0].content_metadata
+            lines = [f"Package: {src_name}"]
+
+            if meta.get("source_format"):
+                lines.append(f"Format: {meta['source_format']}")
+            binary = meta.get("binary") or []
+            if binary:
+                lines.append(f"Binary: {', '.join(binary)}")
+            lines.append(f"Version: {src_version}")
+            if meta.get("maintainer"):
+                lines.append(f"Maintainer: {meta['maintainer']}")
+            lines.append(f"Architecture: {meta.get('source_architecture') or 'any'}")
+            if meta.get("priority"):
+                lines.append(f"Priority: {meta['priority']}")
+            if meta.get("section"):
+                lines.append(f"Section: {meta['section']}")
+            lines.append(f"Directory: {component}/source")
+
+            files_lines = []
+            sha1_lines = []
+            sha256_lines = []
+            for art in sorted(artifacts, key=lambda a: a.filename):
+                size = art.size_bytes
+                amd5 = art.content_metadata.get("md5sum")
+                asha1 = art.content_metadata.get("sha1")
+                if amd5:
+                    files_lines.append(f" {amd5} {size} {art.filename}")
+                if asha1:
+                    sha1_lines.append(f" {asha1} {size} {art.filename}")
+                sha256_lines.append(f" {art.sha256} {size} {art.filename}")
+
+            if files_lines:
+                lines.append("Files:")
+                lines.extend(files_lines)
+            if sha1_lines:
+                lines.append("Checksums-Sha1:")
+                lines.extend(sha1_lines)
+            if sha256_lines:
+                lines.append("Checksums-Sha256:")
+                lines.extend(sha256_lines)
+
+            stanzas.append("\n".join(lines))
+
+        full_content = "\n\n".join(stanzas)
+        if full_content:
+            full_content += "\n"
+
+        sources_file_path = source_path / "Sources"
+        sources_file_path.write_text(full_content, encoding="utf-8")
+        generated = [sources_file_path]
+
+        if compression != "none":
+            ext = get_extension(compression)
+            compressed_path = source_path / f"Sources{ext}"
+            compressed_path.write_bytes(compress_file(sources_file_path.read_bytes(), compression))
+            generated.append(compressed_path)
+
+        print(
+            f"  ✓ Generated Sources for {component}: {len(groups)} source packages ({compression})"
+        )
+
+        return generated
+
     def _publish_metadata_files(
         self, repository_files: list[RepositoryFile], dists_path: Path
     ) -> None:
@@ -550,10 +648,12 @@ class AptPublisher(PublisherPlugin):
 
             if architecture == "source":
                 rel_prefix = f"{component}/source"
+                variants = _SOURCES_VARIANTS
             else:
                 rel_prefix = f"{component}/binary-{architecture}"
+                variants = _PACKAGES_VARIANTS
 
-            for variant in _PACKAGES_VARIANTS:
+            for variant in variants:
                 variant_path = component_dir / variant
                 if not variant_path.exists():
                     continue
