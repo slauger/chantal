@@ -153,3 +153,26 @@ exclude_lines = [
     "if TYPE_CHECKING:",
     "@abstractmethod",
 ]
+
+# Semantic release configuration.
+# Release notes are published only in the GitHub Release (no CHANGELOG.md in the
+# repo); the release workflow passes `changelog: false` to the action.
+[tool.semantic_release]
+version_toml = ["pyproject.toml:project.version"]
+version_variables = ["src/chantal/__init__.py:__version__"]
+build_command = "pip install build && python -m build"
+commit_parser = "conventional"
+major_on_zero = true
+tag_format = "v{version}"
+commit_message = "chore(release): {version} [skip ci]"
+upload_to_pypi = false
+upload_to_release = true
+
+[tool.semantic_release.commit_parser_options]
+allowed_tags = ["feat", "fix", "docs", "style", "refactor", "perf", "test", "build", "ci", "chore", "revert"]
+minor_tags = ["feat"]
+patch_tags = ["fix", "perf"]
+
+[tool.semantic_release.branches.main]
+match = "(main|master)"
+prerelease = false
