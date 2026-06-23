@@ -189,6 +189,26 @@ The `apt` section in repository configuration supports these options:
     index (Packages/Sources/Contents/Translation) and set `Acquire-By-Hash: yes`
     in the generated `Release`. Recommended `true` for modern apt clients.
 
+- **Generated `Release` fields** — the published `Release` is regenerated and
+  re-signed, so its header fields are controllable:
+  - **`origin`** / **`label`** — `Origin` / `Label` (default: `Chantal` / the
+    repository name).
+  - **`suite`** / **`codename`** — distinct `Suite` / `Codename` (default: both
+    the `distribution`). Upstream often differs (e.g. Suite `stable`, Codename
+    `bookworm`).
+  - **`not_automatic`** (bool) → `NotAutomatic: yes` (apt won't auto-select this
+    repo's packages — pin priority 1).
+  - **`but_automatic_upgrades`** (bool) → `ButAutomaticUpgrades: yes` (raises the
+    pin to 100 so already-installed packages still upgrade). Only valid together
+    with `not_automatic`.
+  - **`valid_until_days`** (int) → emit `Valid-Until` = publish time + N days.
+    Omitted by default; the upstream date is never copied (it is usually already
+    expired by publish time).
+  - **Note:** changing `suite`/`codename` on an *already-deployed* mirror makes
+    clients fail the next `apt update` with a "Repository changed its Suite/
+    Codename" error until they accept it (`apt update --allow-releaseinfo-change`).
+    Set these once, up front.
+
 - **`flat_repository`** (boolean, default: false)
   - Support for flat repositories (no dists/ structure)
   - Rare, used by some very old repositories

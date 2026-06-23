@@ -371,3 +371,32 @@ class TestAptConfig:
         assert config.distribution == "bookworm"
         assert "contrib" in config.components
         assert "non-free" in config.components
+
+    def test_release_field_overrides(self):
+        from chantal.core.config import AptConfig
+
+        cfg = AptConfig(
+            distribution="jammy",
+            suite="stable",
+            codename="bookworm",
+            origin="ACME",
+            not_automatic=True,
+            but_automatic_upgrades=True,
+            valid_until_days=7,
+        )
+        assert cfg.suite == "stable"
+        assert cfg.codename == "bookworm"
+        assert cfg.but_automatic_upgrades is True
+
+    def test_but_automatic_upgrades_requires_not_automatic(self):
+        from chantal.core.config import AptConfig
+
+        with pytest.raises(ValidationError, match="requires not_automatic"):
+            AptConfig(distribution="jammy", but_automatic_upgrades=True)
+
+    def test_valid_until_days_must_be_positive(self):
+        from chantal.core.config import AptConfig
+
+        for bad in (0, -1):
+            with pytest.raises(ValidationError, match="positive number of days"):
+                AptConfig(distribution="jammy", valid_until_days=bad)

@@ -8,7 +8,7 @@ This module implements publishing for APT repositories with Debian package metad
 
 import hashlib
 import shutil
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from sqlalchemy.orm import Session
@@ -684,20 +684,31 @@ class AptPublisher(PublisherPlugin):
             Path to generated Release file
         """
         release_lines = []
+        cfg = self.apt_config
+        date_fmt = "%a, %d %b %Y %H:%M:%S UTC"
 
         # Origin and Label
-        release_lines.append("Origin: Chantal")
-        release_lines.append(f"Label: {self.config.name}")
+        release_lines.append(f"Origin: {cfg.origin or 'Chantal'}")
+        release_lines.append(f"Label: {cfg.label or self.config.name}")
 
-        # Suite and Codename
-        release_lines.append(f"Suite: {self.apt_config.distribution}")
-        release_lines.append(f"Codename: {self.apt_config.distribution}")
+        # Suite and Codename (distinct upstream values, e.g. 'stable' vs
+        # 'bookworm'; default both to the configured distribution).
+        release_lines.append(f"Suite: {cfg.suite or cfg.distribution}")
+        release_lines.append(f"Codename: {cfg.codename or cfg.distribution}")
 
-        # Date
+        # Date (and optional relative Valid-Until)
         now = datetime.now(UTC)
-        # Format: "Thu, 12 Jan 2026 10:30:45 UTC"
-        date_str = now.strftime("%a, %d %b %Y %H:%M:%S UTC")
+        date_str = now.strftime(date_fmt)
         release_lines.append(f"Date: {date_str}")
+        if cfg.valid_until_days is not None:
+            valid_until = now + timedelta(days=cfg.valid_until_days)
+            release_lines.append(f"Valid-Until: {valid_until.strftime(date_fmt)}")
+
+        # Apt pinning hints
+        if cfg.not_automatic:
+            release_lines.append("NotAutomatic: yes")
+        if cfg.but_automatic_upgrades:
+            release_lines.append("ButAutomaticUpgrades: yes")
 
         # Architectures
         architectures = sorted(
@@ -719,11 +730,11 @@ class AptPublisher(PublisherPlugin):
         release_lines.append(f"Description: {self.config.name}")
 
         # Advertise by-hash availability for the indices listed below.
-        if self.apt_config.by_hash:
+        if cfg.by_hash:
             release_lines.append("Acquire-By-Hash: yes")
 
         # Build file checksums
-        by_hash = self.apt_config.by_hash
+        by_hash = cfg.by_hash
         by_hash_emitted: dict[Path, set[str]] = {}
         md5sums = []
         sha1sums = []
