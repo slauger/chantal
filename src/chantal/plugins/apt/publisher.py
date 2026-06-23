@@ -194,15 +194,15 @@ class AptPublisher(PublisherPlugin):
             dists_path, published_metadata, repository_files, mode
         )
 
-        # In filtered mode the regenerated Release invalidates upstream signatures.
-        # Sign it ourselves when a GPG key is configured, otherwise warn the user.
-        if mode == RepositoryMode.FILTERED:
+        # In filtered/hosted mode the regenerated Release has no upstream
+        # signature. Sign it ourselves when a GPG key is configured, else warn.
+        if mode in (RepositoryMode.FILTERED, RepositoryMode.HOSTED):
             gpg_config = self.config.gpg
             if gpg_config is not None and gpg_config.enabled:
                 self._sign_release(release_file, target_path, gpg_config)
             else:
-                print("\n⚠️  WARNING: Filtered mode - Publishing without GPG signatures!")
-                print("    Regenerating metadata based on filtered packages.")
+                print(f"\n⚠️  WARNING: {mode} mode - Publishing without GPG signatures!")
+                print("    Regenerating metadata based on the repository's packages.")
                 print("    Clients must use [trusted=yes] or Acquire::AllowInsecureRepositories=1")
                 print(
                     "    Example: deb [trusted=yes] http://mirror/ubuntu jammy main restricted universe multiverse"

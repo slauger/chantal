@@ -23,7 +23,7 @@ repositories:
 - `enabled`: Whether to include in `--all` operations
 
 **Optional Fields:**
-- `mode`: Repository operation mode (`mirror`, `filtered`, `hosted`) - RPM only, defaults to `filtered`
+- `mode`: Repository operation mode (`mirror`, `filtered`, `hosted`) - RPM and APT, defaults to `filtered`
 
 ## Repository Types
 
