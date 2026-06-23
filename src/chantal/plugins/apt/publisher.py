@@ -9,7 +9,7 @@ This module implements publishing for APT repositories with Debian package metad
 import hashlib
 import shutil
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from sqlalchemy.orm import Session
 
@@ -158,10 +158,9 @@ class AptPublisher(PublisherPlugin):
 
             component_arch_path.mkdir(parents=True, exist_ok=True)
 
-            # Create hardlinks for packages in this component/arch
-            self._create_package_hardlinks(
-                component_packages, component_arch_path, component, architecture
-            )
+            # Place the actual package files in the content pool (not under
+            # dists/), so Filename:/Directory: resolve for a real apt client.
+            self._link_packages_into_pool(component_packages, target_path, component)
 
             # Generate the index: Sources for the source group, Packages else.
             if architecture == "source":
@@ -252,38 +251,69 @@ class AptPublisher(PublisherPlugin):
 
         return grouped
 
-    def _create_package_hardlinks(
+    @staticmethod
+    def _safe_name(name: str) -> str:
+        """Neutralize path traversal in an upstream-controlled package name.
+
+        Debian package names never contain path separators; a hostile or broken
+        upstream ``Package:`` field must not be able to escape the pool via
+        ``/`` or ``..`` once it flows into a filesystem path.
+        """
+        safe = PurePosixPath(name).name
+        if not safe or safe.startswith("."):
+            safe = "_" + safe
+        return safe
+
+    @staticmethod
+    def _pool_prefix(name: str) -> str:
+        """Debian pool prefix: ``libx`` for lib* packages, else the first letter."""
+        if name.startswith("lib") and len(name) >= 4:
+            return name[:4]
+        return name[:1] or "_"
+
+    def _pool_relpath(self, component: str, name: str, filename: str) -> str:
+        """Repo-root-relative pool path: ``pool/<comp>/<prefix>/<name>/<file>``."""
+        safe = self._safe_name(name)
+        return f"pool/{self._safe_name(component)}/{self._pool_prefix(safe)}/{safe}/{Path(filename).name}"
+
+    def _pool_dir(self, component: str, name: str) -> str:
+        """Repo-root-relative pool directory (used as a source ``Directory:``)."""
+        safe = self._safe_name(name)
+        return f"pool/{self._safe_name(component)}/{self._pool_prefix(safe)}/{safe}"
+
+    def _link_packages_into_pool(
         self,
         packages: list[ContentItem],
-        component_arch_path: Path,
+        target_path: Path,
         component: str,
-        architecture: str,
     ) -> None:
-        """Create hardlinks for packages in component/arch directory.
+        """Hardlink packages into the content pool (``<root>/pool/...``).
 
-        Args:
-            packages: List of content items
-            component_arch_path: Path to component/architecture directory
-            component: Component name
-            architecture: Architecture name
+        Real apt repositories keep the actual .deb/source files in ``pool/`` at
+        the repository root (referenced by ``Filename:``/``Directory:`` from the
+        indices under ``dists/``), not inside ``dists/``. This makes the
+        published repo installable by a real apt client. Idempotent: an
+        ``Architecture: all`` package linked from several arch indices resolves
+        to one pool file.
         """
         import os
 
         for package in packages:
-            # Get pool path
             pool_file_path = self.storage.pool_path / package.pool_path
-
             if not pool_file_path.exists():
                 print(f"Warning: Pool file not found: {pool_file_path}")
                 continue
 
-            # Target path: dists/SUITE/COMPONENT/binary-ARCH/FILENAME
-            target_file_path = component_arch_path / package.filename
-
-            # Create hardlink
+            target_file_path = target_path / self._pool_relpath(
+                component, package.name, package.filename
+            )
+            # Defense in depth: never write outside the publish root.
+            if not target_file_path.resolve().is_relative_to(target_path.resolve()):
+                print(f"Warning: skipping package with unsafe pool path: {package.name!r}")
+                continue
+            target_file_path.parent.mkdir(parents=True, exist_ok=True)
             if target_file_path.exists():
                 target_file_path.unlink()
-
             os.link(pool_file_path, target_file_path)
 
     def _generate_packages_file(
@@ -392,7 +422,7 @@ class AptPublisher(PublisherPlugin):
                 stanza.append(f"Description: {description}")
 
             # Filename (relative to dists/)
-            filename = f"{component}/binary-{architecture}/{package.filename}"
+            filename = self._pool_relpath(component, package.name, package.filename)
             stanza.append(f"Filename: {filename}")
 
             # Size
@@ -484,7 +514,7 @@ class AptPublisher(PublisherPlugin):
                 lines.append(f"Priority: {meta['priority']}")
             if meta.get("section"):
                 lines.append(f"Section: {meta['section']}")
-            lines.append(f"Directory: {component}/source")
+            lines.append(f"Directory: {self._pool_dir(component, src_name)}")
 
             files_lines = []
             sha1_lines = []
