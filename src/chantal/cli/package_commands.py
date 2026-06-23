@@ -3,10 +3,10 @@ from __future__ import annotations
 """
 CLI for uploading custom (local) packages into a repository's content pool.
 
-Supports RPM (.rpm) and APT (.deb) uploads into a hosted (upload-only)
-repository. Uploaded packages are added to the content-addressed pool and
-linked to the repository as ContentItems, so the existing publisher includes
-them when it regenerates the repository metadata.
+Supports RPM (.rpm), APT (.deb) and Helm (.tgz) uploads into a hosted
+(upload-only) repository. Uploaded packages are added to the content-addressed
+pool and linked to the repository as ContentItems, so the existing publisher
+includes them when it regenerates the repository metadata.
 """
 
 from pathlib import Path
@@ -21,6 +21,8 @@ from chantal.db.connection import DatabaseManager
 from chantal.db.models import ContentItem, Repository
 from chantal.plugins.apt.deb import parse_deb_control
 from chantal.plugins.apt.models import DebMetadata
+from chantal.plugins.helm.chart import parse_chart_metadata
+from chantal.plugins.helm.models import HelmMetadata
 from chantal.plugins.rpm.models import RpmMetadata
 from chantal.plugins.rpm.rpm_header import parse_main_header
 
@@ -258,6 +260,66 @@ def _upload_deb(
     return "replaced" if conflict is not None else "uploaded"
 
 
+def _upload_helm(
+    session: Session, storage: StorageManager, repository: Repository, path: Path, force: bool
+) -> str:
+    """Add one local Helm chart .tgz to the pool and link it to the repo.
+
+    Returns "uploaded", "linked" (already in pool) or "replaced".
+    """
+    chart = parse_chart_metadata(path)  # ChartFormatError if not a chart archive
+    # digest/urls/created are index.yaml-only; the publisher fills them itself.
+    meta = HelmMetadata(**chart)
+    name = meta.name
+    version = meta.version
+
+    filename = path.name
+    sha256, pool_path, size_bytes = storage.add_package(path, filename, verify_checksum=True)
+
+    # Same chart name+version but different content -> conflict.
+    conflict = next(
+        (
+            item
+            for item in repository.content_items
+            if item.content_type == "helm"
+            and item.name == name
+            and item.version == version
+            and item.sha256 != sha256
+        ),
+        None,
+    )
+    ident = f"{name}-{version}"
+    if conflict is not None and not force:
+        raise ValueError(
+            f"{ident} already present in the repo with different content (use --force to replace)"
+        )
+
+    if conflict is not None:
+        conflict.repositories.remove(repository)
+
+    existing = session.query(ContentItem).filter_by(sha256=sha256).first()
+    if existing is not None:
+        if repository not in existing.repositories:
+            existing.repositories.append(repository)
+        session.commit()
+        return "replaced" if conflict is not None else "linked"
+
+    content_item = ContentItem(
+        content_type="helm",
+        name=name,
+        version=version,
+        sha256=sha256,
+        size_bytes=size_bytes,
+        pool_path=pool_path,
+        filename=filename,
+        content_metadata=meta.model_dump(mode="json"),
+    )
+    content_item.repositories.append(repository)
+    session.add(content_item)
+    session.commit()
+    return "replaced" if conflict is not None else "uploaded"
+
+
 def create_package_group(cli: click.Group) -> None:
     """Register the ``package`` command group."""
 
@@ -285,7 +347,7 @@ def create_package_group(cli: click.Group) -> None:
         "--component",
         default="main",
         show_default=True,
-        help="APT component for uploaded .deb packages (ignored for rpm).",
+        help="APT component for uploaded .deb packages (ignored for rpm/helm).",
     )
     @click.pass_context
     def upload(
@@ -303,9 +365,9 @@ def create_package_group(cli: click.Group) -> None:
         if repo_config is None:
             click.echo(f"Error: repository '{repo_id}' not found in configuration", err=True)
             raise click.Abort()
-        if repo_config.type not in ("rpm", "apt"):
+        if repo_config.type not in ("rpm", "apt", "helm"):
             click.echo(
-                f"Error: package upload supports only 'rpm' and 'apt' repositories "
+                f"Error: package upload supports only 'rpm', 'apt' and 'helm' repositories "
                 f"(repository '{repo_id}' is '{repo_config.type}')",
                 err=True,
             )
@@ -314,7 +376,7 @@ def create_package_group(cli: click.Group) -> None:
             click.echo("Error: provide --file or --directory", err=True)
             raise click.Abort()
 
-        ext = "*.rpm" if repo_config.type == "rpm" else "*.deb"
+        ext = {"rpm": "*.rpm", "apt": "*.deb", "helm": "*.tgz"}[repo_config.type]
         files: list[Path] = []
         if file_path:
             files.append(file_path)
@@ -333,8 +395,10 @@ def create_package_group(cli: click.Group) -> None:
                 try:
                     if repo_config.type == "rpm":
                         result = _upload_rpm(session, storage, repository, f, force)
-                    else:
+                    elif repo_config.type == "apt":
                         result = _upload_deb(session, storage, repository, f, force, component)
+                    else:
+                        result = _upload_helm(session, storage, repository, f, force)
                 except Exception as e:  # noqa: BLE001 - report per-file, continue
                     session.rollback()
                     failed += 1

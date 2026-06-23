@@ -75,7 +75,6 @@ class HelmMetadata(BaseModel):
     deprecated: bool | None = None
     annotations: dict[str, str] | None = None
     kube_version: str | None = Field(None, alias="kubeVersion")
-    app_version_field: str | None = Field(None, alias="appVersion")
 
     # Allow both 'appVersion' and 'app_version'
     model_config = ConfigDict(populate_by_name=True)
