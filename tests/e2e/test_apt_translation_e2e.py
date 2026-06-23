@@ -2,8 +2,8 @@
 End-to-end test: APT i18n Translation mirroring.
 
 With ``include_translations: true`` in MIRROR mode the Translation files and the
-``i18n/Index`` are downloaded, republished at their component i18n path, and
-referenced in the regenerated Release. FILTERED mode drops them.
+``i18n/Index`` are downloaded and republished verbatim at their component i18n
+path; the (verbatim upstream) Release references them. FILTERED mode drops them.
 """
 
 from __future__ import annotations

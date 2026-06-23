@@ -356,14 +356,24 @@ Publishing uses hardlinks (zero-copy) from the pool to the published directory.
 
 ### MIRROR Mode
 
-Preserves original repository structure and metadata exactly as upstream.
+Byte-for-byte 1:1 copy of upstream: packages keep their upstream `pool/` paths,
+and the `Packages`/`Sources`/`Contents`/`Translation` indices plus the signed
+`InRelease`/`Release`/`Release.gpg` are republished **verbatim**. Nothing is
+regenerated or re-signed, so the upstream signatures remain valid (and will
+eventually expire along with upstream — expected for a true mirror; any `gpg`
+signing config is ignored in mirror mode).
 
 **Behavior:**
-- Downloads InRelease/Release files directly from upstream
-- Downloads Packages files directly from upstream
-- No metadata regeneration
-- Preserves GPG signatures
+- Stores and republishes InRelease/Release/Packages exactly as upstream (no
+  regeneration, no re-signing)
+- Packages served at their upstream `Filename:`/`Directory:` paths
+- Preserves the original upstream GPG signatures
 - Ideal for exact repository mirrors
+
+> **Switching modes:** mirror is only meaningful for a mirror-*synced* repo.
+> Don't sync in `filtered` and then publish as `mirror` (the verbatim upstream
+> indices would reference packages that filtering removed). When changing a
+> repo's mode, re-sync and publish to a clean target (`unpublish` first).
 
 **Use Cases:**
 - Air-gapped environments requiring exact upstream copies

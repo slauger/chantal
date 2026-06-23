@@ -120,7 +120,7 @@ def test_apt_byhash_publishing(tmp_path, serve, chantal_env):
     _build_plain_upstream(upstream)
     base_url = serve(upstream)
 
-    chantal_env.write_config(_config("demo-apt-byhash-pub", base_url, "mirror", True))
+    chantal_env.write_config(_config("demo-apt-byhash-pub", base_url, "filtered", True))
     target = chantal_env.sync_and_publish("demo-apt-byhash-pub")
 
     comp_dir = target / "dists" / DIST / COMP / f"binary-{ARCH}"
@@ -163,7 +163,7 @@ def test_apt_byhash_prune_stale(tmp_path, serve, chantal_env):
     _build_plain_upstream(upstream)
     base_url = serve(upstream)
 
-    chantal_env.write_config(_config("demo-apt-byhash-prune", base_url, "mirror", True))
+    chantal_env.write_config(_config("demo-apt-byhash-prune", base_url, "filtered", True))
     target = chantal_env.sync_and_publish("demo-apt-byhash-prune")
 
     comp_dir = target / "dists" / DIST / COMP / f"binary-{ARCH}"
@@ -186,7 +186,7 @@ def test_apt_byhash_disabled_no_dirs(tmp_path, serve, chantal_env):
     _build_plain_upstream(upstream)
     base_url = serve(upstream)
 
-    chantal_env.write_config(_config("demo-apt-byhash-none", base_url, "mirror", False))
+    chantal_env.write_config(_config("demo-apt-byhash-none", base_url, "filtered", False))
     target = chantal_env.sync_and_publish("demo-apt-byhash-none")
 
     assert not list(target.rglob("by-hash")), "no by-hash dirs when disabled"

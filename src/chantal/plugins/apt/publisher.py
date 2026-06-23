@@ -141,6 +141,13 @@ class AptPublisher(PublisherPlugin):
         dists_path = target_path / "dists" / self.apt_config.distribution
         dists_path.mkdir(parents=True, exist_ok=True)
 
+        # Mirror mode is a byte-for-byte copy: place every package at its
+        # upstream path and republish every metadata file (incl. the signed
+        # Release/InRelease) verbatim. Nothing is regenerated or re-signed.
+        if mode == RepositoryMode.MIRROR:
+            self._publish_verbatim(packages, target_path, repository_files, dists_path)
+            return
+
         # Group packages by component and architecture
         packages_by_component_arch = self._group_packages_by_component_arch(packages)
 
@@ -181,19 +188,10 @@ class AptPublisher(PublisherPlugin):
                 }
             )
 
-        # In mirror mode, publish all metadata files (Release, InRelease, etc.)
-        # and the verbatim Contents/Translation indices (filtered mode drops
-        # them entirely).
-        passthrough_files: list[tuple[str, Path]] = []
-        if mode == RepositoryMode.MIRROR:
-            self._publish_metadata_files(repository_files, dists_path)
-            passthrough_files = self._publish_passthrough_files(
-                repository_files, dists_path, ("Contents", "Translation")
-            )
-
-        # Generate Release file (always generated, even in mirror mode for completeness)
+        # Generate Release from the regenerated indices (filtered/hosted mode;
+        # mirror mode returned early with verbatim metadata).
         release_file = self._generate_release_file(
-            dists_path, published_metadata, repository_files, mode, extra_files=passthrough_files
+            dists_path, published_metadata, repository_files, mode
         )
 
         # In filtered mode the regenerated Release invalidates upstream signatures.
@@ -327,6 +325,81 @@ class AptPublisher(PublisherPlugin):
             if target_file_path.exists():
                 target_file_path.unlink()
             os.link(pool_file_path, target_file_path)
+
+    def _upstream_rel_path(self, package: ContentItem) -> str | None:
+        """Repo-root-relative path a package occupied upstream (for verbatim mirror).
+
+        Returns None when the upstream path is unknown (legacy rows without the
+        captured ``Filename:``); the caller then skips it rather than placing it
+        at a guessed path the verbatim index would not reference.
+        """
+        meta = package.content_metadata or {}
+        if package.content_type == "deb-source":
+            directory = meta.get("directory") or ""
+            return f"{directory}/{package.filename}" if directory else package.filename
+        upstream = meta.get("filename")
+        return str(upstream) if upstream else None
+
+    @staticmethod
+    def _link_verbatim(src: Path, dest: Path) -> None:
+        """Hardlink ``src`` to ``dest`` (replacing any existing file)."""
+        import os
+
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        if dest.exists():
+            dest.unlink()
+        os.link(src, dest)
+
+    def _publish_verbatim(
+        self,
+        packages: list[ContentItem],
+        target_path: Path,
+        repository_files: list[RepositoryFile],
+        dists_path: Path,
+    ) -> None:
+        """Publish a byte-for-byte 1:1 mirror.
+
+        Each package is placed at the upstream path it occupied (from the stored
+        ``Filename:``/``Directory:``), and every stored metadata file — including
+        the signed ``Release``/``InRelease`` — is republished verbatim. Nothing
+        is regenerated or re-signed, so the upstream signatures stay valid (and
+        may eventually expire, which is expected for a true mirror).
+        """
+        # Packages at their upstream paths.
+        for package in packages:
+            pool_file = self.storage.pool_path / package.pool_path
+            if not pool_file.exists():
+                print(f"Warning: Pool file not found: {pool_file}")
+                continue
+            rel = self._upstream_rel_path(package)
+            if rel is None:
+                print(f"Warning: no upstream path for {package.name!r}; skipping (verbatim)")
+                continue
+            dest = target_path / rel
+            if not dest.resolve().is_relative_to(target_path.resolve()):
+                print(f"Warning: skipping package with unsafe path: {package.name!r}")
+                continue
+            self._link_verbatim(pool_file, dest)
+
+        # Every metadata/signature file verbatim under dists/<suite>/.
+        for repo_file in repository_files:
+            if repo_file.file_category not in ("metadata", "signature"):
+                continue
+            pool_file = self.storage.pool_path / repo_file.pool_path
+            if not pool_file.exists():
+                print(f"Warning: Pool file not found: {pool_file}")
+                continue
+            dest = dists_path / repo_file.original_path
+            if not dest.resolve().is_relative_to(dists_path.resolve()):
+                print(f"Warning: skipping metadata with unsafe path: {repo_file.original_path!r}")
+                continue
+            self._link_verbatim(pool_file, dest)
+
+        gpg_config = self.config.gpg
+        if gpg_config is not None and gpg_config.enabled:
+            print("  ℹ Mirror mode: GPG signing skipped (upstream signatures preserved verbatim).")
+
+        print(f"  ✓ Published verbatim mirror ({len(packages)} packages)")
 
     def _generate_packages_file(
         self,
@@ -573,106 +646,6 @@ class AptPublisher(PublisherPlugin):
 
         return generated
 
-    def _publish_metadata_files(
-        self, repository_files: list[RepositoryFile], dists_path: Path
-    ) -> None:
-        """Create hardlinks for repository metadata files.
-
-        Args:
-            repository_files: List of RepositoryFile instances
-            dists_path: Path to dists/SUITE directory
-        """
-        import os
-
-        for repo_file in repository_files:
-            # Only publish metadata files
-            if repo_file.file_category != "metadata":
-                continue
-
-            # Contents/Translation indices are placed by
-            # _publish_passthrough_files at their full dists-relative path (this
-            # method flattens nested paths).
-            if repo_file.file_type in ("Contents", "Translation"):
-                continue
-
-            # Get pool path
-            pool_file_path = self.storage.pool_path / repo_file.pool_path
-
-            if not pool_file_path.exists():
-                print(f"Warning: Pool file not found: {pool_file_path}")
-                continue
-
-            # Determine target path based on original_path
-            # original_path is like "dists/jammy/Release" or "dists/jammy/main/binary-amd64/Packages.gz"
-            # We need to extract the path relative to dists/SUITE/
-
-            original_path = Path(repo_file.original_path)
-
-            # Remove "dists/SUITE/" prefix to get relative path
-            # Example: "dists/jammy/Release" -> "Release"
-            # Example: "dists/jammy/main/binary-amd64/Packages.gz" -> "main/binary-amd64/Packages.gz"
-            parts = original_path.parts
-
-            if len(parts) >= 3 and parts[0] == "dists":
-                # Skip "dists" and suite name
-                relative_parts = parts[2:]
-                relative_path = Path(*relative_parts) if relative_parts else Path(".")
-            else:
-                # Fallback: just use the filename
-                relative_path = Path(original_path.name)
-
-            # Target path
-            target_path = dists_path / relative_path
-
-            # Create parent directories
-            target_path.parent.mkdir(parents=True, exist_ok=True)
-
-            # Create hardlink
-            if target_path.exists():
-                target_path.unlink()
-
-            os.link(pool_file_path, target_path)
-
-            print(f"  ✓ Published {repo_file.file_type}: {relative_path}")
-
-    def _publish_passthrough_files(
-        self,
-        repository_files: list[RepositoryFile],
-        dists_path: Path,
-        file_types: tuple[str, ...],
-    ) -> list[tuple[str, Path]]:
-        """Publish verbatim metadata indices at their dists-relative location.
-
-        Used for Contents and i18n/Translation indices, which are stored with a
-        dists-relative ``original_path`` (e.g. ``main/Contents-amd64.gz`` or
-        ``main/i18n/Translation-en.gz``) and republished verbatim. Returns
-        ``(relative_path, published_path)`` tuples so the regenerated Release
-        can reference them.
-        """
-        import os
-
-        published: list[tuple[str, Path]] = []
-        for repo_file in repository_files:
-            if repo_file.file_type not in file_types:
-                continue
-
-            pool_file_path = self.storage.pool_path / repo_file.pool_path
-            if not pool_file_path.exists():
-                print(f"Warning: Pool file not found: {pool_file_path}")
-                continue
-
-            relative_path = repo_file.original_path
-            target_path = dists_path / relative_path
-            target_path.parent.mkdir(parents=True, exist_ok=True)
-            if target_path.exists():
-                target_path.unlink()
-            os.link(pool_file_path, target_path)
-
-            published.append((relative_path, target_path))
-            print(f"  ✓ Published {repo_file.file_type}: {relative_path}")
-
-        return published
-
     def _emit_by_hash(
         self, file_path: Path, sha256_hex: str, emitted: dict[Path, set[str]]
     ) -> None:
@@ -710,7 +683,6 @@ class AptPublisher(PublisherPlugin):
         published_metadata: list[dict],
         repository_files: list[RepositoryFile],
         mode: str,
-        extra_files: list[tuple[str, Path]] | None = None,
     ) -> Path:
         """Generate Release file for the distribution.
 
@@ -719,8 +691,6 @@ class AptPublisher(PublisherPlugin):
             published_metadata: List of metadata info dicts
             repository_files: List of repository files
             mode: Repository mode
-            extra_files: Additional (dists-relative path, file) entries to
-                checksum into Release (e.g. Contents indices).
 
         Returns:
             Path to generated Release file
@@ -811,18 +781,6 @@ class AptPublisher(PublisherPlugin):
                 sha256sums.append(f" {sha} {size:8} {rel}")
                 if by_hash:
                     self._emit_by_hash(variant_path, sha, by_hash_emitted)
-
-        # Extra metadata files (e.g. Contents indices) referenced by their
-        # dists-relative path.
-        for rel, file_path in extra_files or []:
-            data = file_path.read_bytes()
-            size = len(data)
-            sha = hashlib.sha256(data).hexdigest()
-            md5sums.append(f" {hashlib.md5(data).hexdigest()} {size:8} {rel}")
-            sha1sums.append(f" {hashlib.sha1(data).hexdigest()} {size:8} {rel}")
-            sha256sums.append(f" {sha} {size:8} {rel}")
-            if by_hash:
-                self._emit_by_hash(file_path, sha, by_hash_emitted)
 
         if by_hash:
             self._prune_by_hash(by_hash_emitted)
