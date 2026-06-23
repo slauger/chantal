@@ -895,6 +895,7 @@
           "type": "string"
         },
         "feed": {
+          "default": "",
           "title": "Feed",
           "type": "string"
         },
@@ -1085,8 +1086,7 @@
       },
       "required": [
         "id",
-        "type",
-        "feed"
+        "type"
       ],
       "title": "RepositoryConfig",
       "type": "object"

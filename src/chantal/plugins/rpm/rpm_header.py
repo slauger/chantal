@@ -38,6 +38,22 @@ _Buffer = bytes | mmap.mmap
 RPMTAG_RSAHEADER = 268
 RPMTAG_DSAHEADER = 267
 
+# Main-header value tags (package metadata) and their RPM type codes.
+_RPM_TYPE_INT32 = 4
+_RPM_TYPE_STRING = 6
+_RPM_TYPE_STRING_ARRAY = 8
+_RPM_TYPE_I18NSTRING = 9
+_MAIN_HEADER_TAGS = {
+    1000: "name",
+    1001: "version",
+    1002: "release",
+    1003: "epoch",
+    1004: "summary",
+    1005: "description",
+    1022: "arch",
+    1044: "sourcerpm",
+}
+
 _LEAD_MAGIC = b"\xed\xab\xee\xdb"
 _HEADER_MAGIC = b"\x8e\xad\xe8\x01"
 _LEAD_SIZE = 96
@@ -113,3 +129,43 @@ def extract_header_signature(data: _Buffer) -> tuple[bytes, bytes] | None:
             return signature_packet, main_header_blob
 
     return None
+
+
+def _read_cstring(store: bytes, offset: int) -> str:
+    """Read a NUL-terminated string from the header store at ``offset``."""
+    end = store.find(b"\x00", offset)
+    if end == -1:
+        end = len(store)
+    return store[offset:end].decode("utf-8", "replace")
+
+
+def parse_main_header(data: _Buffer) -> dict:
+    """Extract package metadata (NEVRA, summary, ...) from an RPM's main header.
+
+    Pure-Python: reuses the same header parsing as the signature path, so no
+    ``rpm`` binary is required. Returns a dict with any of the keys: ``name``,
+    ``version``, ``release``, ``epoch`` (int), ``arch``, ``summary``,
+    ``description``, ``sourcerpm``.
+
+    Raises:
+        RpmFormatError: If the bytes are not a parseable RPM.
+    """
+    if len(data) < _LEAD_SIZE + _INTRO_SIZE or data[:4] != _LEAD_MAGIC:
+        raise RpmFormatError("not an RPM file (bad lead magic)")
+
+    _sig_entries, _sig_store, sig_end = _parse_header(data, _LEAD_SIZE)
+    main_offset = sig_end + (-sig_end % 8)
+    entries, store, _ = _parse_header(data, main_offset)
+
+    result: dict = {}
+    for tag, rpm_type, store_offset, _count in entries:
+        key = _MAIN_HEADER_TAGS.get(tag)
+        if key is None:
+            continue
+        if rpm_type in (_RPM_TYPE_STRING, _RPM_TYPE_I18NSTRING, _RPM_TYPE_STRING_ARRAY):
+            # I18NSTRING/STRING_ARRAY: take the first entry.
+            result[key] = _read_cstring(store, store_offset)
+        elif rpm_type == _RPM_TYPE_INT32:
+            (value,) = struct.unpack(">I", store[store_offset : store_offset + 4])
+            result[key] = value
+    return result

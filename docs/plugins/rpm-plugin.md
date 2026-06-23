@@ -15,7 +15,7 @@ The RPM plugin consists of:
 **Repository Modes:**
 - ✅ **Mirror Mode** - Full metadata mirroring (all repomd.xml types)
 - ✅ **Filtered Mode** - Smart metadata regeneration for filtered repos
-- ✅ **Hosted Mode** - For self-hosted packages (future)
+- ✅ **Hosted Mode** - Upload-only repositories for self-hosted packages (`chantal package upload`)
 
 **Package Management:**
 - ✅ Repomd.xml/primary.xml.gz parsing
@@ -263,7 +263,9 @@ Upstream has 1000 security advisories, but you only mirror nginx packages:
 
 ### Hosted Mode
 
-**Self-hosted packages** - For future use (uploading custom RPMs).
+**Self-hosted packages** - an upload-only repository with no upstream feed.
+Custom-built RPMs are added with `chantal package upload`; there is nothing to
+sync, so `chantal sync` skips hosted repositories.
 
 ```yaml
 repositories:
@@ -272,9 +274,32 @@ repositories:
     type: rpm
     mode: hosted
     enabled: true
+    # note: no 'feed' - hosted repos hold only uploaded packages
 ```
 
-**Status:** Planned feature for uploading custom-built RPMs.
+Upload one or more local RPMs and publish:
+
+```bash
+# A single file
+chantal package upload --repo-id custom-rpms --file ./nginx-1.20.1-1.el9.x86_64.rpm
+
+# A whole directory (optionally recursive)
+chantal package upload --repo-id custom-rpms --directory ./rpms/ --recursive
+
+# Replace an existing package with the same NEVRA but different content
+chantal package upload --repo-id custom-rpms --file ./nginx-1.20.1-1.el9.x86_64.rpm --force
+
+# Regenerate repodata so clients can install
+chantal publish repo --repo-id custom-rpms --target /srv/repos/custom-rpms
+```
+
+Package metadata (NEVRA, summary, ...) is parsed from the RPM header in pure
+Python - no `rpm` binary is required. Uploads are content-addressed and
+deduplicated by SHA-256; re-uploading identical bytes just links the existing
+pool entry. Uploading a different build of an NEVRA already in the repo
+requires `--force`.
+
+**Status:** ✅ Available (RPM).
 
 ## Upstream Signature Verification
 
