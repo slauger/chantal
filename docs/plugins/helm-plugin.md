@@ -21,6 +21,7 @@ The Helm plugin consists of:
 - ✅ Chart deduplication via content-addressed storage
 - ✅ Snapshot support
 - ✅ **Mirror Mode** - Byte-for-byte identical repositories with snapshot versioning
+- ✅ **Hosted Mode** - Upload-only repositories for self-hosted charts (`chantal package upload`)
 - ✅ OCI registry support (`oci://` chart repositories)
 - ℹ️ Charts are served unmodified; Chantal does not sign or re-sign charts (upstream Helm provenance `.prov` files are preserved if present)
 
@@ -82,6 +83,54 @@ This mode:
 - Supports post-processing (e.g., only latest versions)
 
 **Note:** For filtered repositories (pattern-based chart selection), dynamic generation is used automatically.
+
+### Hosted Mode
+
+An upload-only repository with **no upstream feed**. Custom-built charts are
+added with `chantal package upload`; there is nothing to sync, so `chantal sync`
+skips hosted repositories. Publishing generates `index.yaml` from the uploaded
+charts (the dynamic-generation path above), so the result is consumable by a
+real `helm` client.
+
+```yaml
+repositories:
+  - id: internal-charts
+    name: Internal Helm Charts
+    type: helm
+    enabled: true
+    mode: hosted
+    # note: no 'feed' - hosted repos hold only uploaded charts
+```
+
+Upload one or more local chart `.tgz` files and publish:
+
+```bash
+# A single chart
+chantal package upload --repo-id internal-charts --file ./demo-0.1.0.tgz
+
+# A whole directory (optionally recursive)
+chantal package upload --repo-id internal-charts --directory ./charts/ --recursive
+
+# Replace an existing chart of the same name/version with different content
+chantal package upload --repo-id internal-charts --file ./demo-0.1.0.tgz --force
+
+# Regenerate index.yaml so clients can pull
+chantal publish repo --repo-id internal-charts --target /srv/repos/internal-charts
+```
+
+Chart metadata is read from the chart's top-level `Chart.yaml` in **pure
+Python** (the gzipped tar is opened directly) - no `helm` binary is required.
+Uploads are content-addressed and deduplicated by SHA-256: re-uploading
+identical bytes just links the existing pool entry, while a different build of a
+chart name/version already present requires `--force`.
+
+Clients consume it like any other Helm HTTP repository:
+
+```bash
+helm repo add internal http://mirror.example.com/repos/internal-charts
+helm repo update
+helm pull internal/demo --version 0.1.0
+```
 
 ## Configuration
 
