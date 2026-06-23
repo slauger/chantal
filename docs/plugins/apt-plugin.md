@@ -15,7 +15,7 @@ The APT plugin consists of:
 **Repository Modes:**
 - ✅ **Mirror Mode** - Full metadata mirroring (InRelease, Release, Packages)
 - ✅ **Filtered Mode** - Smart metadata regeneration for filtered repos (with optional GPG signing)
-- ⏳ **Hosted Mode** - For self-hosted packages (future)
+- ✅ **Hosted Mode** - Upload-only repositories for self-hosted `.deb` packages (`chantal package upload`)
 
 **Package Management:**
 - ✅ InRelease/Release file parsing
@@ -527,6 +527,62 @@ See [Filters Configuration](../configuration/filters.md) for complete documentat
 | Metadata Source | Upstream | Regenerated |
 | Client Trust | Automatic (GPG) | GPG (signed-by) or manual (trusted=yes) |
 | Use Case | Exact mirrors | Curated subsets |
+
+### HOSTED Mode
+
+**Status:** ✅ Available
+
+An upload-only repository with **no upstream feed**. Custom-built `.deb`
+packages are added with `chantal package upload`; there is nothing to sync, so
+`chantal sync` skips hosted repositories. Publishing regenerates the
+`Packages`/`Release` indices and pool layout exactly like filtered mode, so the
+result installs with stock `apt`.
+
+```yaml
+repositories:
+  - id: internal-debs
+    name: Internal Debian Packages
+    type: apt
+    enabled: true
+    mode: hosted
+    # note: no 'feed' - hosted repos hold only uploaded packages
+    apt:
+      distribution: jammy
+      components: [main]
+      architectures: [amd64]
+```
+
+**Uploading and publishing:**
+
+```bash
+# A single .deb (defaults to component 'main')
+chantal package upload --repo-id internal-debs --file ./demo_1.0_amd64.deb
+
+# Choose the component
+chantal package upload --repo-id internal-debs --file ./demo_1.0_amd64.deb --component contrib
+
+# A whole directory (optionally recursive)
+chantal package upload --repo-id internal-debs --directory ./debs/ --recursive
+
+# Replace an existing same name/version/arch package with different content
+chantal package upload --repo-id internal-debs --file ./demo_1.0_amd64.deb --force
+
+# Regenerate metadata so clients can install
+chantal publish repo --repo-id internal-debs --target /srv/repos/internal-debs
+```
+
+Package metadata is parsed from the `.deb` control file in **pure Python** (the
+`ar` container plus a `control.tar.{gz,xz,zst}`) - no `dpkg-deb` binary is
+required. Uploads are content-addressed and deduplicated by SHA-256:
+re-uploading identical bytes just links the existing pool entry, while a
+different build of a name/version/architecture already present requires
+`--force`. The package's `architecture` must be one the repo's
+`apt.architectures` lists (or `all`) and its `--component` one the consumer
+requests, so it lands in the matching `binary-<arch>` index.
+
+**Client configuration** is the same as filtered mode: configure a `gpg`
+section to publish a signed `Release` (hosted Release files are signed when GPG
+is configured), otherwise clients must use `[trusted=yes]`.
 
 ## Upstream Signature Verification
 

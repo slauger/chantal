@@ -3,13 +3,14 @@ from __future__ import annotations
 """
 CLI for uploading custom (local) packages into a repository's content pool.
 
-Phase 1 supports RPM uploads into a hosted (upload-only) or hybrid repository.
-Uploaded packages are added to the content-addressed pool and linked to the
-repository as ContentItems, so the existing publisher includes them when it
-regenerates the repository metadata.
+Supports RPM (.rpm) and APT (.deb) uploads into a hosted (upload-only)
+repository. Uploaded packages are added to the content-addressed pool and
+linked to the repository as ContentItems, so the existing publisher includes
+them when it regenerates the repository metadata.
 """
 
 from pathlib import Path
+from typing import Any
 
 import click
 from sqlalchemy.orm import Session
@@ -18,6 +19,8 @@ from chantal.core.config import GlobalConfig, RepositoryConfig
 from chantal.core.storage import StorageManager
 from chantal.db.connection import DatabaseManager
 from chantal.db.models import ContentItem, Repository
+from chantal.plugins.apt.deb import parse_deb_control
+from chantal.plugins.apt.models import DebMetadata
 from chantal.plugins.rpm.models import RpmMetadata
 from chantal.plugins.rpm.rpm_header import parse_main_header
 
@@ -124,6 +127,137 @@ def _upload_rpm(
     return "replaced" if conflict is not None else "uploaded"
 
 
+# Debian control field -> DebMetadata field (= content_metadata key the APT
+# publisher reads). Package/Version/Architecture are handled explicitly.
+_DEB_CONTROL_MAP = {
+    "Maintainer": "maintainer",
+    "Original-Maintainer": "original_maintainer",
+    "Section": "section",
+    "Priority": "priority",
+    "Homepage": "homepage",
+    "Source": "source",
+    "Depends": "depends",
+    "Pre-Depends": "pre_depends",
+    "Recommends": "recommends",
+    "Suggests": "suggests",
+    "Enhances": "enhances",
+    "Breaks": "breaks",
+    "Conflicts": "conflicts",
+    "Replaces": "replaces",
+    "Provides": "provides",
+    "Built-Using": "built_using",
+    "Essential": "essential",
+    "Multi-Arch": "multi_arch",
+}
+
+
+def _upload_deb(
+    session: Session,
+    storage: StorageManager,
+    repository: Repository,
+    path: Path,
+    force: bool,
+    component: str,
+) -> str:
+    """Add one local .deb to the pool and link it to the repo.
+
+    Returns "uploaded", "linked" (already in pool) or "replaced".
+    """
+    control = parse_deb_control(path.read_bytes())  # DebFormatError if not a .deb
+    name = control.get("Package")
+    version = control.get("Version")
+    arch = control.get("Architecture")
+    if not (name and version and arch):
+        raise ValueError("could not extract Package/Version/Architecture from .deb control")
+
+    filename = path.name
+    sha256, pool_path, size_bytes = storage.add_package(path, filename, verify_checksum=True)
+
+    # The APT publisher emits Description as a single line; keep only the synopsis
+    # there and stash the extended description (which it ignores) separately.
+    description = control.get("Description")
+    synopsis = long_description = None
+    if description is not None:
+        synopsis, _, rest = description.partition("\n")
+        long_description = rest or None
+
+    installed_size = control.get("Installed-Size")
+    data: dict[str, Any] = {
+        "package": name,
+        "version": version,
+        "architecture": arch,
+        "filename": filename,
+        "size": size_bytes,
+        "sha256": sha256,
+        "component": component,
+        "description": synopsis,
+        "long_description": long_description,
+        "installed_size": (
+            int(installed_size) if installed_size and installed_size.isdigit() else None
+        ),
+    }
+    for src, dest in _DEB_CONTROL_MAP.items():
+        if control.get(src):
+            data[dest] = control[src]
+    deb_metadata = DebMetadata.model_validate(data)
+
+    # Same identity (name, version, arch, component) but different content -> conflict.
+    conflict = next(
+        (
+            item
+            for item in repository.content_items
+            if item.content_type == "deb"
+            and item.name == name
+            and item.version == version
+            and (item.content_metadata or {}).get("architecture") == arch
+            and ((item.content_metadata or {}).get("component") or "main") == component
+            and item.sha256 != sha256
+        ),
+        None,
+    )
+    ident = f"{name}_{version}_{arch}"
+    if conflict is not None and not force:
+        raise ValueError(
+            f"{ident} already present in the repo with different content (use --force to replace)"
+        )
+
+    if conflict is not None:
+        conflict.repositories.remove(repository)
+
+    existing = session.query(ContentItem).filter_by(sha256=sha256).first()
+    if existing is not None:
+        # Content is globally deduplicated by checksum, but a ContentItem carries
+        # a single component. Linking identical bytes whose pooled item lives in a
+        # different component would silently file the package into the wrong
+        # component, so reject it explicitly rather than no-op.
+        existing_component = (existing.content_metadata or {}).get("component") or "main"
+        if existing_component != component:
+            raise ValueError(
+                f"{ident}: identical package content is already pooled under component "
+                f"'{existing_component}'; the same bytes cannot also be published under "
+                f"'{component}' (content is deduplicated by checksum)"
+            )
+        if repository not in existing.repositories:
+            existing.repositories.append(repository)
+        session.commit()
+        return "replaced" if conflict is not None else "linked"
+
+    content_item = ContentItem(
+        content_type="deb",
+        name=name,
+        version=version,
+        sha256=sha256,
+        size_bytes=size_bytes,
+        pool_path=pool_path,
+        filename=filename,
+        content_metadata=deb_metadata.model_dump(exclude_none=False),
+    )
+    content_item.repositories.append(repository)
+    session.add(content_item)
+    session.commit()
+    return "replaced" if conflict is not None else "uploaded"
+
+
 def create_package_group(cli: click.Group) -> None:
     """Register the ``package`` command group."""
 
@@ -146,7 +280,13 @@ def create_package_group(cli: click.Group) -> None:
     )
     @click.option("--recursive", is_flag=True, help="Recurse into --directory.")
     @click.option("--repo-id", required=True, help="Target repository id.")
-    @click.option("--force", is_flag=True, help="Replace a conflicting same-NEVRA package.")
+    @click.option("--force", is_flag=True, help="Replace a conflicting same-version package.")
+    @click.option(
+        "--component",
+        default="main",
+        show_default=True,
+        help="APT component for uploaded .deb packages (ignored for rpm).",
+    )
     @click.pass_context
     def upload(
         ctx: click.Context,
@@ -155,6 +295,7 @@ def create_package_group(cli: click.Group) -> None:
         recursive: bool,
         repo_id: str,
         force: bool,
+        component: str,
     ) -> None:
         """Upload local package file(s) into a repository's content pool."""
         config: GlobalConfig = ctx.obj["config"]
@@ -162,9 +303,9 @@ def create_package_group(cli: click.Group) -> None:
         if repo_config is None:
             click.echo(f"Error: repository '{repo_id}' not found in configuration", err=True)
             raise click.Abort()
-        if repo_config.type != "rpm":
+        if repo_config.type not in ("rpm", "apt"):
             click.echo(
-                f"Error: package upload currently supports only 'rpm' repositories "
+                f"Error: package upload supports only 'rpm' and 'apt' repositories "
                 f"(repository '{repo_id}' is '{repo_config.type}')",
                 err=True,
             )
@@ -173,13 +314,14 @@ def create_package_group(cli: click.Group) -> None:
             click.echo("Error: provide --file or --directory", err=True)
             raise click.Abort()
 
+        ext = "*.rpm" if repo_config.type == "rpm" else "*.deb"
         files: list[Path] = []
         if file_path:
             files.append(file_path)
         if directory:
-            files.extend(sorted(directory.rglob("*.rpm") if recursive else directory.glob("*.rpm")))
+            files.extend(sorted(directory.rglob(ext) if recursive else directory.glob(ext)))
         if not files:
-            click.echo("No .rpm files found to upload.")
+            click.echo(f"No {ext} files found to upload.")
             return
 
         storage = StorageManager(config.storage)
@@ -189,7 +331,10 @@ def create_package_group(cli: click.Group) -> None:
             repository = _get_or_create_repository(session, repo_config)
             for f in files:
                 try:
-                    result = _upload_rpm(session, storage, repository, f, force)
+                    if repo_config.type == "rpm":
+                        result = _upload_rpm(session, storage, repository, f, force)
+                    else:
+                        result = _upload_deb(session, storage, repository, f, force, component)
                 except Exception as e:  # noqa: BLE001 - report per-file, continue
                     session.rollback()
                     failed += 1
