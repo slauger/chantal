@@ -70,6 +70,83 @@
           "description": "Use/publish by-hash indices. On sync, fetch indices via by-hash/SHA256/<checksum> (falling back to the plain path). On publish, emit by-hash/SHA256/ copies and set Acquire-By-Hash: yes in the generated Release.",
           "title": "By Hash",
           "type": "boolean"
+        },
+        "origin": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Release Origin field (default: Chantal)",
+          "title": "Origin"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Release Label field (default: repository name)",
+          "title": "Label"
+        },
+        "suite": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Release Suite field (default: distribution)",
+          "title": "Suite"
+        },
+        "codename": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Release Codename field (default: distribution)",
+          "title": "Codename"
+        },
+        "not_automatic": {
+          "default": false,
+          "description": "Emit 'NotAutomatic: yes' so apt does not auto-select this repo's packages",
+          "title": "Not Automatic",
+          "type": "boolean"
+        },
+        "but_automatic_upgrades": {
+          "default": false,
+          "description": "Emit 'ButAutomaticUpgrades: yes' (only valid together with not_automatic)",
+          "title": "But Automatic Upgrades",
+          "type": "boolean"
+        },
+        "valid_until_days": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Emit 'Valid-Until' = publish time + this many days (omitted when unset). Upstream's date is never copied as it is usually already expired by publish time.",
+          "title": "Valid Until Days"
         }
       },
       "required": [

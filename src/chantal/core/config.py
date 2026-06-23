@@ -183,6 +183,40 @@ class AptConfig(BaseModel):
         ),
     )
 
+    # Generated-Release field overrides (the published Release is regenerated
+    # and re-signed; these control its header fields).
+    origin: str | None = Field(None, description="Release Origin field (default: Chantal)")
+    label: str | None = Field(None, description="Release Label field (default: repository name)")
+    suite: str | None = Field(None, description="Release Suite field (default: distribution)")
+    codename: str | None = Field(None, description="Release Codename field (default: distribution)")
+    not_automatic: bool = Field(
+        default=False,
+        description="Emit 'NotAutomatic: yes' so apt does not auto-select this repo's packages",
+    )
+    but_automatic_upgrades: bool = Field(
+        default=False,
+        description="Emit 'ButAutomaticUpgrades: yes' (only valid together with not_automatic)",
+    )
+    valid_until_days: int | None = Field(
+        default=None,
+        description=(
+            "Emit 'Valid-Until' = publish time + this many days (omitted when unset). "
+            "Upstream's date is never copied as it is usually already expired by publish time."
+        ),
+    )
+
+    @model_validator(mode="after")
+    def validate_release_fields(self) -> AptConfig:
+        """Validate the generated-Release field options."""
+        if self.but_automatic_upgrades and not self.not_automatic:
+            raise ValueError(
+                "but_automatic_upgrades requires not_automatic (apt only honors "
+                "ButAutomaticUpgrades together with NotAutomatic)"
+            )
+        if self.valid_until_days is not None and self.valid_until_days <= 0:
+            raise ValueError("valid_until_days must be a positive number of days")
+        return self
+
 
 class GpgConfig(BaseModel):
     """GPG signing configuration for APT repositories.
