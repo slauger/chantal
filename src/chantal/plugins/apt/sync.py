@@ -240,11 +240,18 @@ class AptSyncPlugin:
                     pkg_url = urljoin(self.config.feed + "/", pkg.filename)
                     pkg_size_mb = pkg.size / 1024 / 1024 if pkg.size else 0
                     self.output.downloading(pkg_name, pkg_size_mb, i, len(all_packages))
-                    downloaded_bytes = self._download_package(pkg_url, pkg, session, repository)
+                    downloaded_bytes, item = self._download_package(
+                        pkg_url, pkg, session, repository
+                    )
+                    # Record in-run so a duplicate sha256 later in the same set
+                    # (e.g. an Architecture: all package listed in every per-arch
+                    # index) links instead of re-inserting (sha256 is unique).
+                    existing_packages[pkg.sha256] = item
                     packages_downloaded += 1
                     bytes_downloaded += downloaded_bytes
                     self.output.downloaded(downloaded_bytes / 1024 / 1024)
                 except Exception as e:
+                    session.rollback()
                     logger.error(f"Failed to download {pkg_name}: {e}")
                     self.output.error(f"{pkg_name}: {e}")
 
@@ -752,7 +759,7 @@ class AptSyncPlugin:
         pkg_meta: DebMetadata,
         session: Session,
         repository: Repository,
-    ) -> int:
+    ) -> tuple[int, ContentItem]:
         """Download .deb package and add to storage pool.
 
         Args:
@@ -762,7 +769,7 @@ class AptSyncPlugin:
             repository: Repository model instance
 
         Returns:
-            Number of bytes downloaded
+            Tuple of (bytes downloaded, the created ContentItem).
 
         Raises:
             Exception: On download or storage errors
@@ -814,7 +821,7 @@ class AptSyncPlugin:
                 content_item.repositories.append(repository)
                 session.commit()
 
-                return bytes_downloaded
+                return bytes_downloaded, content_item
 
             finally:
                 # Clean up temp file

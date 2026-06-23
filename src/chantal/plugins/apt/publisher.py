@@ -235,19 +235,31 @@ class AptPublisher(PublisherPlugin):
 
         Returns:
             Dictionary mapping (component, architecture) to list of packages
+
+        ``Architecture: all`` packages are fanned out into every configured
+        per-arch index, because apt clients only read
+        ``binary-<their-arch>/Packages`` — a lone ``binary-all`` index would
+        leave arch-independent packages invisible to them.
         """
         grouped: dict[tuple[str, str], list[ContentItem]] = {}
+        configured_arches = [a for a in self.apt_config.architectures if a != "all"]
 
         for package in packages:
             # Use `or` so an explicit None in the metadata still falls back.
             component = package.content_metadata.get("component") or "main"
             architecture = package.content_metadata.get("architecture") or "amd64"
 
-            key = (component, architecture)
-            if key not in grouped:
-                grouped[key] = []
+            if architecture == "source":
+                targets = ["source"]
+            elif architecture == "all":
+                # Duplicate into each real arch (fall back to binary-all only if
+                # no concrete architecture is configured).
+                targets = configured_arches or ["all"]
+            else:
+                targets = [architecture]
 
-            grouped[key].append(package)
+            for arch in targets:
+                grouped.setdefault((component, arch), []).append(package)
 
         return grouped
 
