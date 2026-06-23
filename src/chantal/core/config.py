@@ -501,7 +501,7 @@ class RepositoryConfig(BaseModel):
     id: str
     name: str | None = None
     type: str  # rpm, apt
-    feed: str  # upstream URL
+    feed: str = ""  # upstream URL (empty for hosted repos; required otherwise)
     enabled: bool = True
 
     # Repository mode (mirror, filtered, hosted)
@@ -560,11 +560,18 @@ class RepositoryConfig(BaseModel):
 
     @model_validator(mode="after")
     def validate_mode_and_filters(self) -> RepositoryConfig:
-        """Validate that mirror mode is not used with filters."""
+        """Validate mode/filters and the feed requirement."""
         if self.mode == "mirror" and self.filters is not None:
             raise ValueError(
                 f"Repository '{self.id}': mode='mirror' cannot be used with filters. "
                 "Use mode='filtered' to apply filters, or remove filters for true mirror mode."
+            )
+        # Hosted repos hold only uploaded packages and need no upstream feed;
+        # mirror/filtered repos sync from a feed and require one.
+        if self.mode != "hosted" and not self.feed:
+            raise ValueError(
+                f"Repository '{self.id}': a 'feed' is required for mode='{self.mode}'. "
+                "Use mode='hosted' for an upload-only repository with no upstream."
             )
         return self
 

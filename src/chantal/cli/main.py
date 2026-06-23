@@ -16,6 +16,7 @@ from chantal import __version__
 from chantal.cli.cache_commands import create_cache_group
 from chantal.cli.content_commands import create_content_group
 from chantal.cli.db_commands import create_db_group
+from chantal.cli.package_commands import create_package_group
 from chantal.cli.pool_commands import create_pool_group
 from chantal.cli.publish_commands import create_publish_group
 from chantal.cli.repo_commands import create_repo_group
@@ -130,6 +131,7 @@ create_view_group(cli)
 create_content_group(cli)
 create_pool_group(cli)
 create_publish_group(cli)
+create_package_group(cli)
 
 
 # ============================================================================

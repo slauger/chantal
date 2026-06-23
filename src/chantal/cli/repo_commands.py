@@ -1050,12 +1050,18 @@ def _sync_single_repository(
             repo_id=repo_config.id,
             name=repo_config.name or repo_config.id,
             type=repo_config.type,
-            feed=repo_config.feed,
+            feed=repo_config.feed or "",  # hosted repos have no upstream feed
             enabled=repo_config.enabled,
             mode=repo_config.mode.upper(),  # Convert to uppercase for enum (MIRROR, FILTERED, HOSTED)
         )
         session.add(repository)
         session.commit()
+
+    # Hosted repos hold only uploaded packages (see `chantal package upload`);
+    # there is no upstream to sync from.
+    if repo_config.mode == "hosted":
+        click.echo(f"Skipping '{repo_config.id}': hosted repository (no upstream to sync)")
+        return repository
 
     # Merge proxy and SSL config: repo-specific overrides global
     effective_proxy = repo_config.proxy if repo_config.proxy is not None else global_config.proxy

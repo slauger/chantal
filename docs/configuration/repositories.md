@@ -64,7 +64,7 @@ repositories:
 
 - **`filtered`** (default): Filters packages based on patterns/rules, regenerates metadata to match. Updateinfo filtered to include only relevant errata.
 - **`mirror`**: Full mirror of upstream repository. All metadata types downloaded and published unchanged. No filtering applied.
-- **`hosted`**: For self-hosted packages (future feature).
+- **`hosted`**: Upload-only repository with no upstream feed. Packages are added with `chantal package upload` and published like any other repo. `sync` is a no-op for hosted repos.
 
 See [RPM Plugin Documentation - Repository Modes](../plugins/rpm-plugin.md) for detailed mode explanations.
 
