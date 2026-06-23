@@ -176,3 +176,11 @@ patch_tags = ["fix", "perf"]
 [tool.semantic_release.branches.main]
 match = "(main|master)"
 prerelease = false
+
+# Release-candidate channel: pushing the `rc` branch cuts prerelease versions
+# (e.g. 0.2.0-rc.1). The release workflow publishes prereleases to TestPyPI
+# only, never to PyPI.
+[tool.semantic_release.branches.rc]
+match = "rc"
+prerelease = true
+prerelease_token = "rc"
