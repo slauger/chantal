@@ -206,8 +206,8 @@ class TestPackagesFileGeneration:
         # Should contain size
         assert f"Size: {test_package.size_bytes}" in content
 
-        # Should contain filename
-        assert "Filename: main/binary-amd64/test-package_1.0-1_amd64.deb" in content
+        # Should contain a pool-relative filename (so it resolves for real apt)
+        assert "Filename: pool/main/t/test-package/test-package_1.0-1_amd64.deb" in content
 
     def test_generate_packages_file_multiple_packages(
         self, db_session, temp_storage, apt_config, test_repository
@@ -582,3 +582,19 @@ class TestPackagesCompression:
         assert "main/binary-amd64/Packages" in content
         assert "main/binary-amd64/Packages.zst" in content
         assert "main/binary-amd64/Packages.gz" not in content
+
+
+class TestPoolPath:
+    """Tests for the content-pool path helpers (Filename resolution + safety)."""
+
+    def test_pool_prefix(self):
+        assert AptPublisher._pool_prefix("docker-ce") == "d"
+        assert AptPublisher._pool_prefix("libssl3") == "libs"
+        assert AptPublisher._pool_prefix("lib") == "l"  # too short for lib-prefix
+
+    def test_safe_name_neutralizes_traversal(self):
+        assert AptPublisher._safe_name("docker-ce") == "docker-ce"
+        assert AptPublisher._safe_name("../../etc/passwd") == "passwd"
+        assert AptPublisher._safe_name("a/b") == "b"
+        # A name that resolves to empty/dotted is prefixed so it can't traverse.
+        assert not AptPublisher._safe_name("..").startswith("..")

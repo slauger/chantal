@@ -128,14 +128,16 @@ def test_apt_sources_sync_and_publish(tmp_path, serve, chantal_env):
 
     target = chantal_env.sync_and_publish("demo-apt-src")
 
-    source_dir = target / "dists" / DIST / COMP / "source"
-    # The regenerated Sources index exists and lists all three artifacts.
-    sources_index = source_dir / "Sources"
+    # The regenerated Sources index stays under dists/ and lists all artifacts.
+    sources_index = target / "dists" / DIST / COMP / "source" / "Sources"
     assert sources_index.exists(), "regenerated Sources index missing"
     text = sources_index.read_text()
     for name in ("demo_1.0.dsc", "demo_1.0.orig.tar.gz", "demo_1.0.debian.tar.xz"):
         assert name in text, f"{name} missing from regenerated Sources"
-        assert (source_dir / name).exists(), f"{name} not published"
+        # Artifacts live in the content pool (referenced by Directory:).
+        assert list(target.rglob(name)), f"{name} not published"
+    # Directory points into the pool (where the artifacts actually are).
+    assert f"Directory: pool/{COMP}/" in text, "source Directory not pool-relative"
     # The Format field is preserved (apt-get source needs it).
     assert "Format: 3.0 (quilt)" in text, "Format field not preserved"
 
@@ -168,10 +170,9 @@ def test_apt_sources_checksum_mismatch_rejected(tmp_path, serve, chantal_env):
     )
 
     target = chantal_env.sync_and_publish("demo-apt-src-bad")
-    source_dir = target / "dists" / DIST / COMP / "source"
-    # The corrupt .dsc is rejected; the well-formed artifacts still publish.
-    assert not (source_dir / "demo_1.0.dsc").exists(), "artifact with bad checksum was published"
-    assert (source_dir / "demo_1.0.orig.tar.gz").exists(), "valid artifact missing"
+    # The corrupt .dsc is rejected; the well-formed artifacts still publish (pool).
+    assert not list(target.rglob("demo_1.0.dsc")), "artifact with bad checksum was published"
+    assert list(target.rglob("demo_1.0.orig.tar.gz")), "valid artifact missing"
 
 
 def _build_shared_artifact_upstream(root: Path) -> None:
@@ -235,10 +236,10 @@ def test_apt_sources_shared_artifact_dedup(tmp_path, serve, chantal_env):
     )
 
     target = chantal_env.sync_and_publish("demo-apt-src-shared")
-    source_dir = target / "dists" / DIST / COMP / "source"
-    assert (source_dir / "shared_1.0.orig.tar.gz").exists(), "shared artifact missing"
-    assert (source_dir / "alpha_1.0.dsc").exists()
-    assert (source_dir / "beta_1.0.dsc").exists()
-    # The shared artifact lives once in the pool (content-addressed).
+    # All artifacts published (under the pool); the shared one appears once.
+    assert list(target.rglob("shared_1.0.orig.tar.gz")), "shared artifact missing"
+    assert list(target.rglob("alpha_1.0.dsc"))
+    assert list(target.rglob("beta_1.0.dsc"))
+    # The shared artifact lives once in the content pool (content-addressed).
     pooled = list(chantal_env.pool.rglob("*shared_1.0.orig.tar.gz"))
     assert len(pooled) == 1, f"shared artifact should be pooled once, got {len(pooled)}"
