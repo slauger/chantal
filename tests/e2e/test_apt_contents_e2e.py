@@ -1,8 +1,9 @@
 """
 End-to-end test: APT Contents-<arch> index mirroring.
 
-With ``include_contents: true`` in MIRROR mode the Contents index is downloaded,
-republished at its component path, and referenced in the regenerated Release.
+With ``include_contents: true`` in MIRROR mode the Contents index is downloaded
+and republished verbatim at its component path; the (verbatim upstream) Release
+references it.
 In FILTERED mode Contents are dropped (regenerating one would need per-.deb file
 lists chantal does not extract).
 """
