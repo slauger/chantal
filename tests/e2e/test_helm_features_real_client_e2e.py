@@ -201,8 +201,19 @@ def test_helm_filtering_excludes_chart_from_real_client(tmp_path, serve, chantal
     )
     target = chantal_env.sync_and_publish("demo-filt")
 
+    # The published index.yaml itself must be regenerated from the filtered set:
+    # the excluded chart must NOT be listed (not just absent as a .tgz).
+    index = yaml.safe_load((target / "index.yaml").read_text())
+    assert "demo" in index["entries"], "kept chart missing from published index.yaml"
+    assert "other" not in index["entries"], (
+        "excluded chart 'other' still listed in the published index.yaml "
+        "(filtered mode must regenerate the index, not republish upstream)"
+    )
+
     ok = _helm(
         target,
+        "helm search repo local/ | tee /tmp/s; "
+        "grep -q demo /tmp/s && ! grep -q other /tmp/s; "
         "helm pull local/demo --version 0.1.0 && test -f demo-0.1.0.tgz && echo KEPT_OK; "
         "if helm pull local/other --version 0.1.0 2>/dev/null; then echo OTHER_PRESENT; "
         "else echo OTHER_ABSENT; fi",

@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 
 from chantal.core.config import RepositoryConfig
 from chantal.core.storage import StorageManager
-from chantal.db.models import ContentItem, Repository, Snapshot
+from chantal.db.models import ContentItem, Repository, RepositoryMode, Snapshot
 from chantal.plugins.base import PublisherPlugin
 from chantal.plugins.helm.models import HelmMetadata
 
@@ -141,10 +141,11 @@ class HelmPublisher(PublisherPlugin):
         charts: list[ContentItem],
         snapshot: Snapshot | None = None,
     ) -> None:
-        """Publish index.yaml from RepositoryFile or generate it.
+        """Publish index.yaml: regenerate it (filtered/hosted) or hardlink it.
 
-        For mirror mode, this hardlinks the index.yaml from pool.
-        If not found, falls back to generating index.yaml.
+        Filtered mode always regenerates index.yaml from the published charts.
+        Mirror mode hardlinks the verbatim upstream index.yaml from the pool,
+        falling back to generation when none was stored.
 
         Args:
             session: Database session
@@ -154,6 +155,15 @@ class HelmPublisher(PublisherPlugin):
             charts: List of charts (for fallback generation)
             snapshot: Optional snapshot model instance
         """
+        # In filtered mode the published chart set differs from upstream, so
+        # always regenerate index.yaml from the published charts. Republishing
+        # the verbatim upstream index (stored unconditionally during sync) would
+        # still list charts that were filtered out. Mirror mode keeps the
+        # upstream index as-is.
+        if repository.mode == RepositoryMode.FILTERED:
+            self._generate_index_yaml(charts, target_path, config)
+            return
+
         # Find index.yaml RepositoryFile
         index_file = None
 
