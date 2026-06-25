@@ -4,23 +4,40 @@ This directory contains production-ready example configurations for popular Linu
 
 ## Directory Structure
 
+The examples are organized in a flat directory per package type:
+
 ```
 examples/
 ├── README.md                          # This file
+├── config/                            # Full config.yaml + conf.d/ include example
+│   ├── config.yaml
+│   └── conf.d/rhel9.yaml
+├── auth-examples.yaml                 # Authentication configuration examples
+├── filter-examples.yaml               # Package filter examples
 ├── rpm/                               # RPM-based repository examples
-│   ├── distributions/                 # Official distribution repositories
-│   │   ├── rhel8.yaml                # Red Hat Enterprise Linux 8
-│   │   └── rhel9.yaml                # Red Hat Enterprise Linux 9
-│   └── third-party/                   # Third-party software repositories
-│       ├── docker-ce.yaml            # Docker CE (Community Edition)
-│       ├── epel.yaml                 # Extra Packages for Enterprise Linux
-│       ├── gitlab.yaml               # GitLab CE/EE
-│       ├── gitlab-runner.yaml        # GitLab CI/CD Runner
-│       ├── grafana.yaml              # Grafana Observability Platform
-│       ├── hashicorp.yaml            # HashiCorp Tools (Terraform, Vault, Consul)
-│       ├── icinga.yaml               # Icinga Monitoring Platform
-│       ├── postgresql.yaml           # PostgreSQL Database
-│       └── zabbix.yaml               # Zabbix Monitoring Platform
+│   ├── rhel8.yaml                    # Red Hat Enterprise Linux 8
+│   ├── rhel9.yaml                    # Red Hat Enterprise Linux 9
+│   ├── docker-ce.yaml               # Docker CE (Community Edition)
+│   ├── epel.yaml                    # Extra Packages for Enterprise Linux
+│   ├── gitlab.yaml                  # GitLab CE/EE
+│   ├── gitlab-runner.yaml           # GitLab CI/CD Runner
+│   ├── grafana.yaml                 # Grafana Observability Platform
+│   ├── hashicorp.yaml               # HashiCorp Tools (Terraform, Vault, Consul)
+│   ├── icinga.yaml                  # Icinga Monitoring Platform
+│   ├── lynis.yaml                   # Lynis security auditing
+│   ├── postgresql.yaml              # PostgreSQL Database
+│   ├── zabbix.yaml                  # Zabbix Monitoring Platform
+│   ├── filtered-signed.yaml         # Filtered mode with GPG re-signing
+│   └── verified.yaml                # Upstream signature verification
+├── apt/                               # APT/Debian repository examples
+│   ├── docker-ce.yaml               # Docker CE for Ubuntu/Debian
+│   ├── gitlab.yaml                  # GitLab CE + Runner
+│   ├── grafana.yaml                 # Grafana
+│   ├── hashicorp.yaml               # HashiCorp Tools
+│   ├── icinga.yaml                  # Icinga
+│   ├── lynis.yaml                   # Lynis security auditing
+│   ├── filtered-signed.yaml         # Filtered mode with GPG re-signing
+│   └── verified.yaml                # Upstream Release signature verification
 ├── helm/                              # Helm chart repository examples
 │   ├── kubernetes-charts.yaml        # Official Kubernetes charts
 │   ├── bitnami.yaml                  # Bitnami application charts
@@ -28,14 +45,13 @@ examples/
 │   ├── ci-cd.yaml                    # GitLab, ArgoCD, Jenkins, Harbor
 │   └── aws.yaml                      # AWS EKS charts (Load Balancer, CSI drivers, Karpenter)
 └── apk/                               # Alpine APK repository examples
-    ├── distributions/                 # Alpine Linux releases
-    │   ├── alpine-3.19.yaml          # Alpine 3.19 LTS (current)
-    │   ├── alpine-3.18.yaml          # Alpine 3.18 LTS
-    │   └── alpine-edge.yaml          # Alpine Edge (rolling)
-    └── use-cases/                     # Common use cases
-        ├── container-base.yaml       # Minimal/extended container images
-        ├── development.yaml          # Build tools, Python, Node.js, Go
-        └── webserver.yaml            # NGINX, Apache, PHP-FPM
+    ├── alpine-3.19.yaml              # Alpine 3.19 LTS (current)
+    ├── alpine-3.18.yaml              # Alpine 3.18 LTS
+    ├── alpine-edge.yaml              # Alpine Edge (rolling)
+    ├── container-base.yaml           # Minimal/extended container images
+    ├── development.yaml              # Build tools, Python, Node.js, Go
+    ├── webserver.yaml                # NGINX, Apache, PHP-FPM
+    └── filtered-signed.yaml          # Filtered mode with signing
 ```
 
 ## How to Use These Examples
@@ -49,13 +65,16 @@ Copy the example file(s) you need to your Chantal configuration directory:
 mkdir -p ~/.config/chantal/conf.d/
 
 # Copy RHEL 9 example
-cp examples/rpm/distributions/rhel9.yaml ~/.config/chantal/conf.d/
+cp examples/rpm/rhel9.yaml ~/.config/chantal/conf.d/
 
-# Copy Docker CE example
-cp examples/rpm/third-party/docker-ce.yaml ~/.config/chantal/conf.d/
+# Copy Docker CE example (RPM)
+cp examples/rpm/docker-ce.yaml ~/.config/chantal/conf.d/
 
 # Copy EPEL example
-cp examples/rpm/third-party/epel.yaml ~/.config/chantal/conf.d/
+cp examples/rpm/epel.yaml ~/.config/chantal/conf.d/
+
+# Copy an APT example (Docker CE for Ubuntu/Debian)
+cp examples/apt/docker-ce.yaml ~/.config/chantal/conf.d/
 ```
 
 ### 2. Customize Configuration
@@ -179,6 +198,20 @@ Enterprise monitoring platform
 - LTS versions (6.0, 7.0) supported for 5 years
 - Agent 2 with plugin support
 - Database backend: MySQL/PostgreSQL/TimescaleDB
+
+### APT/Debian Repositories
+
+APT examples live in `examples/apt/` and target Debian/Ubuntu-based systems.
+Each repository uses an `apt:` block (distribution, components, architectures).
+
+- **docker-ce.yaml**: Docker CE for Ubuntu (jammy, focal) and Debian (bookworm)
+- **gitlab.yaml**: GitLab CE and GitLab Runner for Ubuntu
+- **grafana.yaml**: Grafana observability platform
+- **hashicorp.yaml**: HashiCorp tools (Terraform, Vault, Consul)
+- **icinga.yaml**: Icinga monitoring for Ubuntu and Debian
+- **lynis.yaml**: Lynis security auditing
+- **filtered-signed.yaml**: `filtered` mode with regenerated, GPG re-signed `Release`
+- **verified.yaml**: Upstream `Release` signature verification (`verify` block)
 
 ### Helm Chart Repositories
 
@@ -338,11 +371,11 @@ Create views to combine multiple repositories into one published repository:
 # Example: Complete RHEL 9 system
 views:
   - name: rhel9-complete
-    repositories:
-      - repo_id: rhel9-baseos
-      - repo_id: rhel9-appstream
-      - repo_id: rhel9-crb
-      - repo_id: epel9
+    repos:
+      - rhel9-baseos
+      - rhel9-appstream
+      - rhel9-crb
+      - epel9
 ```
 
 ### 4. Test in Staging Before Production
@@ -488,11 +521,13 @@ Planned additions (see Issue #3):
 - Database clients and tools
 - Security tools (fail2ban, iptables)
 
-**APT/Debian** (future):
-- Ubuntu LTS releases (22.04, 24.04)
-- Debian stable releases (11, 12)
-- APT-based third-party repositories
-- Docker, Kubernetes, GitLab, etc. (APT versions)
+**APT/Debian**:
+- ✅ Docker CE (Ubuntu/Debian) (DONE)
+- ✅ GitLab CE + Runner (DONE)
+- ✅ Grafana, HashiCorp, Icinga, Lynis (DONE)
+- ✅ Filtered mode with GPG re-signing and upstream verification (DONE)
+- Ubuntu/Debian official base repositories
+- Kubernetes (APT version)
 
 ## License
 

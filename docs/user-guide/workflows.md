@@ -117,6 +117,11 @@ tar czf chantal-export-2025-01.tar.gz \
   /etc/chantal/conf.d/
 ```
 
+> **Note:** The `/var/lib/chantal/chantal.db` path assumes a SQLite database with
+> the default storage layout. If you use PostgreSQL, back up the database with
+> `pg_dump` instead of copying a file; if your SQLite file lives elsewhere,
+> adjust the path to match the `database.url` in your config.
+
 ### Phase 2: Offline System (Air-Gapped)
 
 ```bash
@@ -316,6 +321,11 @@ tar czf chantal-backup-$(date +%Y%m%d).tar.gz \
 # Store backup offsite
 rsync -avz chantal-backup-*.tar.gz backup-server:/backups/
 ```
+
+> **Note:** The `/var/lib/chantal/chantal.db` path is specific to a SQLite
+> database with the default storage layout. For PostgreSQL, dump the database
+> separately with `pg_dump`; for a non-default SQLite location, use the path
+> from your config's `database.url`.
 
 ### Restore
 

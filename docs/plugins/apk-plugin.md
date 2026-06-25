@@ -51,7 +51,7 @@ When signing is enabled, publishing produces:
 repositories:
   - id: alpine-edge-filtered
     type: apk
-    feed: https://dl-cdn.alpinelinux.org/alpine/edge/main
+    feed: https://dl-cdn.alpinelinux.org/alpine/
     mode: filtered
     apk:
       branch: edge
@@ -92,9 +92,10 @@ apk update
 
 ## Repository Modes
 
-The APK plugin supports **mirror mode** for byte-for-byte identical repository copies.
+The default mode is `filtered`. Set `mode: mirror` explicitly for a byte-for-byte
+identical repository copy.
 
-### Mirror Mode (Default)
+### Mirror Mode
 
 **Status:** ✅ Available
 
@@ -133,7 +134,7 @@ repositories:
       branch: v3.19
       repository: main
       architecture: x86_64
-    # Mirror mode is automatic - no additional config needed
+    mode: mirror   # explicit; the default is 'filtered'
 ```
 
 **Use Cases:**
@@ -414,7 +415,7 @@ Published structure:
 
 ```bash
 chantal snapshot create --repo-id alpine-v3.19-main --name 2025-01-11
-chantal publish snapshot --snapshot alpine-v3.19-main-2025-01-11
+chantal publish snapshot --snapshot 2025-01-11 --repo-id alpine-v3.19-main
 ```
 
 Published structure:

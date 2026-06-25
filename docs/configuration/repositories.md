@@ -17,12 +17,12 @@ repositories:
 
 **Required Fields:**
 - `id`: Unique identifier (alphanumeric, hyphens, underscores)
-- `name`: Human-readable name
 - `type`: Repository type (`rpm`, `apt`, `helm`, `apk`)
-- `feed`: Upstream repository URL
-- `enabled`: Whether to include in `--all` operations
 
 **Optional Fields:**
+- `name`: Human-readable name (falls back to `id` if unset)
+- `feed`: Upstream repository URL. Defaults to `""` and is **required for `mode: mirror` and `mode: filtered`**, but optional (and unused) for `mode: hosted`.
+- `enabled`: Whether to include in `--all` operations (defaults to `true`)
 - `mode`: Repository operation mode (`mirror`, `filtered`, `hosted`) - RPM and APT, defaults to `filtered`
 
 ## Repository Types
@@ -60,11 +60,11 @@ repositories:
 - Supports HTTP and HTTPS
 - Supports file:// URLs for local mirrors
 
-**Repository Modes (RPM only):**
+**Repository Modes (RPM and APT):**
 
 - **`filtered`** (default): Filters packages based on patterns/rules, regenerates metadata to match. Updateinfo filtered to include only relevant errata.
-- **`mirror`**: Full mirror of upstream repository. All metadata types downloaded and published unchanged. No filtering applied.
-- **`hosted`**: Upload-only repository with no upstream feed. Packages are added with `chantal package upload` and published like any other repo. `sync` is a no-op for hosted repos.
+- **`mirror`**: Full mirror of upstream repository. All metadata types downloaded and published unchanged. No filtering applied (using `filters` with `mode: mirror` is a validation error).
+- **`hosted`**: Upload-only repository with no upstream feed. Packages are added with `chantal package upload` and published like any other repo. `sync` is a no-op for hosted repos, and `feed` is not required.
 
 See [RPM Plugin Documentation - Repository Modes](../plugins/rpm-plugin.md) for detailed mode explanations.
 
@@ -165,7 +165,7 @@ repositories:
     feed: https://...
     retention:
       policy: mirror  # mirror, newest-only, keep-all, keep-last-n
-      # keep_last_n: 3  # Only when policy is keep-last-n
+      # keep_count: 3  # Only when policy is keep-last-n
 ```
 
 **Retention Policies:**
@@ -212,7 +212,8 @@ repositories:
 
 ### Metadata Cache Override
 
-Override global cache settings (RPM repositories only):
+Override the global cache setting per repository (`cache_enabled` is a generic
+repository field; leaving it unset uses the global `cache.enabled` default):
 
 ```yaml
 # Global config - cache disabled by default
@@ -281,19 +282,89 @@ repositories:
       verify: true
 ```
 
-### HTTP Headers
+### Custom HTTP Headers
 
-Add custom HTTP headers:
+Custom request headers are configured through the authentication block using
+`auth.type: custom` and an `auth.headers` mapping (there is no top-level
+`http_headers` field):
 
 ```yaml
 repositories:
   - id: custom-repo
     type: rpm
     feed: https://custom.example.com/repo
-    http_headers:
-      User-Agent: "Chantal/1.0"
-      X-Custom-Header: "value"
+    auth:
+      type: custom
+      headers:
+        User-Agent: "Chantal/1.0"
+        X-Custom-Header: "value"
 ```
+
+See [SSL & Authentication](ssl-authentication.md) for the full list of
+authentication types.
+
+### GPG Signing (`gpg`)
+
+When a repository regenerates metadata (APT `filtered` mode), the published
+`Release` file can be re-signed so clients can verify it without
+`[trusted=yes]`. The signing key can come from an imported private key file, an
+existing key in the keyring, or a freshly generated keypair. A per-repository
+`gpg` block overrides the global `gpg` fallback.
+
+```yaml
+repositories:
+  - id: my-apt-repo
+    type: apt
+    feed: https://example.com/debian
+    mode: filtered
+    gpg:
+      enabled: true            # default true; set false to disable signing
+      generate_key: true       # generate a keypair if no key is provided
+      # key_id: ABCD1234       # or use an existing key in the keyring
+      # key_file: /etc/chantal/keys/signing-private.asc  # or import a private key
+      key_name: "Chantal Repo"   # real name for a generated key
+      key_email: "repo@example.com"  # email for a generated key
+      public_key_name: key.gpg   # published public-key filename (default: key.gpg)
+      # passphrase_file: /etc/chantal/keys/passphrase.txt  # preferred over inline
+      # passphrase: "secret"     # inline passphrase (use passphrase_file instead)
+```
+
+At least one of `key_file`, `key_id`, or `generate_key: true` must be set when
+`enabled` is true. Other available keys: `public_key_file` (use an existing
+public key instead of exporting one) and `gnupg_home` (keyring directory; a
+temporary one is used if unset).
+
+### Upstream Signature Verification (`verify`)
+
+Integrity (SHA256) is always checked during sync. `verify` adds *authenticity*
+checking - confirming the upstream metadata/packages were signed by a trusted
+key (analogous to dnf's `repo_gpgcheck`/`gpgcheck` and apt's Release signature
+check). A per-repository `verify` block overrides the global `verify` fallback.
+
+```yaml
+repositories:
+  - id: rhel9-baseos
+    type: rpm
+    feed: https://cdn.redhat.com/...
+    verify:
+      enabled: true            # default false
+      repo_gpgcheck: true      # verify repository metadata signature (default true)
+      gpgcheck: true           # verify individual package signatures (default true)
+      key_files:               # trust anchors: public key file paths
+        - /etc/pki/rpm-gpg/RPM-GPG-KEY-redhat-release
+      # keys:                  # alternative: inline ASCII-armored public keys
+      #   - |
+      #     -----BEGIN PGP PUBLIC KEY BLOCK-----
+      #     ...
+      trusted_fingerprints:    # optional pinning allow-list of full fingerprints
+        - "199E2F91FD431D51"
+      client_key_name: "RPM-GPG-KEY-{repo_id}"  # published trusted key (empty disables)
+      on_missing_signature: fail   # fail | warn | skip
+      on_invalid_signature: fail   # fail | warn | skip
+```
+
+When `enabled` is true at least one of `key_files` or `keys` must be provided.
+`gpgcheck` requires `repo_gpgcheck` (the default has both enabled).
 
 ## Repository Organization
 
@@ -546,7 +617,7 @@ $ chantal repo list
 Error: Configuration validation failed:
   - repositories[0].id: must match pattern ^[a-zA-Z0-9_-]+$
   - repositories[1].feed: invalid URL format
-  - repositories[2].type: must be one of: rpm, helm, apk
+  - repositories[2].type: must be one of: rpm, apt, helm, apk
 ```
 
 ## Best Practices

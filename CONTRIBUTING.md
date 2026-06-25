@@ -4,48 +4,41 @@ First off, thank you for considering contributing to Chantal!
 
 ## Project Status
 
-**⚠️ Chantal is currently in the Research & Design phase.**
+**✅ Chantal is an actively maintained, released project (v1.4.0, available on [PyPI](https://pypi.org/project/chantal/)).**
 
-We're not ready for code contributions yet, but there are other valuable ways to contribute right now.
+Contributions are welcome - bug reports, feature requests, documentation improvements, and pull requests.
 
-## How to Contribute (Current Phase)
+## How to Contribute
 
-### 1. Share Your Experience
+### 1. Report Bugs and Request Features
 
-Have you worked with repository mirroring tools? We'd love to hear about:
+Found a bug or have an idea? Open an issue:
 
-- **Production experience** with apt-mirror, aptly, reposync, bandersnatch, or devpi
-- **Pain points** you've encountered
-- **Scale challenges** (repo size, package count, bandwidth)
-- **Use cases** we might not have considered
+- **Bug reports:** Include your Chantal version (`chantal --version`), repository type, config snippet (redact secrets), and the full error output.
+- **Feature requests:** Open an issue with the `enhancement` label describing the use case.
 
-**How:** Open a [GitHub Discussion](https://github.com/yourusername/chantal/discussions) in the "Experience Reports" category.
+**How:** Use the [GitHub Issues](https://github.com/slauger/chantal/issues) tracker.
 
-### 2. Review Design Documents
+### 2. Submit Pull Requests
 
-We're making architectural decisions right now. Your input is valuable:
+Code contributions are welcome. Good first areas include new plugins (package formats), additional repository types, test coverage, and documentation.
 
-- Read [CONTEXT.md](CONTEXT.md) for full requirements
-- Check [.planning/findings.md](.planning/findings.md) for our tool analysis
-- Review [ROADMAP.md](ROADMAP.md) for our roadmap
+1. Fork the repository and create a feature branch
+2. Make your change with tests and type annotations
+3. Run the local checks (`make lint`, `make pytest`) - see [Development Guidelines](#development-guidelines)
+4. Open a pull request referencing any related issue
 
-**How:** Comment on open issues tagged with `architecture` or `design`.
+### 3. Share Your Experience
 
-### 3. Suggest Improvements
+Have you worked with repository mirroring tools (apt-mirror, aptly, reposync, bandersnatch, devpi)? Production experience, pain points, scale challenges, and unusual use cases all help shape the roadmap.
 
-Have ideas about:
-- CLI design?
-- Configuration format?
-- Plugin architecture?
-- Storage strategy?
+**How:** Open a [GitHub Discussion](https://github.com/slauger/chantal/discussions) or an issue with the `research` label.
 
-**How:** Open an issue with the `enhancement` label.
+### 4. Improve the Documentation
 
-### 4. Report Issues with Existing Tools
+Documentation lives in `docs/` (Sphinx) and is published to [GitHub Pages](https://slauger.github.io/chantal/). Corrections and additions are very welcome.
 
-Found bugs or limitations in apt-mirror, aptly, reposync, etc. that Chantal should avoid?
-
-**How:** Open an issue with the `research` label.
+**How:** Edit the relevant files under `docs/` and open a pull request.
 
 ## Development Guidelines
 
@@ -221,6 +214,4 @@ By contributing to Chantal, you agree that your contributions will be licensed u
 
 ---
 
-**Current Focus:** Phase 1 - Research & Tool Analysis
-
-See [ROADMAP.md](ROADMAP.md) for current priorities.
+See [ROADMAP.md](ROADMAP.md) for current priorities and planned work.

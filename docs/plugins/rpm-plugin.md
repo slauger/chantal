@@ -127,9 +127,11 @@ repositories:
 
 ## Repository Modes
 
-Chantal supports three repository operation modes for RPM repositories:
+Chantal supports three repository operation modes for RPM repositories. The
+default mode is `filtered`; set `mode: mirror` explicitly for a full unmodified
+mirror.
 
-### Mirror Mode (Default)
+### Mirror Mode
 
 **Full metadata mirroring** - Downloads and publishes ALL metadata types from upstream repository unchanged.
 
@@ -140,7 +142,7 @@ repositories:
     type: rpm
     feed: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/baseos/os
     enabled: true
-    mode: mirror  # Default
+    mode: mirror  # must be set explicitly; default is 'filtered'
 ```
 
 **Behavior:**
@@ -869,9 +871,7 @@ Warning: Filtered out all packages, 0 remaining
 
 ## Future Enhancements
 
-- **Modular repositories** - Support for modules.yaml
-- **Delta RPMs** - Download only package deltas
-- **GPG verification** - Verify package signatures
-- **Comps.xml** - Package group metadata
-- **Updateinfo.xml** - Security/bug fix advisories
-- **Filelists.xml** - File listings for packages
+- **Delta RPMs** - Download only package deltas (drpm)
+
+(Modular repositories, GPG package-signature verification, comps, updateinfo, and
+filelists are already implemented — see the sections above.)

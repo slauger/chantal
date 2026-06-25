@@ -22,14 +22,24 @@ The Helm plugin consists of:
 - ✅ Snapshot support
 - ✅ **Mirror Mode** - Byte-for-byte identical repositories with snapshot versioning
 - ✅ **Hosted Mode** - Upload-only repositories for self-hosted charts (`chantal package upload`)
-- ✅ OCI registry support (`oci://` chart repositories)
-- ℹ️ Charts are served unmodified; Chantal does not sign or re-sign charts (upstream Helm provenance `.prov` files are preserved if present)
+- ℹ️ OCI ingest only — `oci://` chart URLs *referenced inside an upstream HTTP `index.yaml`* are pulled via the `helm` binary (which must be installed). You cannot configure an `oci://` feed, and Chantal never publishes charts over OCI (published repos are always plain HTTP with an `index.yaml`).
+- ℹ️ Charts are served unmodified; Chantal does not sign or re-sign charts
+- ⛔ Not supported: Helm provenance — upstream `.prov` files are **not** downloaded or republished, and `helm pull --verify` against a mirror will fail
 
 ## Repository Modes
 
-The Helm plugin supports **mirror mode** for byte-for-byte identical repository copies.
+The default mode is `filtered`. Set `mode: mirror` explicitly for a byte-for-byte
+identical repository copy.
 
-### Mirror Mode (Default)
+> **Note on the Helm index:** regardless of mode, the sync step always stores the
+> upstream `index.yaml` in the content-addressed pool as a `RepositoryFile`. At
+> publish time the publisher hardlinks that stored `index.yaml` if one is present,
+> and only falls back to generating an index from the database when none is found.
+> The choice is therefore driven by whether a stored `index.yaml` exists, not by
+> the configured mode — so a `filtered` Helm repo may still republish the upstream
+> index it captured during sync.
+
+### Mirror Mode
 
 **Status:** ✅ Available
 
@@ -64,7 +74,7 @@ repositories:
     type: helm
     feed: https://kubernetes.github.io/ingress-nginx
     enabled: true
-    # Mirror mode is automatic - no additional config needed
+    mode: mirror   # explicit; the default is 'filtered'
 ```
 
 **Use Cases:**
@@ -73,16 +83,22 @@ repositories:
 - Snapshot versioning for reproducible deployments
 - Bandwidth optimization (metadata reused across snapshots)
 
-### Dynamic Generation Mode (Fallback)
+### Dynamic Index Generation (Fallback)
 
-If no `RepositoryFile` is found (e.g., for older repositories or filtered repositories), Chantal falls back to dynamic index.yaml generation from database metadata.
+If no stored `index.yaml` `RepositoryFile` is found (e.g., hosted repositories, or
+older repositories synced before index capture), Chantal falls back to generating
+`index.yaml` from the chart metadata in the database.
 
-This mode:
+This path:
 - Generates index.yaml from HelmMetadata in database
-- Allows filtered repositories (subset of charts)
+- Produces an index covering exactly the charts in the repository (e.g. a filtered subset)
 - Supports post-processing (e.g., only latest versions)
 
-**Note:** For filtered repositories (pattern-based chart selection), dynamic generation is used automatically.
+**Note:** Generation is *not* keyed off the mode. A `filtered` repo whose sync
+captured the upstream `index.yaml` will republish that captured index; the
+generated index is used only when no stored `index.yaml` is available. If you need
+a regenerated index that matches a filtered chart set exactly, use a hosted repo
+(no upstream index to capture).
 
 ### Hosted Mode
 
@@ -334,7 +350,7 @@ Published structure:
 
 ```bash
 chantal snapshot create --repo-id ingress-nginx --name 2025-01-10
-chantal publish snapshot --snapshot ingress-nginx-2025-01-10
+chantal publish snapshot --snapshot 2025-01-10 --repo-id ingress-nginx
 ```
 
 Published structure:
@@ -419,7 +435,7 @@ chantal repo sync --repo-id my-helm-repo
 
 Verify charts were synced:
 ```bash
-chantal package list --repo-id my-helm-repo
+chantal content list --repo-id my-helm-repo
 ```
 
 Check published directory permissions:
@@ -491,7 +507,7 @@ pipeline {
         }
         stage('Publish Snapshot') {
             steps {
-                sh 'chantal publish snapshot --snapshot ingress-nginx-${BUILD_ID}'
+                sh 'chantal publish snapshot --snapshot ${BUILD_ID} --repo-id ingress-nginx'
             }
         }
     }

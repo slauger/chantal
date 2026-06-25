@@ -30,7 +30,8 @@ A Python-based CLI tool for offline repository mirroring, inspired by pulp-admin
 - 📁 **Static Output** - Serve with any webserver (Apache, NGINX)
 - 🔐 **RHEL CDN Support** - Client certificate authentication for Red Hat repos
 - 🎯 **Smart Filtering** - Pattern-based package filtering with post-processing
-- 🪞 **Mirror & Filtered Modes** - Full metadata mirroring or filtered repos with regenerated metadata
+- 🪞 **Mirror, Filtered & Hosted Modes** - Full metadata mirroring, filtered repos with regenerated metadata, or hosted repos built from your own uploaded packages
+- ⬆️ **Custom Package Upload** - Inject local packages into a repository's pool with `chantal package upload` (RPM, DEB/APT, Helm)
 - 🔏 **Metadata Signing** - Sign regenerated metadata in filtered mode: APT (InRelease/Release.gpg), RPM (repomd.xml.asc) and APK (RSA-signed APKINDEX) so clients can verify the repo
 - ⚡ **Fast Updates** - Check for updates without downloading (like `dnf check-update`)
 - 🚀 **Metadata Caching** - SHA256-based cache for RPM metadata (90-95% faster syncs for RHEL)
@@ -61,7 +62,13 @@ docker run --rm \
   ghcr.io/slauger/chantal:latest --help
 ```
 
-**Option 2: Python Package**
+**Option 2: PyPI (Recommended for Python users)**
+
+```bash
+pip install chantal
+```
+
+**Option 3: From Source**
 
 ```bash
 git clone https://github.com/slauger/chantal.git

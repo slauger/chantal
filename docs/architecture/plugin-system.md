@@ -12,31 +12,47 @@ Each repository type requires two plugins:
 
 ### Sync Plugin
 
-Responsible for syncing packages from upstream repository.
+Responsible for syncing packages from an upstream repository.
 
-**Base interface:**
+There is **no** abstract `SyncPlugin` base class. "Sync plugin" is a convention,
+not an enforced interface: each sync plugin (`RpmSyncPlugin`, `AptSyncPlugin`,
+`HelmSyncer`, `ApkSyncer`) is a plain class that follows the same shape.
+
+**Convention:**
 
 ```python
-from abc import ABC, abstractmethod
+class RpmSyncPlugin:  # inherits nothing
+    def __init__(
+        self,
+        storage: StorageManager,
+        config: RepositoryConfig,
+        proxy_config: ProxyConfig | None = None,
+        ssl_config: SSLConfig | None = None,
+        cache: MetadataCache | None = None,
+        output_level: OutputLevel = OutputLevel.NORMAL,
+    ):
+        ...
 
-class SyncPlugin(ABC):
-    @abstractmethod
-    def sync(
+    def sync_repository(
         self,
         session: Session,
         repository: Repository,
-        config: RepositoryConfig
     ) -> SyncResult:
         """Sync repository from upstream."""
-        pass
+        ...
 ```
+
+Note that configuration is passed to `__init__`, **not** to `sync_repository()`.
+`SyncResult` is a `@dataclass` defined in `chantal.plugins.rpm.sync` (the APT
+plugin defines its own equivalently named `SyncResult` in
+`chantal.plugins.apt.sync`).
 
 **Responsibilities:**
 - Fetch repository metadata (e.g., repomd.xml for RPM)
-- Parse package list
+- Parse the package list
 - Apply filters
-- Download packages to pool
-- Update database
+- Download packages to the pool (and metadata files as `RepositoryFile`)
+- Update the database
 
 ### Publisher Plugin
 
@@ -117,82 +133,109 @@ class PublisherPlugin(ABC):
 
 **Status:** ✅ Available
 
-- **Helm:** `HelmSyncPlugin` / `HelmPublisher` - HTTP and OCI registries, `index.yaml`
-- **APK:** `ApkSyncPlugin` / `ApkPublisher` - `APKINDEX.tar.gz`, RSA index signing
+- **Helm:** `HelmSyncer` / `HelmPublisher` - HTTP and OCI registries, `index.yaml`
+- **APK:** `ApkSyncer` / `ApkPublisher` - `APKINDEX.tar.gz`, RSA index signing
 
-## Plugin Registration
+## Plugin Dispatch
 
-Plugins are registered in the plugin registry:
+There is **no** plugin registry. `src/chantal/plugins/__init__.py` only re-exports
+a few classes:
 
 ```python
 # src/chantal/plugins/__init__.py
+from chantal.plugins.base import PublisherPlugin
+from chantal.plugins.rpm.publisher import RpmPublisher
+from chantal.plugins.rpm.sync import RpmSyncPlugin
 
-SYNC_PLUGINS = {
-    'rpm': RpmSyncPlugin,
-    'apt': AptSyncPlugin,
-    'helm': HelmSyncPlugin,
-    'apk': ApkSyncPlugin,
-}
+__all__ = ["PublisherPlugin", "RpmPublisher", "RpmSyncPlugin"]
+```
 
-PUBLISHER_PLUGINS = {
-    'rpm': RpmPublisher,
-    'apt': AptPublisher,
-    'helm': HelmPublisher,
-    'apk': ApkPublisher,
-}
+Plugin selection is done with hardcoded `if/elif` branches on the repository type
+inside the CLI command modules:
+
+- **Sync dispatch:** `src/chantal/cli/repo_commands.py`
+- **Publish dispatch:** `src/chantal/cli/publish_commands.py`
+
+```python
+# Sync dispatch (cli/repo_commands.py, simplified)
+if repo_config.type == "rpm":
+    sync_plugin = RpmSyncPlugin(storage=storage, config=repo_config, ...)
+    result = sync_plugin.sync_repository(session, repository)
+elif repo_config.type == "helm":
+    helm_syncer = HelmSyncer(storage=storage, config=repo_config, ...)
+    ...
+elif repo_config.type == "apk":
+    apk_syncer = ApkSyncer(storage=storage, config=repo_config, ...)
+    ...
+elif repo_config.type == "apt":
+    apt_syncer = AptSyncPlugin(storage=storage, config=repo_config, ...)
+    ...
+else:
+    raise click.ClickException(f"Unsupported repository type: {repo_config.type}")
+```
+
+```python
+# Publish dispatch (cli/publish_commands.py, simplified)
+if repo_config.type == "rpm":
+    publisher = RpmPublisher(storage=storage)
+elif repo_config.type == "helm":
+    publisher = HelmPublisher(storage=storage)
+elif repo_config.type == "apk":
+    publisher = ApkPublisher(storage=storage)
+elif repo_config.type == "apt":
+    publisher = AptPublisher(storage=storage, config=repo_config)
+else:
+    raise click.ClickException(f"Unsupported repository type: {repo_config.type}")
 ```
 
 ## Creating a Custom Plugin
 
-### 1. Implement Sync Plugin
+### 1. Implement a Sync Plugin
+
+Follow the sync-plugin convention (a plain class — no base class to inherit):
 
 ```python
-from chantal.plugins.base import SyncPlugin
+class MySyncPlugin:
+    def __init__(self, storage, config, **kwargs):
+        self.storage = storage
+        self.config = config
 
-class MySyncPlugin(SyncPlugin):
-    def sync(self, session, repository, config):
-        # 1. Fetch metadata
-        metadata = self.fetch_metadata(config.feed)
-
-        # 2. Parse package list
-        packages = self.parse_packages(metadata)
-
+    def sync_repository(self, session, repository) -> SyncResult:
+        # 1. Fetch metadata from self.config.feed
+        # 2. Parse the package list
         # 3. Apply filters
-        filtered = self.apply_filters(packages, config.filters)
-
-        # 4. Download packages
-        for pkg in filtered:
-            self.download_package(pkg)
-
-        # 5. Update database
-        self.update_database(session, repository, filtered)
+        # 4. For each package: storage.add_package(local_path, filename)
+        # 5. Update the database (ContentItem rows + associations)
+        ...
 ```
 
-### 2. Implement Publisher Plugin
+### 2. Implement a Publisher Plugin
 
 ```python
 from chantal.plugins.base import PublisherPlugin
 
 class MyPublisher(PublisherPlugin):
     def publish_repository(self, session, repository, config, target_path):
-        # 1. Get packages
-        packages = repository.packages
+        # 1. Get content items (NOT .packages)
+        packages = repository.content_items
 
-        # 2. Create hardlinks
-        for pkg in packages:
-            self.create_hardlink(pkg, target_path)
+        # 2. Create hardlinks from the pool (base-class helper)
+        self._create_hardlinks(packages, target_path)
 
         # 3. Generate metadata
         self.generate_metadata(packages, target_path)
+
+    def publish_snapshot(self, session, snapshot, repository, config, target_path):
+        ...
+
+    def unpublish(self, target_path):
+        ...
 ```
 
-### 3. Register Plugin
+### 3. Wire Up Dispatch
 
-```python
-# In src/chantal/plugins/__init__.py
-SYNC_PLUGINS['my_type'] = MySyncPlugin
-PUBLISHER_PLUGINS['my_type'] = MyPublisher
-```
+Add an `elif` branch for the new type in the sync/publish dispatch in
+`src/chantal/cli/repo_commands.py` and `src/chantal/cli/publish_commands.py`.
 
 ### 4. Add Configuration Support
 
@@ -215,7 +258,7 @@ class RepositoryConfig(BaseModel):
        ↓
 4. Load sync plugin (RpmSyncPlugin)
        ↓
-5. Execute plugin.sync()
+5. Execute plugin.sync_repository(session, repository)
        ↓
 6. Plugin fetches metadata
        ↓
@@ -256,42 +299,39 @@ Common functionality shared across plugins:
 
 ### StorageManager
 
+`StorageManager` is constructed from a `StorageConfig` (not a bare pool path).
+`add_package()` operates on a **local** file that has already been downloaded — it
+does not fetch from a URL — and returns `(sha256, pool_path, size_bytes)`.
+
 ```python
 from chantal.core.storage import StorageManager
 
-storage = StorageManager(pool_path)
+storage = StorageManager(config)  # config: StorageConfig
 
-# Add package to pool
-pool_path = storage.add_package(url, sha256, filename)
+# Add a local package file to the pool (pool/content/...)
+sha256, pool_path, size_bytes = storage.add_package(
+    source_path, filename, verify_checksum=True
+)
 
-# Create hardlink
+# Add a metadata/installer file to the pool (pool/files/...)
+sha256, pool_path, size_bytes = storage.add_repository_file(source_path, filename)
+
+# Create a hardlink from the pool to a publish target
 storage.create_hardlink(sha256, filename, target_path)
 ```
 
-### HTTP Client
+### Downloading
 
-```python
-from chantal.plugins.http_client import HttpClient
+Sync plugins download upstream files themselves via `DownloadManager`
+(`chantal.core.downloader`), which is configured from the repository config plus
+optional `ProxyConfig` / `SSLConfig`. There is no `chantal.plugins.http_client`
+module.
 
-client = HttpClient(proxy_config, ssl_config)
+### Filters
 
-# Fetch URL
-response = client.get(url)
-
-# Download file
-client.download_file(url, target_path)
-```
-
-### Filter Engine
-
-```python
-from chantal.plugins.filters import FilterEngine
-
-engine = FilterEngine(filter_config)
-
-# Apply filters
-filtered_packages = engine.apply(packages)
-```
+RPM filtering lives in `chantal.plugins.rpm.filters` and is applied by the sync
+plugin against the parsed package metadata. There is no generic
+`chantal.plugins.filters.FilterEngine`.
 
 ## Testing Plugins
 
@@ -299,12 +339,12 @@ filtered_packages = engine.apply(packages)
 
 ```python
 def test_rpm_sync_plugin():
-    plugin = RpmSyncPlugin(storage_manager)
+    plugin = RpmSyncPlugin(storage=storage, config=config)
 
-    result = plugin.sync(session, repository, config)
+    result = plugin.sync_repository(session, repository)
 
     assert result.packages_downloaded > 0
-    assert result.status == "success"
+    assert result.success is True
 ```
 
 ### Integration Tests
@@ -312,8 +352,8 @@ def test_rpm_sync_plugin():
 ```python
 def test_rpm_sync_and_publish():
     # Sync
-    sync_plugin = RpmSyncPlugin(storage)
-    sync_plugin.sync(session, repo, config)
+    sync_plugin = RpmSyncPlugin(storage=storage, config=config)
+    sync_plugin.sync_repository(session, repo)
 
     # Publish
     pub_plugin = RpmPublisher(storage)

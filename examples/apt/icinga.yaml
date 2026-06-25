@@ -31,10 +31,7 @@ repositories:
       cron: "0 6 * * *"  # Daily at 6 AM
       create_snapshot: true
 
----
-
-# Icinga for Debian 12 Bookworm
-repositories:
+  # Icinga for Debian 12 Bookworm
   - id: icinga-debian-bookworm
     name: "Icinga - Debian 12 Bookworm"
     type: apt

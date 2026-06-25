@@ -5,8 +5,8 @@ Chantal Documentation
 
 *Because every other name was already taken.*
 
-.. image:: https://img.shields.io/badge/version-1.0-blue
-   :alt: Version 1.0
+.. image:: https://img.shields.io/badge/version-1.4-blue
+   :alt: Version 1.4
 
 .. image:: https://img.shields.io/badge/python-3.12+-blue
    :alt: Python 3.12+

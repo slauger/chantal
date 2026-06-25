@@ -1,7 +1,7 @@
 # Chantal Development Roadmap
 
-**Last Updated:** 2026-06-19
-**Current Version:** 0.1.0 (unreleased changes on `main`)
+**Last Updated:** 2026-06-25
+**Current Version:** 1.4.0 (released, available on [PyPI](https://pypi.org/project/chantal/))
 
 ---
 
@@ -53,7 +53,7 @@
 | 21 | Helm OCI Registry Support | [#34](https://github.com/slauger/chantal/issues/34) |
 | 22 | SUSE/SLES Metadata Research | [#11](https://github.com/slauger/chantal/issues/11) |
 
-### Recent: Signing & Modernization (on `main`, unreleased)
+### Signing & Modernization
 
 - **APT GPG signing** for filtered mode (InRelease, Release.gpg) — [#30](https://github.com/slauger/chantal/issues/30)
 - **RPM GPG signing** of regenerated `repomd.xml` (repomd.xml.asc)
@@ -64,24 +64,20 @@
 - **Dropped Python 3.10/3.11, added 3.14**; modernized to `datetime.UTC` / `StrEnum`
 - **Bumped GitHub Actions** to Node 24 majors
 
+### Release Engineering & 1.0+ (shipped)
+
+- **Custom package injection / hosted upload** (`chantal package upload`) — [#16](https://github.com/slauger/chantal/issues/16):
+  upload local RPM/DEB/Helm packages into the pool and publish them (hosted mode),
+  independent of an upstream feed.
+- **1.0.0 release** — [#32](https://github.com/slauger/chantal/issues/32): hosted mode,
+  end-to-end smoke tests per plugin, documentation, production-grade stability.
+- **Release automation**: semantic-release with conventional commits, automatic
+  versioning, **PyPI publishing** (`pip install chantal`), TestPyPI prereleases,
+  and container images on GHCR.
+
 ---
 
 ## In Progress / Next
-
-### 🔄 Release 1.0.0 preparation — [#32](https://github.com/slauger/chantal/issues/32)
-
-Tracking issue for the 1.0.0 release. Remaining themes:
-
-- **End-to-end tests in CI** — minimal sync→publish smoke tests per plugin
-  (RPM/APT/Helm/APK), in format-native containers (matrix). *(no dedicated issue yet)*
-- Real-world testing (Vagrant-based), broader test coverage
-- Documentation review (README, Sphinx, troubleshooting, FAQ)
-- Release engineering (semantic-release, CHANGELOG, PyPI publishing)
-
-### 📋 Custom package injection / hosted upload — [#16](https://github.com/slauger/chantal/issues/16)
-
-Upload local RPM/DEB/APK/Helm packages into the pool and publish them
-(hosted mode), independent of an upstream feed.
 
 ### 📋 Advanced Errata & Advisory Management — [#21](https://github.com/slauger/chantal/issues/21)
 
@@ -126,18 +122,19 @@ webhook notifications, multi-tenancy.
 ## Release Timeline
 
 **v0.1.0** (released 2026-01-12)
-- RPM, Helm, Alpine APK support; mirror/filtered/hosted modes; snapshots; views
+- RPM, Helm, Alpine APK support; mirror/filtered modes; snapshots; views
 
-**Unreleased (on `main`)**
+**v1.0.0**
 - APT/DEB support (mirror + filtered)
 - Metadata signing for all formats (APT/RPM GPG, APK RSA)
 - Config JSON Schema; configurable APT compression
 - Python 3.12–3.14; deprecation-free; modernized tooling
+- End-to-end tests across all plugins; production-grade stability
+- Release automation (semantic-release, PyPI, container images)
 
-**v1.0.0** (target: see [#32](https://github.com/slauger/chantal/issues/32))
-- End-to-end tests across all plugins
-- Production-grade stability, comprehensive docs
-- Release automation (PyPI, container images)
+**v1.4.0** (current, on PyPI)
+- Custom package injection / hosted upload (`chantal package upload`) for RPM/APT/Helm
+- Hosted mode across plugins; continued stability and documentation improvements
 
 ---
 
