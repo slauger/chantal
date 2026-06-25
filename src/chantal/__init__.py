@@ -8,7 +8,7 @@ Red Hat Subscription authentication, content-addressed storage, and immutable
 snapshots.
 """
 
-__version__ = "1.4.6"
+__version__ = "1.4.7"
 __author__ = "Simon Lauger"
 __license__ = "MIT"
 
