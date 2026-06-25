@@ -233,8 +233,10 @@ class HelmPublisher(PublisherPlugin):
             else:
                 entry["urls"] = [chart.filename]
 
-            # Update digest with actual SHA256
-            entry["digest"] = f"sha256:{chart.sha256}"
+            # Set the digest to the actual chart SHA256. Helm index.yaml digests
+            # are bare hex (no "sha256:" prefix); emitting the prefix breaks
+            # digest-consuming tooling and self-mirror dedup.
+            entry["digest"] = chart.sha256
 
             entries[name].append(entry)
 
