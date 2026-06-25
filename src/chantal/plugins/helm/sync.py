@@ -26,6 +26,17 @@ from chantal.plugins.helm.models import HelmMetadata
 logger = logging.getLogger(__name__)
 
 
+def normalize_digest(digest: str | None) -> str | None:
+    """Return the bare hex of a chart digest, stripping an optional algo prefix.
+
+    Helm ``index.yaml`` digests are bare hex, but some producers (including
+    chantal's own generated index, historically) prefix them with ``sha256:``.
+    """
+    if not digest:
+        return None
+    return digest.split(":", 1)[1] if ":" in digest else digest
+
+
 class HelmSyncer:
     """Syncer for Helm chart repositories.
 
@@ -123,14 +134,17 @@ class HelmSyncer:
 
         for i, chart_entry in enumerate(filtered_charts, 1):
             try:
-                # Check if chart already exists
+                # The index.yaml digest is the expected SHA256 of the chart
+                # tarball (bare hex, possibly with a 'sha256:' prefix).
+                expected_digest = normalize_digest(chart_entry.get("digest"))
+
+                # Check if chart already exists (content-addressed by digest).
                 existing = (
                     session.query(ContentItem)
-                    .filter_by(
-                        content_type="helm",
-                        sha256=chart_entry["digest"] if chart_entry.get("digest") else None,
-                    )
+                    .filter_by(content_type="helm", sha256=expected_digest)
                     .first()
+                    if expected_digest
+                    else None
                 )
 
                 if existing:
@@ -157,6 +171,22 @@ class HelmSyncer:
                 self.output.downloading(chart_name, 0, i, len(filtered_charts))
 
                 pool_path, sha256, size = self._download_chart(chart_url, config)
+
+                # Verify the downloaded bytes against the digest advertised in
+                # index.yaml. A mismatch means the tarball was tampered with or
+                # corrupted in transit; reject it (the chart is skipped, never
+                # stored or published).
+                if expected_digest and sha256 != expected_digest:
+                    # The download already content-addressed the bytes into the
+                    # pool; remove the orphan if nothing else references it.
+                    if not session.query(ContentItem).filter_by(sha256=sha256).first():
+                        self.storage.get_absolute_pool_path(sha256, Path(chart_url).name).unlink(
+                            missing_ok=True
+                        )
+                    raise ValueError(
+                        f"digest mismatch for {chart_name}: index.yaml advertises "
+                        f"{expected_digest}, downloaded content is {sha256} (possible tampering)"
+                    )
 
                 # Create metadata
                 metadata = HelmMetadata(**chart_entry)
