@@ -633,30 +633,16 @@ class RpmPublisher(PublisherPlugin):
                 file_sha256 = hashlib.sha256(file_data).hexdigest()
                 file_size = len(file_data)
 
-            # Calculate checksum of uncompressed file (if compressed)
+            # Checksum/size of the uncompressed payload. dnf decompresses the
+            # metadata and verifies it against open-checksum/open-size, so this
+            # must describe the decompressed bytes for every supported format
+            # (gz/xz/bz2/zst); uncompressed files use the file values as-is.
             try:
-                if file_path.suffix == ".gz":
-                    with gzip.open(file_path, "rb") as f:
-                        open_data = f.read()
-                        open_sha256 = hashlib.sha256(open_data).hexdigest()
-                        open_size = len(open_data)
-                elif file_path.suffix == ".zst":
-                    import zstandard as zstd
-
-                    dctx = zstd.ZstdDecompressor()
-                    open_data = dctx.decompress(file_data)
-                    open_sha256 = hashlib.sha256(open_data).hexdigest()
-                    open_size = len(open_data)
-                elif file_path.suffix == ".bz2":
-                    open_data = bz2.decompress(file_data)
-                    open_sha256 = hashlib.sha256(open_data).hexdigest()
-                    open_size = len(open_data)
-                else:
-                    # Not compressed
-                    open_sha256 = file_sha256
-                    open_size = file_size
+                open_data = decompress_bytes(file_data, file_path.suffix)
+                open_sha256 = hashlib.sha256(open_data).hexdigest()
+                open_size = len(open_data)
             except Exception:
-                # If decompression fails, use compressed values
+                # If decompression fails, fall back to the compressed values.
                 open_sha256 = file_sha256
                 open_size = file_size
 

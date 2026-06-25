@@ -61,7 +61,7 @@ printf 'Name: demo-app\nVersion: 1.0\nRelease: 1\nSummary: demo-app\nLicense: MI
 rpmbuild --define "_topdir /rb" -bb /rb/SPECS/demo-app.spec >/dev/null 2>&1
 cp /rb/RPMS/noarch/*.rpm /up/
 rpm --define "_gpg_name EMAIL" --addsign /up/*.rpm >/dev/null 2>&1
-createrepo_c /up >/dev/null 2>&1
+createrepo_c CREATEREPO_FLAGS /up >/dev/null 2>&1
 gpg --batch --yes --detach-sign --armor -o /up/repodata/repomd.xml.asc /up/repodata/repomd.xml
 tar -cf - -C /up . | base64 | tr -d '\n'
 echo ===KEY===
@@ -69,10 +69,15 @@ gpg --armor --export EMAIL | base64 | tr -d '\n'
 """.replace("EMAIL", _EMAIL)
 
 
-def _build_signed_upstream(root: Path) -> str:
-    """Build a signed upstream repo into ``root``; return the armored public key."""
+def _build_signed_upstream(root: Path, *, createrepo_flags: str = "") -> str:
+    """Build a signed upstream repo into ``root``; return the armored public key.
+
+    ``createrepo_flags`` is injected into the createrepo_c invocation, e.g.
+    ``--general-compress-type=xz`` to produce xz-compressed metadata.
+    """
+    script = _BUILD_SCRIPT.replace("CREATEREPO_FLAGS", createrepo_flags)
     out = subprocess.run(
-        ["docker", "run", "--rm", _IMAGE, "bash", "-c", _BUILD_SCRIPT],
+        ["docker", "run", "--rm", _IMAGE, "bash", "-c", script],
         capture_output=True,
         timeout=600,
     )
@@ -336,3 +341,41 @@ def test_rpm_dependency_metadata_preserved(mode, tmp_path, serve, chantal_env):
         f"stdout={res.stdout.decode()[-800:]}\nstderr={res.stderr.decode()[-800:]}"
     )
     assert b"hello-from-demo-lib" in res.stdout, "demo-lib (dependency) was not installed"
+
+
+@requires_docker
+def test_rpm_xz_metadata_makecache_and_install(tmp_path, serve, chantal_env):
+    """An upstream with xz-compressed metadata, filtered + republished, must
+    yield a valid repomd (correct open-checksum for the xz filelists/other) so
+    real dnf accepts it and installs."""
+    upstream = tmp_path / "upstream"
+    _build_signed_upstream(upstream, createrepo_flags="--general-compress-type=xz")
+    assert list(upstream.glob("repodata/*filelists.xml.xz")), "upstream is not xz-compressed"
+
+    chantal_env.write_config(
+        {
+            "id": "xzmeta",
+            "name": "Xz metadata",
+            "type": "rpm",
+            "feed": serve(upstream),
+            "enabled": True,
+            "mode": "filtered",
+            "filters": {"patterns": {"include": ["^demo-keep$"]}},
+        }
+    )
+    target = chantal_env.sync_and_publish("xzmeta")
+    assert list(target.glob("repodata/*filelists.xml.xz")), "published filelists is not xz"
+
+    ok = _dnf(
+        target,
+        _repo_file(gpgcheck=0, repo_gpgcheck=0, gpgkey=None)
+        # makecache validates every data entry's open-checksum (incl. the xz
+        # filelists/other) before install.
+        + "dnf -y makecache >/dev/null && dnf install -y demo-keep >/dev/null; "
+        + "cat /usr/share/demo-keep/README",
+    )
+    assert ok.returncode == 0, (
+        f"xz-metadata repo failed in real dnf:\nstdout={ok.stdout.decode()[-800:]}\n"
+        f"stderr={ok.stderr.decode()[-800:]}"
+    )
+    assert b"hello-from-demo-keep" in ok.stdout
