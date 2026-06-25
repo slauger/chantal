@@ -32,7 +32,8 @@ class RepositoryMode(enum.StrEnum):
 
     - MIRROR: Full mirror, no filtering, metadata unchanged
     - FILTERED: Filtered packages with customized metadata (include/exclude, retention, etc.)
-    - HOSTED: Self-hosted packages (for future use)
+    - HOSTED: Upload-only repository with no upstream feed; packages are added
+      with ``chantal package upload`` and sync is a no-op
     """
 
     MIRROR = "mirror"
