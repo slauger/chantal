@@ -325,10 +325,10 @@ class RpmSyncPlugin:
             metadata_downloaded = 0
 
             for metadata_info in metadata_files:
-                # Skip primary (already used for package sync)
-                if metadata_info["file_type"] == "primary":
-                    continue
-
+                # Store every metadata file, including primary.xml. The publisher
+                # filters/relocates the upstream primary at publish time to keep
+                # the <format> dependency metadata; without the stored primary it
+                # would fall back to a dependency-less regenerated index.
                 try:
                     # Convert dict to MetadataFileInfo for compatibility
                     mfi = MetadataFileInfo(

@@ -12,7 +12,7 @@ import hashlib
 import shutil
 import xml.etree.ElementTree as ET
 from datetime import UTC, datetime
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from sqlalchemy.orm import Session
 
@@ -176,11 +176,20 @@ class RpmPublisher(PublisherPlugin):
                 packages, repodata_path, published_metadata
             )
 
-        # Generate primary.xml (always generated)
-        primary_xml_path = self._generate_primary_xml(packages, repodata_path, compression)
-
-        # Add primary to published metadata list
-        published_metadata.append(("primary", primary_xml_path))
+        # Produce exactly one primary.xml. Prefer regenerating it from the
+        # upstream primary: that preserves the <format> block (provides /
+        # requires / conflicts / obsoletes and the primary file list) that dnf
+        # needs for dependency resolution, with each package <location> rewritten
+        # to the republished Packages/ layout. Fall back to a minimal,
+        # database-built primary only when there is no upstream primary
+        # (e.g. hosted/upload-only repositories).
+        published_metadata, regenerated = self._regenerate_primary(
+            packages, repodata_path, mode, compression, published_metadata
+        )
+        if not regenerated:
+            published_metadata = [m for m in published_metadata if m[0] != "primary"]
+            primary_xml_path = self._generate_primary_xml(packages, repodata_path, compression)
+            published_metadata.append(("primary", primary_xml_path))
 
         # Generate repomd.xml with all metadata entries
         repomd_path = self._generate_repomd_xml(repodata_path, published_metadata)
@@ -411,6 +420,107 @@ class RpmPublisher(PublisherPlugin):
         primary_xml_path.unlink()
 
         return primary_xml_compressed_path
+
+    def _regenerate_primary(
+        self,
+        packages: list[ContentItem],
+        repodata_path: Path,
+        mode: str,
+        compression: CompressionFormat,
+        published_metadata: list[tuple[str, Path]],
+    ) -> tuple[list[tuple[str, Path]], bool]:
+        """Regenerate primary.xml from the upstream primary, preserving <format>.
+
+        Filters the upstream primary to the published package set (filtered mode)
+        and rewrites every package ``<location>`` to the republished ``Packages/``
+        layout, keeping the ``<format>`` dependency metadata and file lists
+        verbatim. The single regenerated primary replaces the upstream one in
+        ``published_metadata`` so repomd.xml references exactly one primary.
+
+        Returns ``(updated_metadata, True)`` on success, or
+        ``(published_metadata, False)`` when there is no upstream primary to work
+        from (the caller then builds a minimal primary from the database).
+        """
+        primary_index = next(
+            (i for i, (ft, _) in enumerate(published_metadata) if ft == "primary"), None
+        )
+        if primary_index is None:
+            return published_metadata, False
+
+        primary_path = published_metadata[primary_index][1]
+        common_ns = "http://linux.duke.edu/metadata/common"
+        rpm_ns = "http://linux.duke.edu/metadata/rpm"
+        ET.register_namespace("", common_ns)
+        ET.register_namespace("rpm", rpm_ns)
+
+        try:
+            data = decompress_bytes(primary_path.read_bytes(), primary_path.suffix)
+            root = ET.fromstring(data)
+
+            # Match published packages by NEVR+arch (checksum-independent, so it
+            # works regardless of whether the upstream primary uses sha1/sha256/
+            # sha512 pkgids).
+            def _nevra_of_content(pkg: ContentItem) -> tuple[str, str, str, str]:
+                meta = pkg.content_metadata or {}
+                return (pkg.name, pkg.version, meta.get("release", ""), meta.get("arch", ""))
+
+            kept = {_nevra_of_content(pkg) for pkg in packages}
+            filename_by_nevra = {_nevra_of_content(pkg): pkg.filename for pkg in packages}
+
+            original_count = len(root.findall(f"{{{common_ns}}}package"))
+            removed = 0
+            for pkg_elem in root.findall(f"{{{common_ns}}}package"):
+                name_elem = pkg_elem.find(f"{{{common_ns}}}name")
+                version_elem = pkg_elem.find(f"{{{common_ns}}}version")
+                arch_elem = pkg_elem.find(f"{{{common_ns}}}arch")
+                nevra = (
+                    (name_elem.text or "") if name_elem is not None else "",
+                    version_elem.get("ver", "") if version_elem is not None else "",
+                    version_elem.get("rel", "") if version_elem is not None else "",
+                    (arch_elem.text or "") if arch_elem is not None else "",
+                )
+
+                if mode == RepositoryMode.FILTERED and nevra not in kept:
+                    root.remove(pkg_elem)
+                    removed += 1
+                    continue
+
+                # Rewrite <location> to the republished Packages/<filename> path.
+                location = pkg_elem.find(f"{{{common_ns}}}location")
+                if location is not None:
+                    href = location.get("href", "")
+                    filename = filename_by_nevra.get(nevra) or PurePosixPath(href).name
+                    location.set("href", f"Packages/{filename}")
+
+            kept_count = original_count - removed
+            # Safety net: if matching dropped everything (e.g. unexpected NEVRA
+            # shape) but we do have packages, fall back to the database-built
+            # primary rather than publishing an empty index.
+            if kept_count == 0 and packages:
+                return published_metadata, False
+
+            root.set("packages", str(kept_count))
+            if removed:
+                print(
+                    f"Filtered primary: {original_count} → {original_count - removed} packages "
+                    f"(removed {removed} unavailable)"
+                )
+
+            # Write the regenerated primary using the repository's configured
+            # metadata compression (not necessarily the upstream's).
+            xml_bytes = ET.tostring(root, encoding="UTF-8", xml_declaration=True)
+            target = repodata_path / add_compression_extension("primary.xml", compression)
+            old_target = repodata_path / primary_path.name
+            old_target.unlink(missing_ok=True)  # drop the hardlinked upstream primary
+            target.unlink(missing_ok=True)
+            target.write_bytes(compress_file(xml_bytes, compression))
+
+            updated = published_metadata.copy()
+            updated[primary_index] = ("primary", target)
+            return updated, True
+        except Exception as e:  # noqa: BLE001 - fall back to DB-built primary
+            print(f"Warning: failed to regenerate primary from upstream: {e}")
+            return published_metadata, False
 
     def _publish_metadata_files(
         self, repository_files: list[RepositoryFile], repodata_path: Path

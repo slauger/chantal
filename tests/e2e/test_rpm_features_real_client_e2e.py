@@ -50,11 +50,15 @@ export GNUPGHOME=/gpg; mkdir -p /gpg; chmod 700 /gpg
 printf '%%no-protection\nKey-Type: RSA\nKey-Length: 3072\nName-Real: Chantal Test\nName-Email: %s\nExpire-Date: 0\n%%commit\n' EMAIL > /key
 gpg --batch --gen-key /key >/dev/null 2>&1
 mkdir -p /rb/SPECS /up
-for name in demo-keep demo-drop; do
+# Standalone packages (no dependencies) used by the filtering/signing tests.
+for name in demo-keep demo-drop demo-lib; do
   printf 'Name: %s\nVersion: 1.0\nRelease: 1\nSummary: %s\nLicense: MIT\nBuildArch: noarch\n%%description\n%s\n%%install\nmkdir -p %%{buildroot}/usr/share/%s\necho hello-from-%s > %%{buildroot}/usr/share/%s/README\n%%files\n/usr/share/%s/README\n' \
     "$name" "$name" "$name" "$name" "$name" "$name" "$name" > /rb/SPECS/$name.spec
   rpmbuild --define "_topdir /rb" -bb /rb/SPECS/$name.spec >/dev/null 2>&1
 done
+# demo-app Requires: demo-lib -> exercises dependency metadata (primary <format>).
+printf 'Name: demo-app\nVersion: 1.0\nRelease: 1\nSummary: demo-app\nLicense: MIT\nBuildArch: noarch\nRequires: demo-lib\n%%description\ndemo-app\n%%install\nmkdir -p %%{buildroot}/usr/share/demo-app\necho hello-from-demo-app > %%{buildroot}/usr/share/demo-app/README\n%%files\n/usr/share/demo-app/README\n' > /rb/SPECS/demo-app.spec
+rpmbuild --define "_topdir /rb" -bb /rb/SPECS/demo-app.spec >/dev/null 2>&1
 cp /rb/RPMS/noarch/*.rpm /up/
 rpm --define "_gpg_name EMAIL" --addsign /up/*.rpm >/dev/null 2>&1
 createrepo_c /up >/dev/null 2>&1
@@ -291,3 +295,44 @@ def test_rpm_zstd_metadata_installs(tmp_path, serve, chantal_env):
     )
     assert ok.returncode == 0, f"zstd repo install failed: {ok.stderr.decode()[-800:]}"
     assert b"hello-from-demo-keep" in ok.stdout
+
+
+@requires_docker
+@pytest.mark.parametrize("mode", ["mirror", "filtered"])
+def test_rpm_dependency_metadata_preserved(mode, tmp_path, serve, chantal_env):
+    """The published primary.xml keeps <format> deps, so dnf resolves a
+    Requires: from the repo (demo-app pulls in demo-lib). Covers both the
+    verbatim-mirror and the regenerated-filtered publish paths."""
+    upstream = tmp_path / "upstream"
+    _build_signed_upstream(upstream)
+
+    repo: dict = {
+        "id": "deps",
+        "name": "Deps",
+        "type": "rpm",
+        "feed": serve(upstream),
+        "enabled": True,
+        "mode": mode,
+    }
+    if mode == "filtered":
+        # Keep both the app and its dependency in the filtered set.
+        repo["filters"] = {"patterns": {"include": ["^demo-app$", "^demo-lib$"]}}
+    chantal_env.write_config(repo)
+    target = chantal_env.sync_and_publish("deps")
+
+    # Exactly one primary index (no duplicate <data type="primary">).
+    assert len(list(target.glob("repodata/*primary.xml*"))) == 1, "expected a single primary.xml"
+
+    # dnf must see demo-app's Requires and pull demo-lib automatically.
+    res = _dnf(
+        target,
+        _repo_file(gpgcheck=0, repo_gpgcheck=0, gpgkey=None)
+        + "dnf install -y demo-app >/dev/null; "
+        + "rpm -q demo-app demo-lib; "
+        + "cat /usr/share/demo-lib/README",
+    )
+    assert res.returncode == 0, (
+        f"dependency resolution failed in {mode} mode:\n"
+        f"stdout={res.stdout.decode()[-800:]}\nstderr={res.stderr.decode()[-800:]}"
+    )
+    assert b"hello-from-demo-lib" in res.stdout, "demo-lib (dependency) was not installed"
