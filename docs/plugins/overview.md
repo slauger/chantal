@@ -75,7 +75,7 @@ For DNF/YUM-based distributions (RHEL, CentOS, Fedora, Rocky, Alma).
 - Repomd.xml/primary.xml.gz parsing
 - RPM-specific filtering
 - RHEL CDN support (client certificates)
-- Modular repository support (future)
+- Modular repository support (modules.yaml)
 
 **See:** [RPM Plugin Documentation](rpm-plugin.md)
 
@@ -95,7 +95,8 @@ For Debian/Ubuntu-based distributions.
 
 ### Helm Plugin
 
-For Kubernetes Helm chart repositories (HTTP and OCI registries).
+For Kubernetes Helm chart repositories (HTTP `index.yaml` feeds; `oci://` charts
+referenced by an upstream index can be ingested via the `helm` binary).
 
 **See:** [Helm Plugin Documentation](helm-plugin.md)
 
@@ -112,13 +113,17 @@ See [Custom Plugins](custom-plugins.md) for detailed guide on creating your own 
 **Quick example:**
 
 ```python
-from chantal.plugins.base import SyncPlugin
+from chantal.plugins.base import PublisherPlugin
 
-class MyPlugin(SyncPlugin):
-    def sync(self, session, repository, config):
-        # Implement sync logic
-        pass
+class MyPublisher(PublisherPlugin):
+    def publish_repository(self, session, repository, config, target_path):
+        # Implement publish logic
+        ...
 ```
+
+`PublisherPlugin` (in `chantal.plugins.base`) is the only abstract base class.
+Syncers are plain classes (e.g. `RpmSyncPlugin`, `HelmSyncer`); there is no
+`SyncPlugin` base class.
 
 ## Plugin Configuration
 
@@ -132,21 +137,26 @@ repositories:
     # Plugin-specific options...
 ```
 
-## Plugin Registry
+## Plugin Dispatch
 
-Plugins are registered in `src/chantal/plugins/__init__.py`:
+There is no plugin registry. The repository `type` is dispatched with a hardcoded
+`if/elif` chain in the CLI command modules — `src/chantal/cli/repo_commands.py`
+(sync) and `src/chantal/cli/publish_commands.py` (publish):
 
 ```python
-SYNC_PLUGINS = {
-    'rpm': RpmSyncPlugin,
-    # Add new plugins here
-}
-
-PUBLISHER_PLUGINS = {
-    'rpm': RpmPublisher,
-    # Add new plugins here
-}
+# src/chantal/cli/publish_commands.py
+if repo_config.type == "rpm":
+    ...
+elif repo_config.type == "helm":
+    ...
+elif repo_config.type == "apk":
+    ...
+elif repo_config.type == "apt":
+    ...
 ```
+
+Adding a new type means extending those branches (and `RepositoryConfig.type` in
+`src/chantal/core/config.py`).
 
 ## Plugin Best Practices
 

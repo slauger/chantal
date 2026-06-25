@@ -92,15 +92,23 @@ Chantal follows a clean, modular architecture designed for simplicity and extens
 - `src/chantal/core/storage.py` - StorageManager class
 
 **Storage Layout:**
+
+The pool is split into two subdirectories by pool type: `content/` for packages
+(`ContentItem`) and `files/` for metadata/installer files (`RepositoryFile`).
+
 ```
 pool/
-├── f2/
-│   └── 56/
-│       └── f256abc...def789_nginx-1.20.2-1.el9.x86_64.rpm
-├── 95/
-│   └── 05/
-│       └── 9505484...c1264fde_nginx-module-njs-1.24.0.rpm
-└── ...
+├── content/                       # ContentItem (packages)
+│   ├── f2/
+│   │   └── 56/
+│   │       └── f256abc...def789_nginx-1.20.2-1.el9.x86_64.rpm
+│   └── 95/
+│       └── 05/
+│           └── 9505484...c1264fde_nginx-module-njs-1.24.0.rpm
+└── files/                         # RepositoryFile (metadata/installer)
+    └── 56/
+        └── 78/
+            └── 5678abc..._updateinfo.xml.gz
 ```
 
 #### Database Manager
@@ -108,7 +116,8 @@ pool/
 **Technologies:** SQLAlchemy (ORM), Alembic (migrations)
 
 **Responsibilities:**
-- Package metadata storage
+- Content (package) metadata storage
+- Repository metadata/installer file tracking
 - Repository state tracking
 - Snapshot management
 - Sync history
@@ -116,19 +125,31 @@ pool/
 
 **Key Files:**
 - `src/chantal/db/models.py` - SQLAlchemy models
-- `src/chantal/db/session.py` - Database session management
+- `src/chantal/db/connection.py` - Database connection/session management
 
 **Database Models:**
-- `Repository` - Configured repositories
-- `Package` - Content-addressed packages
+- `Repository` - Configured repositories (with `mode`: mirror/filtered/hosted)
+- `ContentItem` - Content-addressed packages (generic, all types)
+- `RepositoryFile` - Content-addressed metadata/installer files
 - `Snapshot` - Immutable snapshots
+- `View` / `ViewRepository` / `ViewSnapshot` - Virtual repositories spanning repos
 - `SyncHistory` - Sync tracking
+
+**Repository Modes:**
+
+Each `Repository` has a `mode` (`RepositoryMode` enum):
+
+- `mirror` - Full mirror of the upstream; no filtering, metadata unchanged.
+- `filtered` - Filtered package set with customized/regenerated metadata
+  (include/exclude rules, retention, etc.). This is the default.
+- `hosted` - Self-hosted packages with no upstream sync. Content items are
+  uploaded into the repository directly rather than fetched from a feed.
 
 ### Plugin Layer
 
 #### Sync Plugins
 
-**Technologies:** ABC (Abstract Base Classes), Requests (HTTP)
+**Technologies:** Plain Python classes (no shared base class), Requests (HTTP)
 
 **Responsibilities:**
 - Fetch repository metadata
@@ -140,13 +161,14 @@ pool/
 **Plugins:**
 - `RpmSyncPlugin` - RPM/DNF/YUM repositories
 - `AptSyncPlugin` - Debian/Ubuntu APT repositories
-- `HelmSyncPlugin` - Helm chart repositories (HTTP and OCI)
-- `ApkSyncPlugin` - Alpine APK repositories
+- `HelmSyncer` - Helm chart repositories (HTTP and OCI)
+- `ApkSyncer` - Alpine APK repositories
 
 **Key Files:**
-- `src/chantal/plugins/base.py` - Base plugin interface
-- `src/chantal/plugins/rpm_sync.py` - RPM sync implementation
-- `src/chantal/plugins/rpm.py` - RPM publisher implementation
+- `src/chantal/plugins/base.py` - `PublisherPlugin` base class (publishers only;
+  sync plugins are a convention, not a base class)
+- `src/chantal/plugins/rpm/sync.py` - RPM sync implementation
+- `src/chantal/plugins/rpm/publisher.py` - RPM publisher implementation
 
 #### Publisher Plugins
 
@@ -159,8 +181,8 @@ pool/
 - Sign repositories (future)
 
 **Key Files:**
-- `src/chantal/plugins/base.py` - Publisher plugin interface
-- `src/chantal/plugins/rpm.py` - RPM publisher (repomd.xml, primary.xml.gz)
+- `src/chantal/plugins/base.py` - `PublisherPlugin` interface
+- `src/chantal/plugins/rpm/publisher.py` - RPM publisher (repomd.xml, primary.xml.gz)
 
 ## Data Flow
 
@@ -218,7 +240,8 @@ pool/
 ## Technology Stack
 
 ### Runtime
-- **Python 3.12+** - Required for Path.hardlink_to()
+- **Python 3.12+** - Project runtime requirement (`requires-python = ">=3.12"`);
+  hardlinks are created with `os.link()`, not `Path.hardlink_to()`
 - **SQLAlchemy** - Database ORM
 - **Alembic** - Database migrations
 - **Click** - CLI framework
@@ -298,12 +321,14 @@ pool/
 
 ### Adding Repository Types
 
-1. Implement `SyncPlugin` interface
-2. Implement `PublisherPlugin` interface
-3. Register plugin in plugin registry
-4. Add configuration validation
+1. Write a sync plugin class following the sync convention
+   (`sync_repository(session, repository) -> SyncResult`; no base class)
+2. Implement the `PublisherPlugin` interface
+3. Add an `elif` dispatch branch in `cli/repo_commands.py` and
+   `cli/publish_commands.py` (there is no plugin registry)
+4. Add the new type to `RepositoryConfig.type` validation
 
-Example: APT plugin (future)
+See [Plugin System](plugin-system.md) for details.
 
 ### Adding Filter Types
 

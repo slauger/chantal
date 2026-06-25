@@ -5,238 +5,399 @@ Chantal uses SQLAlchemy ORM with support for PostgreSQL and SQLite.
 ## Overview
 
 The database stores:
-- Package metadata
+- Content item metadata (packages of any type)
+- Repository metadata/installer files
 - Repository state
 - Snapshots
-- Views (virtual repositories)
+- Views (virtual repositories) and view snapshots
 - Sync history
+
+All models are defined in `src/chantal/db/models.py`.
+
+## Design: Generic Content Items
+
+Chantal does **not** have a type-specific `Package` model. Instead, all package
+types (RPM, Helm, PyPI, APT/DEB, Alpine APK, etc.) are stored in a single generic
+`ContentItem` model. Type-specific attributes are kept in a JSON column
+(`content_metadata`) rather than as dedicated columns. This keeps the schema
+stable when new content types are added: a new plugin only needs to agree on the
+JSON layout for its `content_type`.
+
+For RPM, attributes like `epoch`, `release` and `arch` live inside
+`content_metadata` and are exposed through read-only `@property` accessors on the
+model (including a derived `nevra` string).
 
 ## Core Models
 
-### Package
+### ContentItem
 
-Stores package metadata with content-addressed storage (SHA256).
+Generic, content-addressed model for all package types (table `content_items`).
 
 ```python
-class Package(Base):
-    sha256: str           # Primary key (content address)
-    filename: str         # Original filename
-    size: int             # File size in bytes
+class ContentItem(Base):
+    id: int                  # Primary key (auto-increment)
 
-    # RPM metadata
-    name: str             # Package name (e.g., "nginx")
-    version: str          # Version
-    release: str          # Release
-    epoch: int            # Epoch (default: 0)
-    architecture: str     # Architecture (e.g., "x86_64")
+    content_type: str        # 'rpm', 'helm', 'pypi', 'apt', 'apk', ... (indexed)
 
-    # Timestamps
+    name: str                # Package name (e.g., "nginx"), indexed
+    version: str             # Version, indexed
+
+    sha256: str              # Content address - UNIQUE, indexed (NOT the PK)
+    size_bytes: int          # File size in bytes
+    pool_path: str           # Relative path in pool (e.g., "content/ab/cd/<sha>_file.rpm")
+    filename: str            # Original filename
+
+    content_metadata: dict   # JSON; type-specific fields (NOT called 'metadata'
+                             # because that name is reserved by SQLAlchemy)
+
     created_at: datetime
+    reference_count: int     # For garbage collection
 
-    # Relationships
-    repositories: List[Repository]  # Many-to-many
-    snapshots: List[Snapshot]       # Many-to-many
+    # Relationships (many-to-many)
+    repositories: list[Repository]   # via repository_content_items
+    snapshots: list[Snapshot]        # via snapshot_content_items
 ```
 
 **Key features:**
-- SHA256 as primary key (content-addressed)
-- Deduplication via unique SHA256
-- Many-to-many relationships with repositories and snapshots
+- Integer `id` is the primary key; `sha256` is a separate **unique** indexed column.
+- Deduplication is enforced by the unique `sha256` constraint.
+- Composite indexes: `(content_type, name)` and `(content_type, name, version)`.
+
+**RPM-specific properties** (read JSON from `content_metadata`):
+
+```python
+item.epoch     # content_metadata["epoch"]   (rpm only)
+item.release   # content_metadata["release"] (rpm only)
+item.arch      # content_metadata["arch"]    (rpm/deb)
+item.nevra     # "name-epoch:version-release.arch" (rpm only)
+```
 
 ### Repository
 
-Configured repositories from YAML.
+Configured repositories from YAML (table `repositories`).
 
 ```python
 class Repository(Base):
-    id: str               # Primary key (from config)
+    id: int               # Primary key (auto-increment)
+    repo_id: str          # Stable config identifier - UNIQUE
     name: str             # Human-readable name
     type: str             # Repository type (rpm, apt, helm, apk)
-    feed_url: str         # Upstream URL
-    enabled: bool         # Whether enabled
+    feed: str             # Upstream URL (Pulp terminology, NOT "feed_url")
+    enabled: bool
+    mode: RepositoryMode  # Enum: mirror / filtered / hosted (default: filtered)
+
+    # Paths
+    latest_path: str | None
+    snapshots_path: str | None
 
     # Timestamps
     created_at: datetime
     updated_at: datetime
-    last_sync_at: datetime
+
+    # Sync state
+    last_sync_at: datetime | None
+    last_sync_status: str | None   # success, failed, running
 
     # Relationships
-    packages: List[Package]       # Many-to-many
-    snapshots: List[Snapshot]     # One-to-many
-    sync_history: List[SyncHistory]  # One-to-many
+    snapshots: list[Snapshot]            # One-to-many
+    sync_history: list[SyncHistory]      # One-to-many
+    content_items: list[ContentItem]     # Many-to-many via repository_content_items
+    repository_files: list[RepositoryFile]  # Many-to-many via repository_repository_files
+```
+
+#### RepositoryMode
+
+```python
+class RepositoryMode(enum.StrEnum):
+    MIRROR = "mirror"      # Full mirror, no filtering, metadata unchanged
+    FILTERED = "filtered"  # Filtered packages with customized metadata (default)
+    HOSTED = "hosted"      # Self-hosted / uploaded packages (no upstream sync)
+```
+
+The `mode` column was added in the head migration `e190d159daac`.
+
+### ContentItem vs. RepositoryFile
+
+A repository is more than just its packages. Metadata files (`updateinfo.xml`,
+`filelists.xml`, `comps.xml`, `modules.yaml`), signatures, and installer/kickstart
+artifacts (`vmlinuz`, `initrd.img`, `.treeinfo`) are stored separately in the
+`RepositoryFile` model. Both `ContentItem` and `RepositoryFile` use
+content-addressed pool storage, but they live in different pool subdirectories
+(`pool/content/` vs. `pool/files/`).
+
+### RepositoryFile
+
+Non-package repository files: metadata, signatures, installer/kickstart artifacts
+(table `repository_files`). Added in migration `4ae7cc6b7243`.
+
+```python
+class RepositoryFile(Base):
+    id: int                # Primary key (auto-increment)
+
+    file_category: str     # "metadata", "signature", "kickstart", "debian-installer" (indexed)
+    file_type: str         # "updateinfo", "filelists", "comps", "modules",
+                           # "vmlinuz", "initrd", ".treeinfo", ... (indexed)
+
+    sha256: str            # Content address (indexed, not unique)
+    pool_path: str         # e.g. "files/ab/cd/<sha>_updateinfo.xml.gz"
+    size_bytes: int
+
+    original_path: str     # Exact upstream path to preserve when publishing
+                           # e.g. "repodata/<hash>-updateinfo.xml.gz", ".treeinfo"
+
+    file_metadata: dict | None  # JSON; type-specific info (reserved-name workaround)
+
+    created_at: datetime
+    updated_at: datetime
+
+    # Relationships (many-to-many, like ContentItem)
+    repositories: list[Repository]   # via repository_repository_files
+    snapshots: list[Snapshot]        # via snapshot_repository_files
 ```
 
 ### Snapshot
 
-Immutable point-in-time repository state.
+Immutable point-in-time repository state (table `snapshots`).
 
 ```python
 class Snapshot(Base):
     id: int               # Primary key (auto-increment)
-    repository_id: str    # Foreign key to Repository
+    repository_id: int    # Foreign key to Repository.id
     name: str             # Snapshot name (e.g., "2025-01")
-    description: str      # Optional description
+    description: str | None
 
-    # Timestamps
     created_at: datetime
+    is_published: bool
+    published_path: str | None
+
+    # Cached statistics
+    package_count: int
+    total_size_bytes: int
 
     # Relationships
     repository: Repository
-    packages: List[Package]  # Many-to-many
+    content_items: list[ContentItem]      # Many-to-many via snapshot_content_items
+    repository_files: list[RepositoryFile] # Many-to-many via snapshot_repository_files
 ```
 
-**Unique constraint:** (repository_id, name)
+**Unique constraint:** `(repository_id, name)` (`uq_snapshot_name`).
 
 ### View
 
-Virtual repository combining multiple repositories.
+Virtual repository combining multiple repositories (table `views`).
 
 ```python
 class View(Base):
-    name: str             # Primary key (from config)
-    description: str      # Human-readable description
+    id: int               # Primary key (auto-increment)
+    name: str             # UNIQUE, indexed
+    description: str | None
+    repo_type: str        # All repos in a view must share this type (rpm, apt)
 
-    # Timestamps
     created_at: datetime
     updated_at: datetime
 
+    is_published: bool
+    published_at: datetime | None
+    published_path: str | None
+
     # Relationships
-    repositories: List[Repository]   # Many-to-many via ViewRepository
-    snapshots: List[ViewSnapshot]    # One-to-many
+    view_repositories: list[ViewRepository]  # One-to-many (ordered membership)
+    view_snapshots: list[ViewSnapshot]       # One-to-many
 ```
+
+### ViewRepository
+
+Membership of repositories in a view, with ordering. This is a full ORM model
+(table `view_repositories`), not a plain association table.
+
+```python
+class ViewRepository(Base):
+    id: int               # Primary key (auto-increment)
+    view_id: int          # Foreign key to View.id
+    repository_id: int    # Foreign key to Repository.id
+    order: int            # Precedence for metadata merging (lower = higher priority)
+    added_at: datetime
+
+    # Relationships
+    view: View
+    repository: Repository
+```
+
+**Unique constraint:** `(view_id, repository_id)` (`uq_view_repository`).
 
 ### ViewSnapshot
 
-Snapshot of a view (references multiple repository snapshots).
+Atomic snapshot of all repositories in a view (table `view_snapshots`). It does
+**not** use a junction table; instead it stores the included repository snapshot
+IDs directly in a JSON array.
 
 ```python
 class ViewSnapshot(Base):
     id: int               # Primary key (auto-increment)
-    view_name: str        # Foreign key to View
-    name: str             # Snapshot name (e.g., "2025-01")
-    description: str      # Optional description
+    view_id: int          # Foreign key to View.id
+    name: str             # Snapshot name, indexed
+    description: str | None
 
-    # Timestamps
     created_at: datetime
+
+    snapshot_ids: list[int]  # JSON array of Snapshot.id values (e.g. [12, 45, 67])
+
+    is_published: bool
+    published_at: datetime | None
+    published_path: str | None
+
+    # Cached statistics
+    package_count: int
+    total_size_bytes: int
 
     # Relationships
     view: View
-    snapshots: List[Snapshot]  # Many-to-many
 ```
+
+**Unique constraint:** `(view_id, name)` (`uq_view_snapshot_name`).
 
 ### SyncHistory
 
-Tracks sync operations for audit and debugging.
+Tracks sync operations for audit and debugging (table `sync_history`).
 
 ```python
 class SyncHistory(Base):
     id: int               # Primary key (auto-increment)
-    repository_id: str    # Foreign key to Repository
+    repository_id: int    # Foreign key to Repository.id
 
-    # Sync details
+    # Sync timing
     started_at: datetime
-    completed_at: datetime
-    status: str           # success, failed, partial
-    error_message: str    # Error details (if failed)
+    completed_at: datetime | None
+
+    # Result
+    status: str           # running, success, failed
+    error_message: str | None
 
     # Statistics
-    packages_total: int
-    packages_downloaded: int
-    packages_skipped: int
-    bytes_transferred: int
+    packages_added: int
+    packages_removed: int
+    packages_updated: int
+    bytes_downloaded: int
+
+    # Snapshot created during this sync (optional)
+    snapshot_id: int | None   # Foreign key to Snapshot.id
 
     # Relationships
     repository: Repository
+    snapshot: Snapshot | None
 ```
+
+`duration_seconds` is a derived `@property` (`completed_at - started_at`).
 
 ## Junction Tables
 
-### repository_packages
+The following are plain SQLAlchemy association `Table`s (no ORM class):
 
-Many-to-many relationship between repositories and packages.
+### repository_content_items
+
+Many-to-many between repositories and content items (the "latest" state).
 
 ```python
-repository_packages = Table(
-    'repository_packages',
-    Column('repository_id', ForeignKey('repositories.id')),
-    Column('package_sha256', ForeignKey('packages.sha256')),
-    Column('added_at', DateTime),
-    PrimaryKey('repository_id', 'package_sha256')
+repository_content_items = Table(
+    "repository_content_items",
+    Column("repository_id", ForeignKey("repositories.id"), primary_key=True),
+    Column("content_item_id", ForeignKey("content_items.id"), primary_key=True),
+    Column("added_at", DateTime),
 )
 ```
 
-### snapshot_packages
+### snapshot_content_items
 
-Many-to-many relationship between snapshots and packages.
+Many-to-many between snapshots and content items.
 
 ```python
-snapshot_packages = Table(
-    'snapshot_packages',
-    Column('snapshot_id', ForeignKey('snapshots.id')),
-    Column('package_sha256', ForeignKey('packages.sha256')),
-    PrimaryKey('snapshot_id', 'package_sha256')
+snapshot_content_items = Table(
+    "snapshot_content_items",
+    Column("snapshot_id", ForeignKey("snapshots.id"), primary_key=True),
+    Column("content_item_id", ForeignKey("content_items.id"), primary_key=True),
 )
 ```
 
-### view_repositories
+### repository_repository_files
 
-Many-to-many relationship between views and repositories.
+Many-to-many between repositories and repository files (the "latest" state).
 
 ```python
-view_repositories = Table(
-    'view_repositories',
-    Column('view_name', ForeignKey('views.name')),
-    Column('repository_id', ForeignKey('repositories.id')),
-    Column('order', Integer),  # Repository order in view
-    PrimaryKey('view_name', 'repository_id')
+repository_repository_files = Table(
+    "repository_repository_files",
+    Column("repository_id", ForeignKey("repositories.id"), primary_key=True),
+    Column("repository_file_id", ForeignKey("repository_files.id"), primary_key=True),
+    Column("added_at", DateTime),
 )
 ```
 
-### view_snapshot_snapshots
+### snapshot_repository_files
 
-Many-to-many relationship between view snapshots and repository snapshots.
+Many-to-many between snapshots and repository files.
 
 ```python
-view_snapshot_snapshots = Table(
-    'view_snapshot_snapshots',
-    Column('view_snapshot_id', ForeignKey('view_snapshots.id')),
-    Column('snapshot_id', ForeignKey('snapshots.id')),
-    PrimaryKey('view_snapshot_id', 'snapshot_id')
+snapshot_repository_files = Table(
+    "snapshot_repository_files",
+    Column("snapshot_id", ForeignKey("snapshots.id"), primary_key=True),
+    Column("repository_file_id", ForeignKey("repository_files.id"), primary_key=True),
 )
 ```
+
+> **Note:** View-to-repository membership is the ORM model `ViewRepository`
+> (see above), and view snapshots reference repository snapshots through the
+> `ViewSnapshot.snapshot_ids` JSON array — there is no `view_repositories` plain
+> table and no `view_snapshot_snapshots` junction table.
 
 ## Indexes
 
-Critical indexes for performance:
+Indexes declared on the models:
 
-```sql
--- Package lookups
-CREATE INDEX idx_packages_name_arch ON packages(name, architecture);
-CREATE INDEX idx_packages_name ON packages(name);
+```text
+content_items:
+  - content_type            (column index)
+  - name                    (column index)
+  - version                 (column index)
+  - sha256                  (unique index)
+  - idx_content_type_name           (content_type, name)
+  - idx_content_type_name_version   (content_type, name, version)
 
--- Repository queries
-CREATE INDEX idx_repositories_enabled ON repositories(enabled);
+repository_files:
+  - file_category, file_type, sha256  (column indexes)
+  - idx_repo_file_category (file_category)
+  - idx_repo_file_type (file_type)
 
--- Snapshot queries
-CREATE INDEX idx_snapshots_repo_name ON snapshots(repository_id, name);
+repositories:
+  - repo_id (unique)
 
--- Sync history
-CREATE INDEX idx_sync_history_repo_started ON sync_history(repository_id, started_at);
+snapshots:
+  - name (column index)
+
+views / view_snapshots:
+  - name (column index)
 ```
 
 ## Database Migrations
 
-Chantal uses Alembic for schema migrations.
+Chantal uses Alembic for schema migrations. Migration scripts live in
+`alembic/versions/`.
 
 ### Migration Files
 
-```
-migrations/
+```text
+alembic/
 ├── versions/
-│   ├── 001_initial_schema.py
-│   ├── 002_add_views.py
-│   └── 003_add_sync_history.py
+│   ├── 20260110_2202_a4a922fdfc63_initial_schema_with_generic_content_.py
+│   ├── 20260111_1138_4ae7cc6b7243_add_repository_files_table_and_.py
+│   └── 20260111_1242_e190d159daac_add_repository_mode_field.py
 └── env.py
+```
+
+Revision chain (head is `e190d159daac`):
+
+```text
+a4a922fdfc63 (initial schema, generic ContentItem)
+    → 4ae7cc6b7243 (add repository_files table + junctions)
+        → e190d159daac (add Repository.mode field)   ← head
 ```
 
 ### Run Migrations
@@ -254,41 +415,42 @@ alembic current
 
 ## Example Queries
 
-### Find all packages in repository
+### Find all content items in a repository
 
 ```python
-repo = session.query(Repository).filter_by(id="epel9-vim").first()
-packages = repo.packages
+repo = session.query(Repository).filter_by(repo_id="epel9-vim").first()
+items = repo.content_items
 ```
 
-### Find all repositories containing a package
+### Find all repositories containing a content item
 
 ```python
-package = session.query(Package).filter_by(sha256="f256abc...").first()
-repos = package.repositories
+item = session.query(ContentItem).filter_by(sha256="f256abc...").first()
+repos = item.repositories
 ```
 
 ### Create snapshot
 
 ```python
 snapshot = Snapshot(
-    repository_id="epel9-vim",
+    repository_id=repo.id,
     name="2025-01",
-    description="January 2025"
+    description="January 2025",
 )
-snapshot.packages = repo.packages  # Copy current packages
+snapshot.content_items = list(repo.content_items)  # Copy current items
+snapshot.repository_files = list(repo.repository_files)
 session.add(snapshot)
 session.commit()
 ```
 
-### Find packages added between snapshots
+### Find content items added between snapshots
 
 ```python
 snapshot1 = session.query(Snapshot).filter_by(name="2025-01").first()
 snapshot2 = session.query(Snapshot).filter_by(name="2025-02").first()
 
-added = set(snapshot2.packages) - set(snapshot1.packages)
-removed = set(snapshot1.packages) - set(snapshot2.packages)
+added = set(snapshot2.content_items) - set(snapshot1.content_items)
+removed = set(snapshot1.content_items) - set(snapshot2.content_items)
 ```
 
 ## Database Backends
@@ -327,17 +489,6 @@ database:
 - Requires PostgreSQL installation
 - More complex setup
 
-## Database Size Estimates
-
-**Typical sizes:**
-- 1,000 packages: ~1 MB (SQLite) / ~500 KB (PostgreSQL)
-- 10,000 packages: ~10 MB / ~5 MB
-- 100,000 packages: ~100 MB / ~50 MB
-- 1,000,000 packages: ~1 GB / ~500 MB
-
-**With snapshots:**
-- 10 snapshots × 10,000 packages: ~15 MB (snapshots are metadata only)
-
 ## Maintenance
 
 ### Vacuum (SQLite)
@@ -352,51 +503,51 @@ sqlite3 /var/lib/chantal/chantal.db "VACUUM;"
 ANALYZE;
 ```
 
-### Cleanup Orphaned Packages
+### Cleanup Orphaned Content Items
 
 ```python
-# Find packages not in any repository
-orphaned = session.query(Package).filter(
-    ~Package.repositories.any()
+# Find content items not in any repository
+orphaned = session.query(ContentItem).filter(
+    ~ContentItem.repositories.any()
 ).all()
 ```
 
 ## Schema Diagram
 
-```
-┌─────────────┐       ┌──────────────────┐       ┌─────────────┐
-│  Repository │◄─────►│ repository_      │◄─────►│   Package   │
-│             │       │   packages       │       │             │
-│ - id (PK)   │       │                  │       │ - sha256(PK)│
-│ - name      │       │ - repository_id  │       │ - name      │
-│ - type      │       │ - package_sha256 │       │ - version   │
-│ - feed_url  │       │ - added_at       │       │ - arch      │
-└─────┬───────┘       └──────────────────┘       └─────┬───────┘
-      │                                                  │
-      │                                                  │
-      ▼                                                  ▼
-┌─────────────┐       ┌──────────────────┐       ┌─────────────┐
-│  Snapshot   │◄─────►│ snapshot_        │◄──────┤             │
-│             │       │   packages       │       │             │
-│ - id (PK)   │       │                  │       │             │
-│ - repo_id   │       │ - snapshot_id    │       │             │
-│ - name      │       │ - package_sha256 │       │             │
-└─────────────┘       └──────────────────┘       └─────────────┘
-
-┌─────────────┐       ┌──────────────────┐
-│    View     │◄─────►│ view_            │
-│             │       │   repositories   │
-│ - name (PK) │       │                  │
-│ - desc      │       │ - view_name      │
-└─────┬───────┘       │ - repository_id  │
-      │               │ - order          │
-      │               └──────────────────┘
-      ▼
-┌─────────────┐       ┌──────────────────┐
-│ ViewSnapshot│◄─────►│ view_snapshot_   │
-│             │       │   snapshots      │
-│ - id (PK)   │       │                  │
-│ - view_name │       │ - view_snap_id   │
-│ - name      │       │ - snapshot_id    │
-└─────────────┘       └──────────────────┘
+```text
+┌──────────────┐     ┌───────────────────────────┐     ┌──────────────┐
+│  Repository  │◄───►│ repository_content_items  │◄───►│ ContentItem  │
+│              │     │                           │     │              │
+│ - id (PK)    │     │ - repository_id           │     │ - id (PK)    │
+│ - repo_id (U)│     │ - content_item_id         │     │ - sha256 (U) │
+│ - type       │     │ - added_at                │     │ - content_type│
+│ - feed       │     └───────────────────────────┘     │ - name        │
+│ - mode       │                                        │ - version     │
+└──┬───────┬───┘     ┌───────────────────────────┐     │ - content_    │
+   │       │◄───────►│ repository_repository_files│◄──►│   metadata    │
+   │       │         └───────────────────────────┘  │  └──────────────┘
+   │       │                                          │
+   │       ▼                                          ▼
+   │  ┌──────────────┐  ┌──────────────────────┐  ┌──────────────┐
+   │  │   Snapshot   │◄►│ snapshot_content_items│◄►│ RepositoryFile│
+   │  │ - id (PK)    │  └──────────────────────┘  │ - id (PK)     │
+   │  │ - repo_id FK │  ┌──────────────────────┐  │ - sha256      │
+   │  │ - name       │◄►│snapshot_repository_files│◄│ - file_category│
+   │  └──────────────┘  └──────────────────────┘  │ - original_path│
+   │                                               └──────────────┘
+   ▼
+┌──────────────┐     ┌──────────────────┐
+│ SyncHistory  │     │     View         │
+│ - id (PK)    │     │ - id (PK)        │
+│ - repo_id FK │     │ - name (U)       │
+│ - status     │     │ - repo_type      │
+└──────────────┘     └───┬──────────┬───┘
+                         │          │
+            ┌────────────▼───┐  ┌───▼──────────────┐
+            │ ViewRepository │  │  ViewSnapshot    │
+            │ - id (PK)      │  │ - id (PK)        │
+            │ - view_id FK   │  │ - view_id FK     │
+            │ - repo_id FK   │  │ - snapshot_ids   │  (JSON array of Snapshot.id)
+            │ - order        │  └──────────────────┘
+            └────────────────┘
 ```

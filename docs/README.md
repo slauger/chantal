@@ -60,7 +60,13 @@ docs/
 ├── plugins/                     # Plugin documentation
 │   ├── overview.md
 │   ├── rpm-plugin.md
+│   ├── apt-plugin.md
+│   ├── helm-plugin.md
+│   ├── apk-plugin.md
 │   └── custom-plugins.md
+├── schema/                      # Generated config JSON Schema
+│   ├── chantal-config.schema.json
+│   └── README.md
 └── api/                         # API reference (auto-generated)
     └── modules.rst
 ```

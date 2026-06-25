@@ -44,6 +44,14 @@ Base Plugins
    :undoc-members:
    :show-inheritance:
 
+View Publisher
+~~~~~~~~~~~~~~
+
+.. automodule:: chantal.plugins.view_publisher
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 RPM Plugin
 ~~~~~~~~~~
 

@@ -7,35 +7,54 @@
 
 ## Installation Steps
 
-### 1. Clone the Repository
+### Install from PyPI (Recommended)
+
+Chantal is published on [PyPI](https://pypi.org/project/chantal/):
 
 ```bash
-git clone https://github.com/slauger/chantal.git
-cd chantal
+pip install chantal
 ```
 
-### 2. Install in Development Mode
-
-```bash
-pip install -e .
-```
-
-### 3. Verify Installation
+Verify the installation:
 
 ```bash
 chantal --version
 ```
 
+### Install from Source
+
+To work on Chantal or run an unreleased version, install from a checkout in
+editable mode:
+
+```bash
+git clone https://github.com/slauger/chantal.git
+cd chantal
+pip install -e .
+```
+
+For development (linters, tests), install the optional `dev` extras:
+
+```bash
+pip install -e ".[dev]"
+```
+
 ## Dependencies
 
-Chantal will automatically install the following dependencies:
+Chantal automatically installs the following dependencies:
 
-- **SQLAlchemy** - Database ORM
-- **Click** - CLI framework
-- **Requests** - HTTP client
-- **PyYAML** - Configuration file parsing
-- **lxml** - XML parsing for repository metadata
-- **Pydantic** - Configuration validation
+- **click** - CLI framework
+- **pydantic** - Configuration validation
+- **pyyaml** - Configuration file parsing
+- **packaging** - Version parsing/comparison
+- **sqlalchemy** - Database ORM
+- **psycopg2-binary** - PostgreSQL driver
+- **alembic** - Database schema migrations
+- **requests** / **urllib3** - HTTP client and downloads
+- **zstandard** - Zstandard metadata compression
+- **python-gnupg** - GPG signing (APT/RPM filtered mode)
+- **cryptography** - RSA signing of APK indexes (APKINDEX.tar.gz)
+- **tqdm** - Progress bars
+- **rich** - Terminal output formatting
 
 ## Database Setup
 

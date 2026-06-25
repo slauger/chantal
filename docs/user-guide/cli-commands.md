@@ -12,8 +12,13 @@ chantal [OPTIONS] COMMAND [ARGS]...
 Options:
   --config PATH      Path to configuration file
   --version          Show version and exit
+  -v, --verbose      Verbose output
   -h, --help         Show help message and exit
 ```
+
+**Command groups:** `repo`, `snapshot`, `content`, `publish`, `view`,
+`package`, `pool`, `cache`, `db`, `stats`, `schema`. Each group is documented
+in the sections below.
 
 ## Configuration File Priority
 
@@ -176,7 +181,10 @@ chantal repo sync --pattern "epel9-*"
 - `--repo-id`: Repository ID
 - `--all`: Sync all enabled repositories
 - `--pattern`: Repository ID pattern (glob)
-- `--type`: Filter by repository type
+- `--type`: Filter by repository type (rpm, apt) when using `--all` or `--pattern`
+- `--workers`: Number of parallel workers (with `--all` or `--pattern`)
+- `-v`, `--verbose`: Show detailed package-by-package progress
+- `-q`, `--quiet`: Show only errors, no progress output
 
 **Examples:**
 ```bash
@@ -191,6 +199,9 @@ chantal repo sync --all
 
 # Sync only RPM repositories
 chantal repo sync --all --type rpm
+
+# Sync all with 4 parallel workers, quiet output
+chantal repo sync --all --workers 4 --quiet
 ```
 
 ### `chantal repo check-updates`
@@ -227,12 +238,22 @@ Feed URL: https://cdn.redhat.com/content/dist/rhel9/9/x86_64/appstream/os
 Show sync history for a repository.
 
 ```bash
+# History for one repository
 chantal repo history --repo-id REPO_ID [--limit 10]
+
+# History across all repositories
+chantal repo history --all
+
+# Only the last sync of each repository
+chantal repo history --all --last
 ```
 
 **Options:**
-- `--repo-id`: Repository ID (required)
+- `--repo-id`: Repository ID
+- `--all`: Show sync history for all repositories
+- `--last`: Show only the last sync (use with `--all`)
 - `--limit`: Maximum number of entries to show
+- `--format`: Output format (table, json)
 
 ## Snapshot Management
 
@@ -365,6 +386,36 @@ chantal snapshot delete \
 **Options:**
 - `--repo-id`: Repository ID (required)
 - `SNAPSHOT_NAME`: Snapshot name to delete (required)
+- `--force`: Force deletion even if the snapshot is currently published
+
+### `chantal snapshot copy`
+
+Copy a snapshot to a new name to enable promotion workflows (e.g. staging →
+production). Only database entries are created - no files are copied, since both
+snapshots reference the same content-addressed packages in the pool.
+
+```bash
+chantal snapshot copy \
+  --source SOURCE_NAME \
+  --target TARGET_NAME \
+  --repo-id REPO_ID \
+  [--description "..."]
+```
+
+**Options:**
+- `--source`: Source snapshot name (required)
+- `--target`: Target snapshot name (required)
+- `--repo-id`: Repository ID (required)
+- `--description`: Description for the new snapshot
+
+**Example:**
+```bash
+# Promote a tested snapshot to "stable"
+chantal snapshot copy \
+  --source 2025-01-10 \
+  --target stable \
+  --repo-id rhel9-baseos
+```
 
 ## Content Management
 
@@ -387,7 +438,7 @@ chantal content list --view VIEW_NAME
 # Filter by content type
 chantal content list --repo-id REPO_ID --type rpm
 chantal content list --repo-id REPO_ID --type helm
-chantal content list --repo-id REPO_ID --type apk
+chantal content list --repo-id REPO_ID --type apt
 
 # Limit results
 chantal content list --repo-id REPO_ID --limit 50
@@ -401,8 +452,8 @@ chantal content list --repo-id REPO_ID --format csv
 - `--repo-id`: Filter by repository ID
 - `--snapshot-id`: Filter by snapshot ID
 - `--view`: Filter by view name
-- `--type`: Filter by content type (rpm, helm, apk)
-- `--limit`: Maximum number of items to show (default: 100)
+- `--type`: Filter by content type (rpm, helm, apt)
+- `--limit`: Maximum number of items to show
 - `--format`: Output format (table, json, csv)
 
 **Note:** Only one of `--repo-id`, `--snapshot-id`, or `--view` can be specified.
@@ -427,7 +478,7 @@ chantal content search nginx --view rhel9-webserver
 # Filter by content type
 chantal content search python --type rpm
 chantal content search ingress --type helm
-chantal content search alpine --type apk
+chantal content search nginx --type apt
 
 # Output as JSON
 chantal content search nginx --format json
@@ -438,7 +489,7 @@ chantal content search nginx --format json
 - `--repo-id`: Search in specific repository
 - `--snapshot-id`: Search in specific snapshot
 - `--view`: Search in specific view
-- `--type`: Filter by content type (rpm, helm, apk)
+- `--type`: Filter by content type (rpm, helm, apt)
 - `--format`: Output format (table, json)
 
 **Note:** Only one of `--repo-id`, `--snapshot-id`, or `--view` can be specified.
@@ -499,11 +550,82 @@ Snapshots (1):
 ======================================================================
 ```
 
+## View Management
+
+Views group multiple repositories into a single virtual repository. All
+repositories in a view must have the same type (rpm or apt). See
+[Views (Virtual Repositories)](views.md) for the full guide.
+
+### `chantal view list`
+
+List all configured views.
+
+```bash
+chantal view list [--format table|json]
+```
+
+**Options:**
+- `--format`: Output format (table, json)
+
+### `chantal view show`
+
+Show detailed information about a view, including its repositories and package
+counts.
+
+```bash
+chantal view show --name VIEW_NAME [--format table|json]
+```
+
+**Options:**
+- `--name`: View name (required)
+- `--format`: Output format (table, json)
+
+> **Note:** Views are *published* with `chantal publish view` and *snapshotted*
+> with `chantal snapshot create --view` (see those commands).
+
+## Package Management
+
+The `package` commands inject custom (locally provided) packages into a
+repository's content-addressed pool. This powers *hosted* repositories built
+from your own packages, independent of an upstream feed.
+
+### `chantal package upload`
+
+Upload one or more local package files into a repository's pool.
+
+```bash
+# Upload a single package
+chantal package upload --file ./mypackage-1.0.0.x86_64.rpm --repo-id myrepo
+
+# Upload all packages in a directory
+chantal package upload --directory ./packages/ --repo-id myrepo
+
+# Recurse into subdirectories
+chantal package upload --directory ./packages/ --recursive --repo-id myrepo
+
+# Replace a conflicting same-version package
+chantal package upload --file ./mypackage-1.0.0.x86_64.rpm --repo-id myrepo --force
+
+# Upload .deb packages into a specific APT component
+chantal package upload --file ./mypackage_1.0.0_amd64.deb --repo-id myrepo --component contrib
+```
+
+**Options:**
+- `--file`: A single package file to upload
+- `--directory`: A directory of packages to upload
+- `--recursive`: Recurse into `--directory`
+- `--repo-id`: Target repository ID (required)
+- `--force`: Replace a conflicting same-version package
+- `--component`: APT component for uploaded `.deb` packages (default: `main`; ignored for rpm/helm)
+
+**Supported types:** RPM, DEB/APT, and Helm. (Alpine APK upload is not supported.)
+
 ## Publishing
 
 ### `chantal publish repo`
 
-Publish a repository.
+Publish a repository to its target directory. Creates hardlinks from the package
+pool and (re)generates repository metadata.
 
 ```bash
 # Publish single repository
@@ -511,26 +633,53 @@ chantal publish repo --repo-id REPO_ID
 
 # Publish all repositories
 chantal publish repo --all
+
+# Publish to a custom target directory
+chantal publish repo --repo-id REPO_ID --target /var/www/custom
 ```
 
 **Options:**
 - `--repo-id`: Repository ID
 - `--all`: Publish all repositories
+- `--target`: Custom target directory (default: from config)
 
 ### `chantal publish snapshot`
 
-Publish a snapshot.
+Publish a specific snapshot. Works for both repository snapshots (`--repo-id`)
+and view snapshots (`--view`).
 
 ```bash
-chantal publish snapshot --snapshot REPO_ID-NAME
+# Repository snapshot
+chantal publish snapshot --snapshot NAME --repo-id REPO_ID
+
+# View snapshot
+chantal publish snapshot --snapshot NAME --view VIEW_NAME
 ```
 
 **Options:**
-- `--snapshot`: Snapshot identifier (format: `repo-id-name`)
+- `--snapshot`: Snapshot name (required)
+- `--repo-id`: Repository ID (for repository snapshots)
+- `--view`: View name (for view snapshots)
+- `--target`: Custom target directory
+
+### `chantal publish view`
+
+Publish a view (combines all repositories in the view into one virtual
+repository). Views are published directly from the configuration file - no
+database sync needed.
+
+```bash
+chantal publish view --name VIEW_NAME
+```
+
+**Options:**
+- `--name`: View name to publish (required)
+
+See [Views (Virtual Repositories)](views.md) for details.
 
 ### `chantal publish list`
 
-List published repositories and snapshots.
+List currently published repositories and snapshots.
 
 ```bash
 chantal publish list
@@ -538,15 +687,21 @@ chantal publish list
 
 ### `chantal publish unpublish`
 
-Unpublish a repository or snapshot.
+Unpublish a snapshot. Removes the published directory (hardlinks) but keeps the
+packages in the pool and the snapshot in the database, so it can be re-published
+later.
 
 ```bash
-# Unpublish repository
-chantal publish unpublish --repo-id REPO_ID
+# Unpublish by snapshot name
+chantal publish unpublish --snapshot SNAPSHOT_NAME
 
-# Unpublish snapshot
-chantal publish unpublish --snapshot REPO_ID-NAME
+# Disambiguate when the same snapshot name exists in multiple repositories
+chantal publish unpublish --snapshot SNAPSHOT_NAME --repo-id REPO_ID
 ```
+
+**Options:**
+- `--snapshot`: Snapshot name to unpublish (required)
+- `--repo-id`: Repository ID (optional; only needed if the snapshot name is not unique)
 
 ## Storage Pool Management
 
@@ -570,54 +725,50 @@ Shows files that exist in pool but are not referenced in the database.
 
 ### `chantal pool cleanup`
 
-Remove orphaned files from pool.
+Clean up pool integrity issues. By default cleans both orphaned files (in pool
+but not in database) and missing entries (in database but without a pool file).
+Requires confirmation unless `--force` or `--dry-run` is used.
 
 ```bash
-# Dry-run (show what would be removed)
+# Dry-run (show what would be deleted)
 chantal pool cleanup --dry-run
 
-# Actually remove orphaned files
+# Clean both orphaned files and missing entries (prompts for confirmation)
 chantal pool cleanup
 
-# Clean only content files (packages)
-chantal pool cleanup --content-only
+# Clean only orphaned files (in pool but not in database)
+chantal pool cleanup --orphaned
 
-# Clean only metadata files
-chantal pool cleanup --metadata-only
+# Clean only missing entries (in database but not in pool)
+chantal pool cleanup --missing
 
-# Delete specific pool entries by SHA256
-chantal pool cleanup --sha256 abc123def456...
+# Skip the confirmation prompt
+chantal pool cleanup --force
 ```
 
 **Options:**
-- `--dry-run`: Show what would be removed without actually removing
-- `--content-only`: Only clean orphaned content files (packages)
-- `--metadata-only`: Only clean orphaned metadata files
-- `--sha256`: Delete specific pool entry by SHA256 checksum
+- `--dry-run`: Show what would be deleted without actually deleting
+- `--orphaned`: Only clean orphaned files (in pool but not in database)
+- `--missing`: Only clean missing entries (in database but not in pool)
+- `--force`: Skip confirmation prompt
 
 ### `chantal pool verify`
 
-Verify pool integrity.
+Verify pool integrity. Performs a comprehensive integrity check.
 
 ```bash
-# Verify all pool files
 chantal pool verify
-
-# Verify specific repository
-chantal pool verify --repo-id epel9-latest
-
-# Verify and show detailed output
-chantal pool verify --verbose
 ```
 
 **Checks:**
-- File existence (database entry exists but file missing)
-- Checksum verification (file SHA256 matches database)
-- Database consistency (orphaned entries, duplicate files)
+- Orphaned files (in pool but not in database)
+- Missing files (in database but not in pool)
+- SHA256 checksum verification
+- File size verification
 
-**Options:**
-- `--repo-id`: Verify only files for specific repository
-- `--verbose`: Show detailed verification output
+For detailed file lists, use `chantal pool orphaned` or `chantal pool missing`.
+
+This command takes no options.
 
 ### `chantal pool missing`
 
@@ -663,15 +814,102 @@ chantal db verify
 
 ### `chantal db cleanup`
 
-Clean up unreferenced packages.
+Clean up database issues. By default cleans both orphaned repositories (in the
+database but not in the configuration) and unreferenced packages (without
+repository references). Requires confirmation unless `--force` or `--dry-run`
+is used.
 
 ```bash
 # Dry-run
 chantal db cleanup --dry-run
 
-# Actually cleanup
+# Clean both (prompts for confirmation)
 chantal db cleanup
+
+# Clean only orphaned repositories
+chantal db cleanup --orphaned
+
+# Clean only unreferenced packages
+chantal db cleanup --unreferenced
+
+# Skip the confirmation prompt
+chantal db cleanup --force
 ```
+
+**Options:**
+- `--dry-run`: Show what would be deleted without actually deleting
+- `--orphaned`: Only clean orphaned repositories (in DB but not in config)
+- `--unreferenced`: Only clean unreferenced packages
+- `--force`: Skip confirmation prompt
+
+### `chantal db orphaned`
+
+List orphaned repositories in the database (present in the database but not in
+the configuration file).
+
+```bash
+chantal db orphaned
+```
+
+## Metadata Cache Management
+
+The `cache` commands manage the SHA256-based metadata cache (used to speed up
+RPM syncs).
+
+### `chantal cache stats`
+
+Show cache statistics.
+
+```bash
+chantal cache stats
+```
+
+### `chantal cache list`
+
+List cached metadata files.
+
+```bash
+chantal cache list [--limit N]
+```
+
+**Options:**
+- `--limit`: Limit the number of files shown
+
+### `chantal cache clear`
+
+Clear the metadata cache. By default clears all cached metadata files.
+
+```bash
+# Clear the entire cache (prompts for confirmation)
+chantal cache clear
+
+# Skip the confirmation prompt
+chantal cache clear --force
+```
+
+**Options:**
+- `--all`: Clear the entire cache
+- `--force`: Skip confirmation prompt
+- `--repo-id`: Reserved for per-repository clearing (currently clears all)
+
+## Configuration Schema
+
+### `chantal schema`
+
+Output the JSON Schema for the configuration file. The schema is generated from
+the configuration models and can be used by editors (e.g. the VS Code YAML
+extension) to validate and autocomplete `config.yaml`.
+
+```bash
+# Print schema to stdout
+chantal schema
+
+# Write schema to a file
+chantal schema --output chantal-config.schema.json
+```
+
+**Options:**
+- `-o`, `--output`: Write the schema to this file instead of stdout
 
 ## Output Formats
 

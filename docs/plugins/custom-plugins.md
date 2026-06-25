@@ -2,6 +2,25 @@
 
 Guide to creating custom plugins for Chantal.
 
+> **⚠️ Conceptual sketch.** This page illustrates the *shape* of a plugin; the
+> code snippets below are pseudo-code and do **not** map 1:1 onto the current API.
+> The accurate anchors are:
+> - **Base class:** only `PublisherPlugin` exists (`chantal.plugins.base`). There
+>   is no `SyncPlugin` base class — syncers are plain classes (e.g.
+>   `RpmSyncPlugin`, `HelmSyncer`).
+> - **Models:** packages/charts are stored as **`ContentItem`** (not `Package`),
+>   and the relationship is **`repository.content_items`** (not
+>   `repository.packages`). See `chantal/db/models.py`.
+> - **Storage:** `StorageManager.add_package(source_path, filename,
+>   verify_checksum=True)` takes a **local file path** (not a URL) and returns
+>   `(sha256, pool_path, size_bytes)`. See `chantal/core/storage.py`.
+> - **Dispatch:** there is no `SYNC_PLUGINS`/`PUBLISHER_PLUGINS` registry. The
+>   repository `type` is dispatched with a hardcoded `if/elif` chain in
+>   `chantal/cli/repo_commands.py` and `chantal/cli/publish_commands.py`.
+>
+> Read `base.py`, `db/models.py`, `storage.py`, and an existing plugin under
+> `chantal/plugins/` before implementing your own.
+
 ## Overview
 
 Custom plugins allow you to extend Chantal to support new repository types. Each repository type requires:
@@ -34,13 +53,13 @@ src/chantal/plugins/
 ```python
 # src/chantal/plugins/my_plugin_sync.py
 
-from chantal.plugins.base import SyncPlugin
 from chantal.core.storage import StorageManager
 from sqlalchemy.orm import Session
-from chantal.db.models import Package, Repository
+from chantal.db.models import ContentItem, Repository
 from chantal.core.config import RepositoryConfig
 
-class MyPluginSync(SyncPlugin):
+# Syncers are plain classes (no SyncPlugin base class)
+class MyPluginSync:
     def __init__(self, storage: StorageManager):
         self.storage = storage
 
@@ -66,30 +85,29 @@ class MyPluginSync(SyncPlugin):
         skipped = 0
 
         for pkg_info in filtered:
-            sha256 = pkg_info['sha256']
             url = pkg_info['url']
             filename = pkg_info['filename']
 
-            # Check if package exists in pool
-            if self.storage.exists(sha256, filename):
-                skipped += 1
-                continue
-
-            # Download to pool
-            pool_path = self.storage.add_package(url, sha256, filename)
+            # Download the file locally first (add_package takes a local path,
+            # computes the SHA256 itself, and deduplicates by content).
+            local_path = self.download_package(url, filename)
+            sha256, pool_path, size_bytes = self.storage.add_package(
+                local_path, filename, verify_checksum=True
+            )
             downloaded += 1
 
-            # Add to database
-            package = Package(
+            # Add to database as a ContentItem
+            item = ContentItem(
                 sha256=sha256,
                 filename=filename,
-                size=pkg_info['size'],
+                size_bytes=size_bytes,
+                pool_path=pool_path,
                 name=pkg_info['name'],
                 version=pkg_info['version'],
-                architecture=pkg_info['arch']
+                content_type='my_type',
             )
-            session.add(package)
-            repository.packages.append(package)
+            session.add(item)
+            repository.content_items.append(item)
 
         session.commit()
 
@@ -147,7 +165,7 @@ from chantal.plugins.base import PublisherPlugin
 from chantal.core.storage import StorageManager
 from pathlib import Path
 from sqlalchemy.orm import Session
-from chantal.db.models import Package, Repository, Snapshot
+from chantal.db.models import ContentItem, Repository, Snapshot
 
 class MyPluginPublisher(PublisherPlugin):
     def __init__(self, storage: StorageManager):
@@ -235,24 +253,24 @@ def generate_metadata(self, packages: list, target_path: Path):
         json.dump(index_data, f, indent=2)
 ```
 
-## Step 4: Register Plugin
+## Step 4: Wire Up Dispatch
 
-Update `src/chantal/plugins/__init__.py`:
+There is no plugin registry to register with. Instead, extend the hardcoded
+`if/elif` dispatch on `repo_config.type` in the two CLI modules:
+
+- `src/chantal/cli/repo_commands.py` — sync path
+- `src/chantal/cli/publish_commands.py` — publish path
 
 ```python
-from .my_plugin_sync import MyPluginSync
-from .my_plugin import MyPluginPublisher
-
-SYNC_PLUGINS = {
-    'rpm': RpmSyncPlugin,
-    'my_type': MyPluginSync,  # Add your plugin
-}
-
-PUBLISHER_PLUGINS = {
-    'rpm': RpmPublisher,
-    'my_type': MyPluginPublisher,  # Add your plugin
-}
+# src/chantal/cli/repo_commands.py (sync dispatch)
+if repo_config.type == "rpm":
+    ...
+elif repo_config.type == "my_type":          # add your branch
+    syncer = MyPluginSync(storage)
+    syncer.sync(session, repository, repo_config)
 ```
+
+Do the same in `publish_commands.py` for the publish dispatch.
 
 ## Step 5: Add Configuration Support
 
@@ -317,8 +335,8 @@ def test_publish(tmp_path, db_session):
 Complete example for a simple HTTP directory listing repository:
 
 ```python
-# sync plugin
-class HttpArchiveSync(SyncPlugin):
+# sync plugin (plain class)
+class HttpArchiveSync:
     def fetch_metadata(self, feed_url):
         # Parse HTML directory listing
         response = self.http_client.get(feed_url)

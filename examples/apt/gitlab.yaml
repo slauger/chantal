@@ -32,10 +32,7 @@ repositories:
       cron: "0 4 * * *"  # Daily at 4 AM
       create_snapshot: true
 
----
-
-# GitLab Runner Repository
-repositories:
+  # GitLab Runner Repository
   - id: gitlab-runner-ubuntu-jammy
     name: "GitLab Runner - Ubuntu 22.04 Jammy"
     type: apt

@@ -92,13 +92,13 @@ filters:
       include: ["x86_64", "noarch"]
       # exclude: ["i686"]  # Alternative: exclude specific arches
 
-    size:
-      min_bytes: 1024         # Minimum 1 KB
-      max_bytes: 1073741824   # Maximum 1 GB
+    size_bytes:
+      min: 1024         # Minimum 1 KB
+      max: 1073741824   # Maximum 1 GB
 
     build_time:
-      after: "2024-01-01T00:00:00Z"
-      before: "2025-01-01T00:00:00Z"
+      newer_than: "2024-01-01"
+      older_than: "2025-01-01"
 ```
 
 ### Architecture Filtering
@@ -127,9 +127,9 @@ Filter by package size:
 ```yaml
 filters:
   metadata:
-    size:
-      min_bytes: 1024         # At least 1 KB
-      max_bytes: 104857600    # At most 100 MB
+    size_bytes:
+      min: 1024         # At least 1 KB
+      max: 104857600    # At most 100 MB
 ```
 
 **Use cases:**
@@ -145,9 +145,13 @@ Filter by package build time:
 filters:
   metadata:
     build_time:
-      after: "2024-01-01T00:00:00Z"    # Only packages built after this
-      before: "2025-01-01T00:00:00Z"   # Only packages built before this
+      newer_than: "2024-01-01"   # Only packages built after this date
+      older_than: "2025-01-01"   # Only packages built before this date
+      # last_n_days: 30          # Alternative: only packages from the last N days
 ```
+
+ISO date strings (`YYYY-MM-DD`) are used for `newer_than`/`older_than`;
+`last_n_days` counts back from the current time.
 
 **Use cases:**
 - Only sync recent packages
@@ -170,6 +174,14 @@ filters:
     licenses:
       include: ["GPL", "MIT", "Apache"]
       # exclude: ["Proprietary"]
+
+    vendors:
+      include: ["nginx, Inc."]
+      # exclude: ["Third Party"]
+
+    epochs:
+      include: ["0", "1"]
+      # exclude: ["10"]
 ```
 
 ### Exclude Source RPMs
@@ -223,6 +235,53 @@ filters:
 - Exclude proprietary software
 - Compliance requirements
 
+### Vendor Filtering
+
+Filter by the package vendor (the `Vendor` RPM header):
+
+```yaml
+filters:
+  rpm:
+    vendors:
+      include: ["nginx, Inc."]
+      # exclude: ["Third Party"]
+```
+
+### Epoch Filtering
+
+Filter by RPM epoch (advanced versioning):
+
+```yaml
+filters:
+  rpm:
+    epochs:
+      include: ["0", "1"]
+      # exclude: ["10"]
+```
+
+## APT/DEB-Specific Filters
+
+Filters specific to APT/DEB repositories (use the `deb` block):
+
+```yaml
+filters:
+  deb:
+    components:
+      include: ["main", "contrib"]
+      exclude: ["non-free"]
+
+    priorities:
+      include: ["required", "important", "standard"]
+      # exclude: ["optional", "extra"]
+
+    sections:
+      include: ["admin", "devel", "libs"]
+      # exclude: ["games"]
+```
+
+**Note:** `rpm` filters can only be used with RPM repositories and `deb`
+filters only with APT/DEB repositories; mixing them raises a validation error.
+
 ## Post-Processing
 
 Applied **after** all other filters:
@@ -231,7 +290,7 @@ Applied **after** all other filters:
 filters:
   post_processing:
     only_latest_version: true
-    # only_latest_n_versions: 3  # Future feature
+    # only_latest_n_versions: 3  # Alternative: keep the last N versions
 ```
 
 ### Only Latest Version
@@ -262,7 +321,7 @@ After:
 
 ### Only Latest N Versions
 
-Keep the last N versions (future feature):
+Keep the last N versions per (name, architecture):
 
 ```yaml
 filters:
@@ -335,7 +394,7 @@ repositories:
     filters:
       metadata:
         build_time:
-          after: "2025-01-01T00:00:00Z"  # Only recent packages
+          newer_than: "2025-01-01"  # Only recent packages
         architectures:
           include: ["x86_64", "noarch"]
       rpm:

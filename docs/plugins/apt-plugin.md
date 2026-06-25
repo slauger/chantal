@@ -124,9 +124,9 @@ repositories:
         - amd64
 
     auth:
-      basic:
-        username: myuser
-        password: mypassword
+      type: basic
+      username: myuser
+      password: mypassword
 ```
 
 ## APT-Specific Options
@@ -279,7 +279,7 @@ deb [arch=amd64] http://mirror.example.com/repos/ubuntu-jammy-main jammy main
 
 ```bash
 # Create snapshot first
-chantal snapshot create ubuntu-jammy-main --name 2026-01-12
+chantal snapshot create --repo-id ubuntu-jammy-main --name 2026-01-12
 
 # Publish the snapshot
 chantal publish snapshot --snapshot 2026-01-12 --repo-id ubuntu-jammy-main
@@ -811,7 +811,7 @@ Sync and publish:
 chantal repo sync --repo-id ubuntu-jammy
 
 # Create monthly snapshot
-chantal snapshot create ubuntu-jammy --name $(date +%Y-%m)
+chantal snapshot create --repo-id ubuntu-jammy --name $(date +%Y-%m)
 
 # Publish latest state
 chantal publish repo --repo-id ubuntu-jammy
@@ -840,8 +840,8 @@ repositories:
       include_source_packages: false
 
     retention:
-      policy: keep_snapshots
-      max_snapshots: 10
+      policy: keep-last-n
+      keep_count: 10
 ```
 
 Automated workflow:
@@ -850,10 +850,10 @@ Automated workflow:
 chantal repo sync --repo-id docker-ce-ubuntu-jammy
 
 # Create snapshot with current date
-chantal snapshot create docker-ce-ubuntu-jammy --name $(date +%Y-%m-%d)
+chantal snapshot create --repo-id docker-ce-ubuntu-jammy --name $(date +%Y-%m-%d)
 
-# Check what changed
-chantal snapshot diff docker-ce-ubuntu-jammy --from-snapshot 2026-01-01 --to-snapshot $(date +%Y-%m-%d)
+# Check what changed (positional SNAPSHOT1 SNAPSHOT2)
+chantal snapshot diff --repo-id docker-ce-ubuntu-jammy 2026-01-01 $(date +%Y-%m-%d)
 
 # Publish latest
 chantal publish repo --repo-id docker-ce-ubuntu-jammy
@@ -977,7 +977,7 @@ Chantal can replace apt-mirror with additional features:
 | Package filtering | ✅ | ✅ |
 | Snapshots | ✅ | ✅ |
 | GPG signing | ✅ | ✅ |
-| Package uploads | ✅ | ⏳ (planned) |
+| Package uploads | ✅ | ✅ |
 | Multi-format | ❌ | ✅ |
 | Views (virtual repos) | ❌ | ✅ |
 
