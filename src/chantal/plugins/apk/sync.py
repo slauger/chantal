@@ -6,7 +6,6 @@ Alpine APK repository syncer.
 This module implements syncing for Alpine APK repositories.
 """
 
-import hashlib
 import logging
 import tarfile
 import tempfile
@@ -20,6 +19,7 @@ from chantal.core.downloader import DownloadManager
 from chantal.core.output import OutputLevel, SyncOutputter
 from chantal.core.storage import StorageManager
 from chantal.db.models import ContentItem, Repository, RepositoryFile
+from chantal.plugins.apk.checksum import compute_apk_control_checksum
 from chantal.plugins.apk.models import ApkMetadata
 
 logger = logging.getLogger(__name__)
@@ -187,8 +187,13 @@ class ApkSyncer:
                     pkg_url, config, metadata.checksum
                 )
                 if not sha1_ok:
+                    # The downloaded bytes do not match the signed APKINDEX
+                    # checksum: reject the package (it is not pooled or linked).
                     stats["sha1_mismatches"] += 1
-                    self.output.warning(f"SHA1 mismatch for {pkg_name}")
+                    raise ValueError(
+                        f"checksum mismatch for {pkg_name} (expected {metadata.checksum}); "
+                        "possible tampering or a stale upstream APKINDEX"
+                    )
 
                 # Create ContentItem
                 content_item = ContentItem(
@@ -498,25 +503,24 @@ class ApkSyncer:
         response = self.session.get(url, timeout=300, stream=True)
         response.raise_for_status()
 
-        # Download to temp file and verify SHA1
-        import base64
-
         with tempfile.NamedTemporaryFile(delete=False, suffix=".apk") as tmp:
-            sha1_hash = hashlib.sha1()
             for chunk in response.iter_content(chunk_size=8192):
                 tmp.write(chunk)
-                sha1_hash.update(chunk)
             tmp_path = Path(tmp.name)
 
-        # Verify SHA1 (APK uses base64-encoded SHA1 with Q1 prefix)
-        # Note: Alpine CDN sometimes has stale APKINDEX, so we track mismatches but don't fail
-        calculated_sha1 = "Q1" + base64.b64encode(sha1_hash.digest()).decode("ascii")
-        sha1_ok = calculated_sha1 == expected_sha1
+        # Verify the package against the APKINDEX C: checksum (Q1 + base64(SHA1)
+        # of the control segment). Verify BEFORE pooling so a tampered/corrupt
+        # package never enters the content pool.
+        calculated_sha1 = compute_apk_control_checksum(tmp_path.read_bytes())
+        sha1_ok = calculated_sha1 is not None and calculated_sha1 == expected_sha1
 
         if not sha1_ok:
-            logger.debug(
-                f"SHA1 mismatch for {Path(url).name}: expected {expected_sha1}, got {calculated_sha1}"
+            logger.warning(
+                f"APK checksum mismatch for {Path(url).name}: "
+                f"expected {expected_sha1}, got {calculated_sha1}"
             )
+            tmp_path.unlink(missing_ok=True)
+            return None, None, None, False
 
         filename = Path(url).name
 

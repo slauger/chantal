@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-import base64
-import hashlib
+import gzip
 import io
 import tarfile
 from pathlib import Path
 
 import pytest
+
+from chantal.plugins.apk.checksum import compute_apk_control_checksum
 
 pytestmark = pytest.mark.e2e
 
@@ -17,15 +18,35 @@ REPO = "main"
 ARCH = "x86_64"
 
 
+def _gz_tar(name: str, content: bytes) -> bytes:
+    """Return a single gzip stream wrapping a one-entry tar (an .apk segment)."""
+    raw = io.BytesIO()
+    with tarfile.open(fileobj=raw, mode="w") as tar:
+        info = tarfile.TarInfo(name)
+        info.size = len(content)
+        tar.addfile(info, io.BytesIO(content))
+    out = io.BytesIO()
+    with gzip.GzipFile(fileobj=out, mode="wb") as gz:
+        gz.write(raw.getvalue())
+    return out.getvalue()
+
+
+def _build_minimal_apk() -> bytes:
+    """A valid APKv2 archive: concatenated control + data gzip streams."""
+    control = _gz_tar(".PKGINFO", b"pkgname = demo\npkgver = 1.0-r0\n")
+    data = _gz_tar("usr/share/demo/README", b"hello-from-demo\n")
+    return control + data
+
+
 def _build_apk_upstream(root: Path) -> None:
     """Create a minimal Alpine repo (APKINDEX.tar.gz + one .apk)."""
     arch_dir = root / BRANCH / REPO / ARCH
     arch_dir.mkdir(parents=True, exist_ok=True)
 
-    apk = b"dummy apk payload" * 16
+    apk = _build_minimal_apk()
     (arch_dir / "demo-1.0-r0.apk").write_bytes(apk)
-    # APK checksum field: "Q1" + base64(sha1(file))
-    q1 = "Q1" + base64.b64encode(hashlib.sha1(apk).digest()).decode("ascii")
+    # APK checksum field: Q1 + base64(SHA1 of the control segment).
+    q1 = compute_apk_control_checksum(apk)
 
     apkindex = (
         f"C:{q1}\n"
