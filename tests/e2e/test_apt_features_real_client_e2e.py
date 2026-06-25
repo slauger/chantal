@@ -64,10 +64,18 @@ def _build_real_deb(name: str = "hello-chantal") -> bytes:
     return base64.b64decode(out.stdout)
 
 
-def _build_binary_upstream(root: Path, deb: bytes, name: str = "hello-chantal") -> None:
-    """Write a minimal binary apt upstream (pool + Packages + Release)."""
+def _build_binary_upstream(
+    root: Path, deb: bytes, name: str = "hello-chantal", *, compression: str = "gz"
+) -> None:
+    """Write a minimal binary apt upstream (pool + Packages + Release).
+
+    ``compression`` selects which Packages index variant the upstream ships:
+    ``"gz"`` writes Packages + Packages.gz; ``"xz"`` writes ONLY Packages.xz
+    (to exercise non-gzip index handling).
+    """
     import gzip
     import hashlib
+    import lzma
 
     deb_rel = f"pool/{COMP}/h/{name}/{name}_1.0_{ARCH}.deb"
     (root / deb_rel).parent.mkdir(parents=True, exist_ok=True)
@@ -86,16 +94,30 @@ def _build_binary_upstream(root: Path, deb: bytes, name: str = "hello-chantal") 
     ).encode()
     comp_dir = root / "dists" / DIST / COMP / f"binary-{ARCH}"
     comp_dir.mkdir(parents=True, exist_ok=True)
-    (comp_dir / "Packages").write_bytes(packages)
-    packages_gz = gzip.compress(packages)
-    (comp_dir / "Packages.gz").write_bytes(packages_gz)
-
     sha = hashlib.sha256
+    lines = []
+    if compression == "xz":
+        packages_xz = lzma.compress(packages)
+        (comp_dir / "Packages.xz").write_bytes(packages_xz)
+        lines.append(
+            f" {sha(packages_xz).hexdigest()} {len(packages_xz)} "
+            f"{COMP}/binary-{ARCH}/Packages.xz\n"
+        )
+    else:
+        (comp_dir / "Packages").write_bytes(packages)
+        packages_gz = gzip.compress(packages)
+        (comp_dir / "Packages.gz").write_bytes(packages_gz)
+        lines.append(
+            f" {sha(packages).hexdigest()} {len(packages)} " f"{COMP}/binary-{ARCH}/Packages\n"
+        )
+        lines.append(
+            f" {sha(packages_gz).hexdigest()} {len(packages_gz)} "
+            f"{COMP}/binary-{ARCH}/Packages.gz\n"
+        )
+
     release = (
         f"Origin: Upstream\nSuite: {DIST}\nCodename: {DIST}\nComponents: {COMP}\n"
-        f"Architectures: {ARCH}\nDate: Thu, 01 Jan 2026 00:00:00 UTC\nSHA256:\n"
-        f" {sha(packages).hexdigest()} {len(packages)} {COMP}/binary-{ARCH}/Packages\n"
-        f" {sha(packages_gz).hexdigest()} {len(packages_gz)} {COMP}/binary-{ARCH}/Packages.gz\n"
+        f"Architectures: {ARCH}\nDate: Thu, 01 Jan 2026 00:00:00 UTC\nSHA256:\n" + "".join(lines)
     )
     (root / "dists" / DIST / "Release").write_text(release, encoding="utf-8")
 
@@ -299,3 +321,37 @@ def test_apt_arch_all_visible_to_real_client(tmp_path, serve, chantal_env):
         f"stderr={ok.stderr.decode()[-800:]}"
     )
     assert b"archall-readme-marker" in ok.stdout
+
+
+@requires_docker
+def test_apt_xz_only_repo_installs(tmp_path, serve, chantal_env):
+    """A repo whose Release advertises only Packages.xz still mirrors and
+    installs (previously such repos synced zero packages)."""
+    deb = _build_real_deb()
+    upstream = tmp_path / "upstream"
+    _build_binary_upstream(upstream, deb, compression="xz")
+
+    chantal_env.write_config(
+        {
+            "id": "xz-apt",
+            "name": "Xz apt",
+            "type": "apt",
+            "feed": serve(upstream),
+            "enabled": True,
+            "mode": "filtered",
+            "apt": {"distribution": DIST, "components": [COMP], "architectures": [ARCH]},
+        }
+    )
+    target = chantal_env.sync_and_publish("xz-apt")
+    assert list(target.rglob("hello-chantal_1.0_amd64.deb")), "xz-only repo synced 0 packages"
+
+    ok = _client(
+        target,
+        f'echo "deb [trusted=yes] file:/repo {DIST} {COMP}" > /etc/apt/sources.list.d/c.list; '
+        "apt-get update; apt-get install -y hello-chantal; hello-chantal",
+    )
+    assert ok.returncode == 0, (
+        f"xz-only repo install failed:\nstdout={ok.stdout.decode()[-800:]}\n"
+        f"stderr={ok.stderr.decode()[-800:]}"
+    )
+    assert b"hello-from-hello-chantal" in ok.stdout

@@ -130,9 +130,13 @@ def decompress_bytes(data: bytes, suffix: str) -> bytes:
     if suffix == ".bz2":
         return bz2.decompress(data)
     if suffix == ".zst":
+        import io
+
         import zstandard as zstd
 
-        return zstd.ZstdDecompressor().decompress(data)
+        # Use the streaming reader: the one-shot decompress() requires the frame
+        # to embed its content size, which streaming producers often omit.
+        return zstd.ZstdDecompressor().stream_reader(io.BytesIO(data)).read()
     return data
 
 

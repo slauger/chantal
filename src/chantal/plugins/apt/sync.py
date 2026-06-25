@@ -26,8 +26,33 @@ from chantal.plugins.apt.parsers import (
     parse_release_file,
     parse_sources_from_bytes,
 )
+from chantal.plugins.rpm.modules import decompress_bytes
 
 logger = logging.getLogger(__name__)
+
+# Compression variants for an APT index (Packages/Sources), in preference order.
+# Debian/Ubuntu repos vary: some ship only .gz, some only .xz, some uncompressed.
+_INDEX_VARIANTS = (".gz", ".xz", ".bz2", ".zst", "")
+_COMPRESSED_SUFFIXES = (".gz", ".xz", ".bz2", ".zst")
+
+
+def _pick_index_variant(base: str, checksums: dict) -> str | None:
+    """Return the first present compression variant of ``base`` in ``checksums``.
+
+    ``base`` is the index path without a compression suffix
+    (e.g. ``main/binary-amd64/Packages``).
+    """
+    for ext in _INDEX_VARIANTS:
+        path = f"{base}{ext}"
+        if path in checksums:
+            return path
+    return None
+
+
+def _decompress_index(data: bytes, relative_path: str) -> bytes:
+    """Decompress an index file by its path suffix (gz/xz/bz2/zst or raw)."""
+    suffix = PurePosixPath(relative_path).suffix
+    return decompress_bytes(data, suffix if suffix in _COMPRESSED_SUFFIXES else "")
 
 
 @dataclass
@@ -183,11 +208,9 @@ class AptSyncPlugin:
                 with open(packages_gz_path, "rb") as f:
                     packages_data = f.read()
 
-                # Parse (file is already decompressed in storage as .gz)
+                # Decompress according to the actual index suffix.
                 try:
-                    import gzip
-
-                    packages_content = gzip.decompress(packages_data)
+                    packages_content = _decompress_index(packages_data, metadata_info.relative_path)
                     packages = parse_packages_from_bytes(packages_content, compressed=False)
                 except Exception as e:
                     logger.error(f"Failed to parse Packages file: {e}")
@@ -559,9 +582,12 @@ class AptSyncPlugin:
 
         for component in components:
             for arch in architectures:
-                # Binary packages (Packages.gz)
-                packages_path = f"{component}/binary-{arch}/Packages.gz"
-                if packages_path in sha256_checksums:
+                # Binary packages: pick whichever compression variant the Release
+                # actually advertises (Packages.gz / .xz / .bz2 / .zst / raw).
+                packages_path = _pick_index_variant(
+                    f"{component}/binary-{arch}/Packages", sha256_checksums
+                )
+                if packages_path is not None:
                     checksum, size = sha256_checksums[packages_path]
                     metadata_files.append(
                         MetadataFileInfo(
@@ -574,10 +600,10 @@ class AptSyncPlugin:
                         )
                     )
 
-            # Source packages (Sources.gz) - if configured
+            # Source packages - if configured (same variant handling).
             if self.apt_config.include_source_packages:
-                sources_path = f"{component}/source/Sources.gz"
-                if sources_path in sha256_checksums:
+                sources_path = _pick_index_variant(f"{component}/source/Sources", sha256_checksums)
+                if sources_path is not None:
                     checksum, size = sha256_checksums[sources_path]
                     metadata_files.append(
                         MetadataFileInfo(
@@ -672,7 +698,8 @@ class AptSyncPlugin:
         metadata_url = urljoin(dists_url, metadata_info.relative_path)
 
         with tempfile.NamedTemporaryFile(
-            delete=False, suffix=f".{metadata_info.file_type}.gz"
+            delete=False,
+            suffix=f".{metadata_info.file_type}{PurePosixPath(metadata_info.relative_path).suffix}",
         ) as tmp_file:
             tmp_path = Path(tmp_file.name)
 
@@ -1035,8 +1062,6 @@ class AptSyncPlugin:
         Returns:
             Tuple of (artifacts_downloaded, bytes_downloaded).
         """
-        import gzip
-
         # Collect source stanzas from every Sources index.
         all_sources: list[SourcesMetadata] = []
         for metadata_info in metadata_files:
@@ -1047,7 +1072,7 @@ class AptSyncPlugin:
                 logger.warning(f"Sources file not found in storage: {metadata_info.relative_path}")
                 continue
             try:
-                content = gzip.decompress(sources_path.read_bytes())
+                content = _decompress_index(sources_path.read_bytes(), metadata_info.relative_path)
                 stanzas = parse_sources_from_bytes(content, compressed=False)
             except Exception as e:
                 logger.error(f"Failed to parse Sources file: {e}")
