@@ -95,7 +95,9 @@ class HelmSyncer:
         self.output.phase("Downloading index.yaml", number=1)
         index_data = self._fetch_index(index_url, config)
 
-        # Store index.yaml as RepositoryFile for mirror mode
+        # Store the upstream index.yaml as a RepositoryFile so mirror mode can
+        # republish it verbatim. Filtered mode ignores it and regenerates the
+        # index from the published charts at publish time.
         self._store_index_file(index_url, config, session, repository)
 
         # Parse charts from index
