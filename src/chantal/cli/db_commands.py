@@ -290,16 +290,17 @@ def create_db_group(cli: click.Group) -> click.Group:
                         )
 
                         if not dry_run:
-                            # Delete related sync history
-                            session.query(SyncHistory).filter_by(repository_id=repo.id).delete()
-                            total_history_deleted += history_count
-
-                            # Delete related snapshots
-                            session.query(Snapshot).filter_by(repository_id=repo.id).delete()
-                            total_snapshots_deleted += snapshot_count
-
-                            # Delete repository
+                            # Delete the repository via the ORM so the
+                            # cascade="all, delete-orphan" relationships remove
+                            # its snapshots and sync history AND clear their
+                            # many-to-many association rows. A bulk
+                            # query(...).delete() bypasses that cascade and leaves
+                            # dangling snapshot_content_items /
+                            # snapshot_repository_files rows, which violates the
+                            # foreign-key constraint on PostgreSQL.
                             session.delete(repo)
+                            total_history_deleted += history_count
+                            total_snapshots_deleted += snapshot_count
                             total_repos_deleted += 1
 
                     if not dry_run:
