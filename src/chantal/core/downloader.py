@@ -12,6 +12,7 @@ import hashlib
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import quote, urlsplit, urlunsplit
 
 import requests
 
@@ -22,6 +23,26 @@ from chantal.core.config import (
     RepositoryConfig,
     SSLConfig,
 )
+
+
+def _proxy_url_with_auth(url: str, username: str | None, password: str | None) -> str:
+    """Embed proxy credentials into the proxy URL.
+
+    Credentials belong in the proxy URL so ``requests`` sends them as
+    ``Proxy-Authorization`` to the proxy. Setting ``session.auth`` instead would
+    send them as ``Authorization`` to the *destination* host (leaking the proxy
+    credentials upstream) and would be overwritten by repository basic auth.
+    """
+    if not (username and password):
+        return url
+    parts = urlsplit(url)
+    if parts.username:  # already carries credentials
+        return url
+    host = parts.hostname or ""
+    netloc = f"{quote(username, safe='')}:{quote(password, safe='')}@{host}"
+    if parts.port:
+        netloc += f":{parts.port}"
+    return urlunsplit((parts.scheme, netloc, parts.path, parts.query, parts.fragment))
 
 
 @dataclass
@@ -104,18 +125,22 @@ class RequestsBackend(DownloadBackend):
         """
         session = requests.Session()
 
-        # Setup proxy
+        # Setup proxy. Proxy credentials go into the proxy URL (sent to the
+        # proxy as Proxy-Authorization), never on session.auth (which would be
+        # sent to the destination host, leaking the proxy credentials upstream).
         if self.proxy_config:
+            username = self.proxy_config.username
+            password = self.proxy_config.password
             proxies = {}
             if self.proxy_config.http_proxy:
-                proxies["http"] = self.proxy_config.http_proxy
+                proxies["http"] = _proxy_url_with_auth(
+                    self.proxy_config.http_proxy, username, password
+                )
             if self.proxy_config.https_proxy:
-                proxies["https"] = self.proxy_config.https_proxy
+                proxies["https"] = _proxy_url_with_auth(
+                    self.proxy_config.https_proxy, username, password
+                )
             session.proxies.update(proxies)
-
-            # Basic auth for proxy if needed
-            if self.proxy_config.username and self.proxy_config.password:
-                session.auth = (self.proxy_config.username, self.proxy_config.password)
 
         # Setup SSL/TLS verification
         if self.ssl_config:
