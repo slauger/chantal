@@ -31,13 +31,12 @@ The Helm plugin consists of:
 The default mode is `filtered`. Set `mode: mirror` explicitly for a byte-for-byte
 identical repository copy.
 
-> **Note on the Helm index:** regardless of mode, the sync step always stores the
-> upstream `index.yaml` in the content-addressed pool as a `RepositoryFile`. At
-> publish time the publisher hardlinks that stored `index.yaml` if one is present,
-> and only falls back to generating an index from the database when none is found.
-> The choice is therefore driven by whether a stored `index.yaml` exists, not by
-> the configured mode — so a `filtered` Helm repo may still republish the upstream
-> index it captured during sync.
+> **Note on the Helm index:** the sync step always stores the upstream
+> `index.yaml` in the content-addressed pool as a `RepositoryFile`, but how the
+> published `index.yaml` is produced is driven by the mode: **mirror** republishes
+> the stored upstream index verbatim, while **filtered** (and **hosted**)
+> regenerate the index from the published charts so it lists exactly what was
+> published.
 
 ### Mirror Mode
 
@@ -83,22 +82,18 @@ repositories:
 - Snapshot versioning for reproducible deployments
 - Bandwidth optimization (metadata reused across snapshots)
 
-### Dynamic Index Generation (Fallback)
+### Dynamic Index Generation
 
-If no stored `index.yaml` `RepositoryFile` is found (e.g., hosted repositories, or
-older repositories synced before index capture), Chantal falls back to generating
-`index.yaml` from the chart metadata in the database.
+In `filtered` and `hosted` mode the publisher generates `index.yaml` from the
+chart metadata in the database rather than republishing an upstream index. (Mirror
+mode also falls back to generation if no stored `index.yaml` is available.)
 
 This path:
-- Generates index.yaml from HelmMetadata in database
-- Produces an index covering exactly the charts in the repository (e.g. a filtered subset)
-- Supports post-processing (e.g., only latest versions)
-
-**Note:** Generation is *not* keyed off the mode. A `filtered` repo whose sync
-captured the upstream `index.yaml` will republish that captured index; the
-generated index is used only when no stored `index.yaml` is available. If you need
-a regenerated index that matches a filtered chart set exactly, use a hosted repo
-(no upstream index to capture).
+- Generates index.yaml from HelmMetadata in the database
+- Produces an index covering **exactly** the charts that were published — a
+  `filtered` repo's index lists only the charts that passed the filters
+- Supports post-processing (e.g., only latest versions), so the index reflects
+  the post-processed set as well
 
 ### Hosted Mode
 
