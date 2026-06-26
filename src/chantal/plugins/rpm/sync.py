@@ -323,6 +323,8 @@ class RpmSyncPlugin:
             self.output.phase("Downloading metadata files", number=3)
             metadata_files = parsers.extract_all_metadata(repomd_root)
             metadata_downloaded = 0
+            current_metadata_shas: set[str] = set()
+            metadata_download_failed = False
 
             for metadata_info in metadata_files:
                 # Store every metadata file, including primary.xml. The publisher
@@ -340,17 +342,27 @@ class RpmSyncPlugin:
                         open_size=metadata_info.get("open_size"),
                         checksum_type=metadata_info.get("checksum_type"),
                     )
-                    from_cache = self._download_metadata_file(
+                    from_cache, file_sha = self._download_metadata_file(
                         mfi, session, repository, self.config.feed
                     )
+                    current_metadata_shas.add(file_sha)
                     metadata_downloaded += 1
                     if from_cache:
                         self.output.verbose(f"  → {metadata_info['file_type']}.xml.gz (cached)")
                     else:
                         self.output.verbose(f"  → {metadata_info['file_type']}.xml.gz (downloaded)")
                 except Exception as e:
+                    metadata_download_failed = True
                     self.output.warning(f"Failed to download {metadata_info['file_type']}: {e}")
                     # Continue with next metadata file
+
+            # Unlink metadata files from previous syncs that the current repomd
+            # no longer references, so the published repomd.xml does not end up
+            # with duplicate <data> entries (and the pool does not grow forever).
+            # Skip when a metadata download failed this run: the current set would
+            # be incomplete, so pruning could strip a still-valid previous copy.
+            if current_metadata_shas and not metadata_download_failed:
+                self._prune_stale_metadata(session, repository, current_metadata_shas)
 
             # Step 8: Check for .treeinfo and download installer files
             self.output.phase("Checking for installer files (.treeinfo)", number=4)
@@ -832,13 +844,39 @@ class RpmSyncPlugin:
                 if tmp_path.exists():
                     tmp_path.unlink()
 
+    def _prune_stale_metadata(
+        self, session: Session, repository: Repository, current_shas: set[str]
+    ) -> None:
+        """Unlink metadata RepositoryFiles not referenced by the current repomd.
+
+        On re-sync, when upstream regenerates its metadata (new checksums), the
+        previous metadata files would otherwise stay linked to the repository and
+        be republished alongside the current ones (duplicate repomd <data>
+        entries; unbounded pool growth). Unlink them, and delete the row when
+        nothing else (another repository or a snapshot) still references it so its
+        pool blob becomes reclaimable by ``pool cleanup``.
+        """
+        removed = 0
+        for repo_file in list(repository.repository_files):
+            if repo_file.file_category != "metadata":
+                continue
+            if repo_file.sha256 in current_shas:
+                continue
+            repository.repository_files.remove(repo_file)
+            removed += 1
+            if not repo_file.repositories and not repo_file.snapshots:
+                session.delete(repo_file)
+        if removed:
+            session.commit()
+            self.output.verbose(f"Pruned {removed} stale metadata file(s) from a previous sync")
+
     def _download_metadata_file(
         self,
         metadata_info: MetadataFileInfo,
         session: Session,
         repository: Repository,
         base_url: str,
-    ) -> bool:
+    ) -> tuple[bool, str]:
         """Download metadata file and store as RepositoryFile.
 
         Uses metadata cache if enabled to avoid redundant downloads.
@@ -850,7 +888,9 @@ class RpmSyncPlugin:
             base_url: Base URL of repository
 
         Returns:
-            True if loaded from cache, False if downloaded
+            ``(from_cache, sha256)`` - whether the file came from the cache, and
+            the pool SHA256 of the stored metadata file (used to prune stale
+            metadata links from previous syncs).
 
         Raises:
             requests.RequestException: On HTTP errors
@@ -968,7 +1008,7 @@ class RpmSyncPlugin:
                 repo_file.repositories.append(repository)
                 session.commit()
 
-            return from_cache
+            return from_cache, sha256
 
         finally:
             # Clean up temp file (only if not from cache)
