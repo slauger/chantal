@@ -7,12 +7,11 @@ This module provides parsing and filtering for updateinfo.xml files,
 which contain security advisories, bug fixes, and enhancement information.
 """
 
-import bz2
-import gzip
-import lzma
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
+
+from chantal.plugins.rpm.modules import decompress_bytes
 
 
 @dataclass
@@ -51,7 +50,7 @@ class UpdateInfoParser:
     def parse_file(self, file_path: Path) -> list[Update]:
         """Parse updateinfo.xml file.
 
-        Supports .xml, .xml.gz, .xml.bz2, and .xml.xz compression.
+        Supports .xml, .xml.gz, .xml.bz2, .xml.xz and .xml.zst compression.
 
         Args:
             file_path: Path to updateinfo file
@@ -59,22 +58,12 @@ class UpdateInfoParser:
         Returns:
             List of Update objects
         """
-        # Decompress based on extension
-        if file_path.suffix == ".bz2":
-            with bz2.open(file_path, "rt", encoding="utf-8") as f:
-                xml_content = f.read()
-        elif file_path.suffix == ".gz":
-            with gzip.open(file_path, "rt", encoding="utf-8") as f:
-                xml_content = f.read()
-        elif file_path.suffix == ".xz":
-            with lzma.open(file_path, "rt", encoding="utf-8") as f:
-                xml_content = f.read()
-        else:
-            with open(file_path, encoding="utf-8") as f:
-                xml_content = f.read()
+        # Stream-decompress by suffix (the shared helper handles zstd frames
+        # without an embedded content size, which the one-shot path cannot).
+        xml_bytes = decompress_bytes(file_path.read_bytes(), file_path.suffix)
 
         # Parse XML
-        root = ET.fromstring(xml_content)
+        root = ET.fromstring(xml_bytes)
 
         return self._parse_updates(root)
 

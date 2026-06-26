@@ -10,6 +10,7 @@ import bz2
 import configparser
 import gzip
 import hashlib
+import io
 import logging
 import lzma
 import xml.etree.ElementTree as ET
@@ -294,8 +295,9 @@ def _decompress_metadata(compressed_content: bytes, filename: str) -> bytes:
     elif filename.endswith(".gz"):
         return gzip.decompress(compressed_content)
     elif filename.endswith(".zst"):
-        dctx = zstd.ZstdDecompressor()
-        return dctx.decompress(compressed_content)
+        # Streaming reader: the one-shot decompress() needs the frame to embed
+        # its content size, which createrepo_c/zstd often omit.
+        return zstd.ZstdDecompressor().stream_reader(io.BytesIO(compressed_content)).read()
     elif filename.endswith(".bz2"):
         return bz2.decompress(compressed_content)
 
@@ -305,8 +307,9 @@ def _decompress_metadata(compressed_content: bytes, filename: str) -> bytes:
     elif compressed_content[:6] == b"\xfd7zXZ\x00":  # xz magic
         return lzma.decompress(compressed_content)
     elif compressed_content[:4] == b"\x28\xb5\x2f\xfd":  # zstandard magic
-        dctx = zstd.ZstdDecompressor()
-        return dctx.decompress(compressed_content)
+        # Streaming reader: the one-shot decompress() needs the frame to embed
+        # its content size, which createrepo_c/zstd often omit.
+        return zstd.ZstdDecompressor().stream_reader(io.BytesIO(compressed_content)).read()
     elif compressed_content[:3] == b"BZh":  # bzip2 magic
         return bz2.decompress(compressed_content)
     else:

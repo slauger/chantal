@@ -82,6 +82,22 @@ class TestZstdDecompression:
         with pytest.raises(ValueError, match="Unknown compression format"):
             _decompress_metadata(b"invalid data", "unknown.xyz")
 
+    def test_decompress_zst_frame_without_content_size(self) -> None:
+        """A zstd frame without an embedded content size (what createrepo_c and
+        streaming producers emit) must still decompress - the one-shot
+        decompress() used to raise 'could not determine content size'."""
+        import io
+
+        buf = io.BytesIO()
+        # stream_writer produces a frame WITHOUT a content-size header.
+        with zstd.ZstdCompressor().stream_writer(buf, closefd=False) as w:
+            w.write(self.TEST_XML)
+        sizeless = buf.getvalue()
+
+        assert _decompress_metadata(sizeless, "primary.xml.zst") == self.TEST_XML
+        # Also via magic-byte detection (no suffix hint).
+        assert _decompress_metadata(sizeless, "unknown.bin") == self.TEST_XML
+
 
 class TestZstdVariousLevels:
     """Test zstandard decompression at various compression levels."""
