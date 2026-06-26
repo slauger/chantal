@@ -154,9 +154,15 @@ class AptSyncPlugin:
             # Build dists URL (feed should point to repository root, not dists/)
             dists_url = urljoin(self.config.feed + "/", f"dists/{self.apt_config.distribution}/")
 
+            # SHA256 of every metadata/signature file the current upstream
+            # Release references, used to prune leftovers from previous syncs.
+            current_metadata_shas: set[str] = set()
+
             # Phase 1: Download Release/InRelease files
             self.output.phase("Downloading Release metadata", number=1)
-            release_metadata = self._fetch_and_store_release(session, repository, dists_url)
+            release_metadata = self._fetch_and_store_release(
+                session, repository, dists_url, current_metadata_shas
+            )
 
             # Phase 2: Download Packages.gz/Sources.gz for all components/architectures
             self.output.phase("Downloading repository metadata", number=2)
@@ -164,14 +170,27 @@ class AptSyncPlugin:
             self.output.info(f"Found {len(metadata_files)} metadata files to download")
 
             metadata_downloaded = 0
+            metadata_download_failed = False
             for metadata_info in metadata_files:
                 try:
-                    self._download_metadata_file(session, repository, dists_url, metadata_info)
+                    file_sha = self._download_metadata_file(
+                        session, repository, dists_url, metadata_info
+                    )
+                    current_metadata_shas.add(file_sha)
                     metadata_downloaded += 1
                     self.output.verbose(f"  → Downloaded {metadata_info.relative_path}")
                 except Exception as e:
+                    metadata_download_failed = True
                     logger.warning(f"Failed to download {metadata_info.relative_path}: {e}")
                     self.output.warning(f"Failed to download {metadata_info.relative_path}: {e}")
+
+            # Unlink metadata/signature files from previous syncs that the current
+            # Release no longer references, so the published repository does not
+            # carry stale indices and the pool does not grow forever. Skip when a
+            # metadata download failed this run: the current set would be
+            # incomplete, so pruning could strip a still-valid previous copy.
+            if current_metadata_shas and not metadata_download_failed:
+                self._prune_stale_metadata(session, repository, current_metadata_shas)
 
             # Phase 3: Parse Packages files and download .deb packages
             self.output.phase("Downloading packages", number=3)
@@ -322,7 +341,11 @@ class AptSyncPlugin:
             )
 
     def _fetch_and_store_release(
-        self, session: Session, repository: Repository, dists_url: str
+        self,
+        session: Session,
+        repository: Repository,
+        dists_url: str,
+        current_metadata_shas: set[str],
     ) -> dict:
         """Download and store Release/InRelease files.
 
@@ -330,6 +353,9 @@ class AptSyncPlugin:
             session: Database session
             repository: Repository instance
             dists_url: URL to dists/SUITE/ directory
+            current_metadata_shas: The pool SHA256 of every stored
+                Release/InRelease/Release.gpg file is added to this set so the
+                caller can prune stale metadata from previous syncs.
 
         Returns:
             Parsed release metadata dict
@@ -337,6 +363,7 @@ class AptSyncPlugin:
         Raises:
             Exception: On download or parse errors
         """
+        shas = current_metadata_shas
         # Try InRelease first (contains GPG signature inline)
         inrelease_url = urljoin(dists_url, "InRelease")
         release_url = urljoin(dists_url, "Release")
@@ -359,14 +386,16 @@ class AptSyncPlugin:
             inrelease_downloaded = True
 
             # Store InRelease as RepositoryFile
-            self._store_file_as_repository_file(
-                session=session,
-                repository=repository,
-                content=response.content,
-                filename="InRelease",
-                file_type="InRelease",
-                file_category="metadata",
-                original_path="InRelease",
+            shas.add(
+                self._store_file_as_repository_file(
+                    session=session,
+                    repository=repository,
+                    content=response.content,
+                    filename="InRelease",
+                    file_type="InRelease",
+                    file_category="metadata",
+                    original_path="InRelease",
+                )
             )
             self.output.verbose("  → Downloaded InRelease")
 
@@ -384,14 +413,16 @@ class AptSyncPlugin:
                 release_bytes = response.content
 
                 # Store Release file
-                self._store_file_as_repository_file(
-                    session=session,
-                    repository=repository,
-                    content=response.content,
-                    filename="Release",
-                    file_type="Release",
-                    file_category="metadata",
-                    original_path="Release",
+                shas.add(
+                    self._store_file_as_repository_file(
+                        session=session,
+                        repository=repository,
+                        content=response.content,
+                        filename="Release",
+                        file_type="Release",
+                        file_category="metadata",
+                        original_path="Release",
+                    )
                 )
                 self.output.verbose("  → Downloaded Release")
 
@@ -401,14 +432,16 @@ class AptSyncPlugin:
                     gpg_response.raise_for_status()
                     release_gpg_bytes = gpg_response.content
 
-                    self._store_file_as_repository_file(
-                        session=session,
-                        repository=repository,
-                        content=gpg_response.content,
-                        filename="Release.gpg",
-                        file_type="Release.gpg",
-                        file_category="signature",
-                        original_path="Release.gpg",
+                    shas.add(
+                        self._store_file_as_repository_file(
+                            session=session,
+                            repository=repository,
+                            content=gpg_response.content,
+                            filename="Release.gpg",
+                            file_type="Release.gpg",
+                            file_category="signature",
+                            original_path="Release.gpg",
+                        )
                     )
                     self.output.verbose("  → Downloaded Release.gpg")
                 except Exception as gpg_error:
@@ -683,7 +716,7 @@ class AptSyncPlugin:
         repository: Repository,
         dists_url: str,
         metadata_info: MetadataFileInfo,
-    ) -> None:
+    ) -> str:
         """Download metadata file and store as RepositoryFile.
 
         Args:
@@ -691,6 +724,10 @@ class AptSyncPlugin:
             repository: Repository instance
             dists_url: Base URL to dists/SUITE/ directory
             metadata_info: Metadata file information
+
+        Returns:
+            The pool SHA256 of the stored metadata file (used to prune stale
+            metadata links from previous syncs).
 
         Raises:
             Exception: On download or storage errors
@@ -775,6 +812,8 @@ class AptSyncPlugin:
                     repo_file.repositories.append(repository)
                     session.commit()
 
+                return sha256
+
             finally:
                 # Clean up temp file
                 if tmp_path.exists():
@@ -855,6 +894,32 @@ class AptSyncPlugin:
                 if tmp_path.exists():
                     tmp_path.unlink()
 
+    def _prune_stale_metadata(
+        self, session: Session, repository: Repository, current_shas: set[str]
+    ) -> None:
+        """Unlink metadata/signature files not referenced by the current sync.
+
+        On re-sync, when upstream regenerates its indices (new checksums), the
+        previous Release/Packages/Contents/Translation files would otherwise stay
+        linked to the repository and be republished alongside the current ones
+        (stale indices; unbounded pool growth). Unlink them, and delete the row
+        when nothing else (another repository or a snapshot) still references it
+        so its pool blob becomes reclaimable by ``pool cleanup``.
+        """
+        removed = 0
+        for repo_file in list(repository.repository_files):
+            if repo_file.file_category not in ("metadata", "signature"):
+                continue
+            if repo_file.sha256 in current_shas:
+                continue
+            repository.repository_files.remove(repo_file)
+            removed += 1
+            if not repo_file.repositories and not repo_file.snapshots:
+                session.delete(repo_file)
+        if removed:
+            session.commit()
+            self.output.verbose(f"Pruned {removed} stale metadata file(s) from a previous sync")
+
     def _store_file_as_repository_file(
         self,
         session: Session,
@@ -864,7 +929,7 @@ class AptSyncPlugin:
         file_type: str,
         file_category: str,
         original_path: str,
-    ) -> None:
+    ) -> str:
         """Store arbitrary file as RepositoryFile.
 
         Args:
@@ -875,6 +940,10 @@ class AptSyncPlugin:
             file_type: File type (InRelease, Release, Release.gpg)
             file_category: Category (metadata, signature)
             original_path: Original path in repository
+
+        Returns:
+            The pool SHA256 of the stored file (used to prune stale metadata
+            links from previous syncs).
         """
         # Write to temp file
         with tempfile.NamedTemporaryFile(delete=False, suffix=f".{file_type}") as tmp_file:
@@ -913,6 +982,8 @@ class AptSyncPlugin:
                     # Link to repository
                     repo_file.repositories.append(repository)
                     session.commit()
+
+                return sha256
 
             finally:
                 # Clean up temp file
