@@ -2,8 +2,11 @@ from __future__ import annotations
 
 """Publishing management commands."""
 
+import contextlib
 import json
+import os
 import shutil
+from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -22,6 +25,47 @@ from chantal.plugins.view_publisher import ViewPublisher
 
 # Click context settings to enable -h as alias for --help
 CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
+
+
+@contextlib.contextmanager
+def staged_publish(target_path: Path) -> Iterator[Path]:
+    """Publish into a staging directory, then atomically swap it into place.
+
+    Yields a staging directory (a sibling of ``target_path`` on the same
+    filesystem, so package hardlinks from the pool work and the final rename is
+    atomic). On a clean exit the staging tree replaces ``target_path``; if the
+    body raises, the existing published repository at ``target_path`` is left
+    untouched.
+    """
+    target_path = Path(target_path)
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+    staging = target_path.parent / f".{target_path.name}.staging-{os.getpid()}"
+    backup = target_path.parent / f".{target_path.name}.old-{os.getpid()}"
+    shutil.rmtree(staging, ignore_errors=True)
+    staging.mkdir(parents=True)
+
+    try:
+        yield staging
+    except BaseException:
+        shutil.rmtree(staging, ignore_errors=True)
+        raise
+
+    # Success: swap staging -> target_path. Move any existing tree aside first
+    # (rename cannot replace a non-empty directory), then clean it up.
+    shutil.rmtree(backup, ignore_errors=True)
+    moved = False
+    if target_path.exists():
+        os.replace(target_path, backup)
+        moved = True
+    try:
+        os.replace(staging, target_path)
+    except BaseException:
+        if moved and not target_path.exists():
+            os.replace(backup, target_path)  # restore the previous tree
+        shutil.rmtree(staging, ignore_errors=True)
+        raise
+    finally:
+        shutil.rmtree(backup, ignore_errors=True)
 
 
 def create_publish_group(cli: click.Group) -> click.Group:
@@ -191,9 +235,10 @@ def create_publish_group(cli: click.Group) -> click.Group:
 
                 # Publish view from config (no DB view object needed)
                 click.echo(f"Collecting packages from {len(view_config.repos)} repositories...")
-                package_count = publisher.publish_view_from_config(
-                    session, view_config.repos, target_path
-                )
+                with staged_publish(target_path) as _stage:
+                    package_count = publisher.publish_view_from_config(
+                        session, view_config.repos, _stage
+                    )
 
                 click.echo()
                 click.echo("✓ View published successfully!")
@@ -407,9 +452,10 @@ def _publish_single_repository(
         rpm_publisher = RpmPublisher(storage=storage)
         # Publish repository
         try:
-            rpm_publisher.publish_repository(
-                session=session, repository=repository, config=repo_config, target_path=target_path
-            )
+            with staged_publish(target_path) as _stage:
+                rpm_publisher.publish_repository(
+                    session=session, repository=repository, config=repo_config, target_path=_stage
+                )
             click.echo("\n✓ Repository published successfully!")
             click.echo(f"  Location: {target_path}")
             click.echo(f"  Packages directory: {target_path}/Packages")
@@ -421,9 +467,10 @@ def _publish_single_repository(
         helm_publisher = HelmPublisher(storage=storage)
         # Publish repository
         try:
-            helm_publisher.publish_repository(
-                session=session, repository=repository, config=repo_config, target_path=target_path
-            )
+            with staged_publish(target_path) as _stage:
+                helm_publisher.publish_repository(
+                    session=session, repository=repository, config=repo_config, target_path=_stage
+                )
             click.echo("\n✓ Helm repository published successfully!")
             click.echo(f"  Location: {target_path}")
             click.echo(f"  Chart files: {target_path}/*.tgz")
@@ -438,9 +485,10 @@ def _publish_single_repository(
         apk_publisher = ApkPublisher(storage=storage)
         # Publish repository
         try:
-            apk_publisher.publish_repository(
-                session=session, repository=repository, config=repo_config, target_path=target_path
-            )
+            with staged_publish(target_path) as _stage:
+                apk_publisher.publish_repository(
+                    session=session, repository=repository, config=repo_config, target_path=_stage
+                )
             apk_config = repo_config.apk
             if apk_config is None:
                 raise ValueError("APK config is required for APK repositories")
@@ -461,9 +509,10 @@ def _publish_single_repository(
         apt_publisher = AptPublisher(storage=storage, config=repo_config)
         # Publish repository
         try:
-            apt_publisher.publish_repository(
-                session=session, repository=repository, config=repo_config, target_path=target_path
-            )
+            with staged_publish(target_path) as _stage:
+                apt_publisher.publish_repository(
+                    session=session, repository=repository, config=repo_config, target_path=_stage
+                )
             apt_config = repo_config.apt
             if apt_config is None:
                 raise ValueError("APT config is required for APT repositories")
@@ -564,13 +613,14 @@ def _publish_repository_snapshot(
             rpm_publisher = RpmPublisher(storage=storage)
             # Publish snapshot
             try:
-                rpm_publisher.publish_snapshot(
-                    session=session,
-                    snapshot=snap,
-                    repository=repository,
-                    config=repo_config,
-                    target_path=target_path,
-                )
+                with staged_publish(target_path) as _stage:
+                    rpm_publisher.publish_snapshot(
+                        session=session,
+                        snapshot=snap,
+                        repository=repository,
+                        config=repo_config,
+                        target_path=_stage,
+                    )
 
                 # Update snapshot metadata
                 snap.is_published = True
@@ -608,13 +658,14 @@ def _publish_repository_snapshot(
             apt_publisher = AptPublisher(storage=storage, config=repo_config)
             # Publish snapshot
             try:
-                apt_publisher.publish_snapshot(
-                    session=session,
-                    snapshot=snap,
-                    repository=repository,
-                    config=repo_config,
-                    target_path=target_path,
-                )
+                with staged_publish(target_path) as _stage:
+                    apt_publisher.publish_snapshot(
+                        session=session,
+                        snapshot=snap,
+                        repository=repository,
+                        config=repo_config,
+                        target_path=_stage,
+                    )
 
                 # Update snapshot metadata
                 snap.is_published = True
@@ -699,9 +750,10 @@ def _publish_view_snapshot(
 
         # Publish view snapshot
         try:
-            publisher.publish_view_snapshot(
-                session=session, view_snapshot=view_snapshot, target_path=target_path
-            )
+            with staged_publish(target_path) as _stage:
+                publisher.publish_view_snapshot(
+                    session=session, view_snapshot=view_snapshot, target_path=_stage
+                )
 
             # Update view snapshot metadata
             view_snapshot.is_published = True
