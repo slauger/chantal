@@ -140,6 +140,13 @@ class ApkSyncer:
 
         self.output.start_progress(len(filtered_packages), "Downloading packages", "packages")
 
+        # ContentItem.sha256 is globally unique. The DB session is autoflush=False,
+        # so a query cannot see a ContentItem added earlier in this same run;
+        # track in-run inserts here so a duplicate APKINDEX record (or two names
+        # for identical bytes) links instead of inserting a second row and
+        # aborting the whole sync with an IntegrityError at commit.
+        inserted_by_sha: dict[str, ContentItem] = {}
+
         for i, pkg_entry in enumerate(filtered_packages, 1):
             try:
                 # Create metadata
@@ -195,6 +202,20 @@ class ApkSyncer:
                         "possible tampering or a stale upstream APKINDEX"
                     )
 
+                # Deduplicate by the actual content sha256 (the unique key),
+                # covering both a row committed by a previous sync and one added
+                # earlier in this same run (see inserted_by_sha above).
+                existing_by_sha = inserted_by_sha.get(sha256) or (
+                    session.query(ContentItem).filter_by(sha256=sha256).first()
+                )
+                if existing_by_sha is not None:
+                    if repository not in existing_by_sha.repositories:
+                        existing_by_sha.repositories.append(repository)
+                        stats["packages_updated"] += 1
+                    else:
+                        stats["packages_skipped"] += 1
+                    continue
+
                 # Create ContentItem
                 content_item = ContentItem(
                     name=metadata.name,
@@ -209,6 +230,7 @@ class ApkSyncer:
                 content_item.repositories.append(repository)
 
                 session.add(content_item)
+                inserted_by_sha[sha256] = content_item
                 stats["packages_added"] += 1
                 stats["bytes_downloaded"] += size
 
@@ -497,28 +519,26 @@ class ApkSyncer:
                 tmp.write(chunk)
             tmp_path = Path(tmp.name)
 
-        # Verify the package against the APKINDEX C: checksum (Q1 + base64(SHA1)
-        # of the control segment). Verify BEFORE pooling so a tampered/corrupt
-        # package never enters the content pool.
-        calculated_sha1 = compute_apk_control_checksum(tmp_path.read_bytes())
-        sha1_ok = calculated_sha1 is not None and calculated_sha1 == expected_sha1
+        try:
+            # Verify the package against the APKINDEX C: checksum (Q1 +
+            # base64(SHA1) of the control segment). Verify BEFORE pooling so a
+            # tampered/corrupt package never enters the content pool.
+            calculated_sha1 = compute_apk_control_checksum(tmp_path.read_bytes())
+            sha1_ok = calculated_sha1 is not None and calculated_sha1 == expected_sha1
 
-        if not sha1_ok:
-            logger.warning(
-                f"APK checksum mismatch for {Path(url).name}: "
-                f"expected {expected_sha1}, got {calculated_sha1}"
-            )
+            if not sha1_ok:
+                logger.warning(
+                    f"APK checksum mismatch for {Path(url).name}: "
+                    f"expected {expected_sha1}, got {calculated_sha1}"
+                )
+                return None, None, None, False
+
+            filename = Path(url).name
+
+            # Add to pool (this calculates SHA256, deduplicates, and moves file)
+            sha256, pool_path, size = self.storage.add_package(tmp_path, filename)
+            logger.debug(f"Stored package in pool: {pool_path}")
+            return pool_path, sha256, size, sha1_ok
+        finally:
+            # Always clean up the temp file, even if checksum/pooling raised.
             tmp_path.unlink(missing_ok=True)
-            return None, None, None, False
-
-        filename = Path(url).name
-
-        # Add to pool (this calculates SHA256, deduplicates, and moves file)
-        sha256, pool_path, size = self.storage.add_package(tmp_path, filename)
-
-        # Clean up temp file
-        tmp_path.unlink(missing_ok=True)
-
-        logger.debug(f"Stored package in pool: {pool_path}")
-
-        return pool_path, sha256, size, sha1_ok
