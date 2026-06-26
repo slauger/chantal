@@ -233,19 +233,38 @@ def create_db_group(cli: click.Group) -> click.Group:
                 click.echo("Analyzing database issues...")
             click.echo()
 
+            from chantal.core.stats import format_bytes, unreferenced_content_items
+
             total_repos_deleted = 0
             total_snapshots_deleted = 0
             total_history_deleted = 0
+            total_unreferenced_deleted = 0
 
             # Get orphaned repositories (for both dry-run and confirmation)
             orphaned_repos = []
             if cleanup_orphaned:
                 orphaned_repos = _get_orphaned_repositories(session, config)
 
+            # Preview of unreferenced packages (items linked to no repository and
+            # no snapshot). Deleting orphaned repos below can orphan more, so this
+            # is a lower bound; the real run recomputes after that deletion.
+            unref_preview_count = 0
+            unref_preview_bytes = 0
+            if cleanup_unreferenced:
+                unref_q = unreferenced_content_items(session)
+                unref_preview_count = unref_q.count()
+                unref_preview_bytes = (
+                    sum(i.size_bytes for i in unref_q) if unref_preview_count else 0
+                )
+
             # Interactive confirmation (only if not dry-run and not force)
             if not dry_run and not force:
-                if orphaned_repos:
-                    # Count related objects
+                if not orphaned_repos and unref_preview_count == 0:
+                    click.echo("No cleanup needed.")
+                    return
+
+                click.echo("Will delete:")
+                if cleanup_orphaned and orphaned_repos:
                     total_snaps = sum(
                         session.query(Snapshot).filter_by(repository_id=r.id).count()
                         for r in orphaned_repos
@@ -254,22 +273,20 @@ def create_db_group(cli: click.Group) -> click.Group:
                         session.query(SyncHistory).filter_by(repository_id=r.id).count()
                         for r in orphaned_repos
                     )
+                    click.echo(f"  - {len(orphaned_repos)} orphaned repositories")
+                    click.echo(f"  - {total_snaps} snapshots")
+                    click.echo(f"  - {total_hist} sync history entries")
+                if cleanup_unreferenced and unref_preview_count:
+                    click.echo(
+                        f"  - {unref_preview_count} unreferenced packages "
+                        f"(at least {format_bytes(unref_preview_bytes)})"
+                    )
+                click.echo()
 
-                    click.echo("Will delete:")
-                    if cleanup_orphaned and orphaned_repos:
-                        click.echo(f"  - {len(orphaned_repos)} orphaned repositories")
-                        click.echo(f"  - {total_snaps} snapshots")
-                        click.echo(f"  - {total_hist} sync history entries")
-                    click.echo()
-
-                    # Ask for confirmation
-                    if not click.confirm("Delete these items?", default=False):
-                        click.echo("Aborted.")
-                        return
-                    click.echo()
-                else:
-                    click.echo("No cleanup needed.")
+                if not click.confirm("Delete these items?", default=False):
+                    click.echo("Aborted.")
                     return
+                click.echo()
 
             # Clean up orphaned repositories
             if cleanup_orphaned:
@@ -310,9 +327,30 @@ def create_db_group(cli: click.Group) -> click.Group:
                     click.echo("No orphaned repositories found.")
                     click.echo()
 
-            # Clean up unreferenced packages (TODO)
+            # Clean up unreferenced packages (recomputed: deleting orphaned repos
+            # above may have unlinked more content items).
             if cleanup_unreferenced:
-                click.echo("Unreferenced packages cleanup: TODO")
+                unref_items = unreferenced_content_items(session).all()
+                unref_count = len(unref_items)
+                unref_bytes = sum(i.size_bytes for i in unref_items)
+                if unref_count:
+                    click.echo(
+                        f"Unreferenced packages ({unref_count}, "
+                        f"{format_bytes(unref_bytes)} reclaimable from the pool):"
+                    )
+                    for item in unref_items:
+                        click.echo(f"  - {item.content_type}/{item.name}-{item.version}")
+                    if not dry_run:
+                        for item in unref_items:
+                            session.delete(item)
+                        session.commit()
+                        total_unreferenced_deleted = unref_count
+                        click.echo(
+                            "  Removed from the database. Run 'chantal pool cleanup' "
+                            "to reclaim the disk space."
+                        )
+                else:
+                    click.echo("No unreferenced packages found.")
                 click.echo()
 
             # Summary
@@ -333,12 +371,19 @@ def create_db_group(cli: click.Group) -> click.Group:
                         )
                         click.echo(f"  Would delete {total_snaps} snapshots")
                         click.echo(f"  Would delete {total_hist} sync history entries")
+                if cleanup_unreferenced:
+                    click.echo(
+                        f"  Would delete {unref_preview_count} unreferenced packages "
+                        f"(at least {format_bytes(unref_preview_bytes)})"
+                    )
             else:
                 click.echo("Summary:")
                 if cleanup_orphaned:
                     click.echo(f"  Deleted {total_repos_deleted} repositories")
                     click.echo(f"  Deleted {total_snapshots_deleted} snapshots")
                     click.echo(f"  Deleted {total_history_deleted} sync history entries")
+                if cleanup_unreferenced:
+                    click.echo(f"  Deleted {total_unreferenced_deleted} unreferenced packages")
 
         finally:
             session.close()
