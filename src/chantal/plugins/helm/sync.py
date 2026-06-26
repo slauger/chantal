@@ -107,9 +107,11 @@ class HelmSyncer:
         index_data = self._fetch_index(index_url, config)
 
         # Store the upstream index.yaml as a RepositoryFile so mirror mode can
-        # republish it verbatim. Filtered mode ignores it and regenerates the
-        # index from the published charts at publish time.
-        self._store_index_file(index_url, config, session, repository)
+        # republish it. Filtered mode ignores it and regenerates the index from
+        # the published charts at publish time. Prune the previous sync's index
+        # so the mirror publisher doesn't pick up a stale one.
+        index_sha = self._store_index_file(index_url, config, session, repository)
+        self._prune_stale_index(session, repository, index_sha)
 
         # Parse charts from index
         all_charts = self._parse_index(index_data)
@@ -131,6 +133,12 @@ class HelmSyncer:
         }
 
         self.output.start_progress(len(filtered_charts), "Downloading charts", "charts")
+
+        # ContentItem.sha256 is globally unique. The DB session is
+        # autoflush=False, so a query can't see a chart added earlier in this
+        # same run; track in-run inserts so a digest-less duplicate links instead
+        # of inserting a second row and aborting the sync at commit.
+        inserted_by_sha: dict[str, ContentItem] = {}
 
         for i, chart_entry in enumerate(filtered_charts, 1):
             try:
@@ -192,9 +200,9 @@ class HelmSyncer:
                 # omits a digest the pre-download check above is skipped, so a
                 # re-sync would otherwise try to insert a second ContentItem with
                 # the same sha256 and hit the unique constraint (IntegrityError).
-                # Autoflush makes this also catch a duplicate added earlier in
-                # this same run. Link to the pooled chart instead of re-inserting.
-                existing_by_content = (
+                # The in-run dict covers a duplicate added earlier in this same
+                # run (the session is autoflush=False, so a query can't see it).
+                existing_by_content = inserted_by_sha.get(sha256) or (
                     session.query(ContentItem).filter_by(content_type="helm", sha256=sha256).first()
                 )
                 if existing_by_content:
@@ -222,6 +230,7 @@ class HelmSyncer:
                 content_item.repositories.append(repository)
 
                 session.add(content_item)
+                inserted_by_sha[sha256] = content_item
                 stats["charts_added"] += 1
                 stats["bytes_downloaded"] += size
 
@@ -306,7 +315,7 @@ class HelmSyncer:
         config: RepositoryConfig,
         session: Session,
         repository: Repository,
-    ) -> None:
+    ) -> str:
         """Download and store index.yaml as RepositoryFile for mirror mode.
 
         Args:
@@ -314,6 +323,10 @@ class HelmSyncer:
             config: Repository configuration
             session: Database session
             repository: Repository model instance
+
+        Returns:
+            The pool SHA256 of the stored index.yaml (used to prune the previous
+            sync's index from the repository).
         """
         logger.info("Storing index.yaml as RepositoryFile")
 
@@ -363,9 +376,37 @@ class HelmSyncer:
 
                 logger.info(f"Stored index.yaml in pool: {sha256[:16]}... ({size_bytes} bytes)")
 
+            return sha256
+
         finally:
             # Clean up temp file
             tmp_path.unlink(missing_ok=True)
+
+    def _prune_stale_index(
+        self, session: Session, repository: Repository, current_sha: str
+    ) -> None:
+        """Unlink index.yaml files from previous syncs.
+
+        On every sync the upstream index.yaml is re-stored; without pruning, each
+        changed index accumulates another ``file_type="index"`` link and the
+        mirror publisher (which picks the first match) would republish a stale
+        index. Unlink any index file whose sha differs from the current one, and
+        delete the row when nothing else (another repository or a snapshot) still
+        references it so its pool blob is reclaimable.
+        """
+        removed = 0
+        for repo_file in list(repository.repository_files):
+            if repo_file.file_category != "metadata" or repo_file.file_type != "index":
+                continue
+            if repo_file.sha256 == current_sha:
+                continue
+            repository.repository_files.remove(repo_file)
+            removed += 1
+            if not repo_file.repositories and not repo_file.snapshots:
+                session.delete(repo_file)
+        if removed:
+            session.commit()
+            logger.info(f"Pruned {removed} stale index.yaml file(s) from a previous sync")
 
     def _apply_filters(self, charts: list[dict], config: RepositoryConfig) -> list[dict]:
         """Apply filters to chart list.
