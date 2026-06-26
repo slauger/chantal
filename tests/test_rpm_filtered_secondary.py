@@ -158,3 +158,45 @@ def test_filter_updateinfo_xz_stays_xz_compressed(publisher, tmp_path):
     # Must be genuinely xz-compressed; lzma raises on plaintext.
     data = lzma.open(out_path, "rb").read()
     assert b"TEST-1" in data  # the advisory survived the filter
+
+
+def _published(repodata):
+    """Create on-disk metadata files and the (file_type, path) tuples for them."""
+    files = {
+        "primary": "1111-primary.xml.gz",
+        "primary_zck": "2222-primary.xml.zck",
+        "primary_db": "3333-primary.sqlite.bz2",
+    }
+    out = []
+    for file_type, name in files.items():
+        p = repodata / name
+        p.write_bytes(b"x")
+        out.append((file_type, p))
+    return out
+
+
+def test_filtered_mode_drops_zck_and_db(publisher, tmp_path):
+    """Filtered mode must drop the package-enumerating *_zck and *_db variants."""
+    repodata = tmp_path / "repodata"
+    repodata.mkdir()
+    published = _published(repodata)
+
+    kept = publisher._drop_unpublishable_metadata(published, repodata, "filtered")
+
+    assert [ft for ft, _ in kept] == ["primary"]
+    assert not (repodata / "2222-primary.xml.zck").exists()
+    assert not (repodata / "3333-primary.sqlite.bz2").exists()
+
+
+def test_mirror_mode_drops_zck_but_keeps_db(publisher, tmp_path):
+    """Mirror mode keeps the valid *_db (correct open-checksum) but still drops
+    *_zck, which chantal cannot re-checksum without zchunk de-chunking."""
+    repodata = tmp_path / "repodata"
+    repodata.mkdir()
+    published = _published(repodata)
+
+    kept = publisher._drop_unpublishable_metadata(published, repodata, "mirror")
+
+    assert sorted(ft for ft, _ in kept) == ["primary", "primary_db"]
+    assert not (repodata / "2222-primary.xml.zck").exists()
+    assert (repodata / "3333-primary.sqlite.bz2").exists()
