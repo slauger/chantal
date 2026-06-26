@@ -17,6 +17,8 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 class ProxyConfig(BaseModel):
     """HTTP proxy configuration."""
 
+    model_config = ConfigDict(extra="forbid")
+
     http_proxy: str | None = None
     https_proxy: str | None = None
     no_proxy: str | None = None
@@ -26,6 +28,8 @@ class ProxyConfig(BaseModel):
 
 class SSLConfig(BaseModel):
     """SSL/TLS configuration for HTTPS connections."""
+
+    model_config = ConfigDict(extra="forbid")
 
     # Path to CA bundle file (PEM format)
     ca_bundle: str | None = None
@@ -43,6 +47,8 @@ class SSLConfig(BaseModel):
 
 class AuthConfig(BaseModel):
     """Repository authentication configuration."""
+
+    model_config = ConfigDict(extra="forbid")
 
     type: str  # client_cert, basic, bearer, custom
 
@@ -68,6 +74,8 @@ class AuthConfig(BaseModel):
 class RetentionConfig(BaseModel):
     """Package retention policy configuration."""
 
+    model_config = ConfigDict(extra="forbid")
+
     policy: str = "mirror"  # mirror, newest-only, keep-all, keep-last-n
     keep_count: int | None = None  # For keep-last-n policy
 
@@ -84,6 +92,8 @@ class RetentionConfig(BaseModel):
 class ScheduleConfig(BaseModel):
     """Repository sync schedule configuration."""
 
+    model_config = ConfigDict(extra="forbid")
+
     enabled: bool = False
     cron: str = "0 2 * * *"  # Daily at 2:00 AM by default
     create_snapshot: bool = False
@@ -93,12 +103,16 @@ class ScheduleConfig(BaseModel):
 class SizeFilterConfig(BaseModel):
     """Size-based filtering."""
 
+    model_config = ConfigDict(extra="forbid")
+
     min: int | None = None  # Minimum size in bytes
     max: int | None = None  # Maximum size in bytes
 
 
 class TimeFilterConfig(BaseModel):
     """Time-based filtering."""
+
+    model_config = ConfigDict(extra="forbid")
 
     newer_than: str | None = None  # ISO date string (e.g., "2025-01-01")
     older_than: str | None = None  # ISO date string
@@ -108,12 +122,16 @@ class TimeFilterConfig(BaseModel):
 class ListFilterConfig(BaseModel):
     """Generic list-based filtering (include/exclude)."""
 
+    model_config = ConfigDict(extra="forbid")
+
     include: list[str] | None = None
     exclude: list[str] | None = None
 
 
 class GenericMetadataFilterConfig(BaseModel):
     """Generic metadata filters (work for all package types)."""
+
+    model_config = ConfigDict(extra="forbid")
 
     size_bytes: SizeFilterConfig | None = None
     build_time: TimeFilterConfig | None = None
@@ -122,6 +140,8 @@ class GenericMetadataFilterConfig(BaseModel):
 
 class RpmFilterConfig(BaseModel):
     """RPM-specific filters."""
+
+    model_config = ConfigDict(extra="forbid")
 
     exclude_source_rpms: bool = False  # Skip .src.rpm packages
     groups: ListFilterConfig | None = None
@@ -133,6 +153,8 @@ class RpmFilterConfig(BaseModel):
 class DebFilterConfig(BaseModel):
     """DEB/APT-specific filters (future support)."""
 
+    model_config = ConfigDict(extra="forbid")
+
     components: ListFilterConfig | None = None  # main, contrib, non-free
     priorities: ListFilterConfig | None = None  # required, important, standard
     sections: ListFilterConfig | None = None  # admin, devel, libs
@@ -141,6 +163,8 @@ class DebFilterConfig(BaseModel):
 class ApkConfig(BaseModel):
     """Alpine APK-specific configuration."""
 
+    model_config = ConfigDict(extra="forbid")
+
     branch: str  # Alpine branch (v3.19, v3.18, edge, etc.)
     repository: str = "main"  # Repository (main, community, testing)
     architecture: str = "x86_64"  # Architecture (x86_64, aarch64, armhf, armv7, x86)
@@ -148,6 +172,8 @@ class ApkConfig(BaseModel):
 
 class AptConfig(BaseModel):
     """APT/DEB-specific configuration."""
+
+    model_config = ConfigDict(extra="forbid")
 
     distribution: str  # Distribution/suite (jammy, bookworm, focal, bullseye, etc.)
     components: list[str] = Field(
@@ -230,6 +256,8 @@ class GpgConfig(BaseModel):
     3. ``generate_key`` - generate a new keypair if none of the above is set.
     """
 
+    model_config = ConfigDict(extra="forbid")
+
     # Enable/disable signing (allows keeping config while turning signing off)
     enabled: bool = True
 
@@ -307,6 +335,8 @@ class SignatureVerificationConfig(BaseModel):
     ``repo_gpgcheck`` / ``gpgcheck`` and apt's Release signature check.
     """
 
+    model_config = ConfigDict(extra="forbid")
+
     enabled: bool = False
 
     # What to verify
@@ -376,6 +406,8 @@ class SignatureVerificationConfig(BaseModel):
 class MetadataConfig(BaseModel):
     """Metadata generation configuration (RPM, APT, etc.)."""
 
+    model_config = ConfigDict(extra="forbid")
+
     compression: Literal["auto", "gzip", "zstandard", "bzip2", "none"] = Field(
         default="auto",
         description="Compression format for generated metadata. 'auto' uses same as upstream.",
@@ -393,6 +425,8 @@ class MetadataConfig(BaseModel):
 
 class PatternFilterConfig(BaseModel):
     """Pattern-based filters (regex)."""
+
+    model_config = ConfigDict(extra="forbid")
 
     include: list[str] | None = None  # Include patterns
     exclude: list[str] | None = None  # Exclude patterns
@@ -415,6 +449,8 @@ class PatternFilterConfig(BaseModel):
 class PostProcessingConfig(BaseModel):
     """Post-processing configuration (applied after filtering)."""
 
+    model_config = ConfigDict(extra="forbid")
+
     only_latest_version: bool = False  # Keep only latest version per (name, arch)
     only_latest_n_versions: int | None = None  # Keep last N versions
 
@@ -430,6 +466,8 @@ class FilterConfig(BaseModel):
     - patterns: Generic regex patterns
     - post_processing: Applied after all filters
     """
+
+    model_config = ConfigDict(extra="forbid")
 
     # Generic filters (all package types)
     metadata: GenericMetadataFilterConfig | None = None
@@ -587,6 +625,8 @@ class RepositoryConfig(BaseModel):
 class DatabaseConfig(BaseModel):
     """Database configuration."""
 
+    model_config = ConfigDict(extra="forbid")
+
     url: str = "sqlite:///chantal.db"
     pool_size: int = 5
     max_overflow: int = 10
@@ -595,6 +635,8 @@ class DatabaseConfig(BaseModel):
 
 class CacheConfig(BaseModel):
     """Metadata cache configuration."""
+
+    model_config = ConfigDict(extra="forbid")
 
     enabled: bool = False  # Global default
     max_age_hours: int | None = None  # Optional TTL for cache invalidation
@@ -610,6 +652,8 @@ class CacheConfig(BaseModel):
 
 class StorageConfig(BaseModel):
     """Storage paths configuration."""
+
+    model_config = ConfigDict(extra="forbid")
 
     base_path: str = "/var/lib/chantal"
     pool_path: str | None = None  # Defaults to {base_path}/pool
@@ -638,6 +682,8 @@ class StorageConfig(BaseModel):
 
 class ViewConfig(BaseModel):
     """View configuration - groups multiple repositories into one virtual repository."""
+
+    model_config = ConfigDict(extra="forbid")
 
     name: str
     description: str | None = None
@@ -677,6 +723,8 @@ class ViewConfig(BaseModel):
 
 class DownloadConfig(BaseModel):
     """Download configuration for file downloads."""
+
+    model_config = ConfigDict(extra="forbid")
 
     backend: str = "requests"  # requests, aria2c (future)
     parallel: int = 1  # Parallel downloads (backend-dependent)

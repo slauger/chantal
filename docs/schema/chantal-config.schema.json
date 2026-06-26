@@ -1,6 +1,7 @@
 {
   "$defs": {
     "ApkConfig": {
+      "additionalProperties": false,
       "description": "Alpine APK-specific configuration.",
       "properties": {
         "branch": {
@@ -25,6 +26,7 @@
       "type": "object"
     },
     "AptConfig": {
+      "additionalProperties": false,
       "description": "APT/DEB-specific configuration.",
       "properties": {
         "distribution": {
@@ -156,6 +158,7 @@
       "type": "object"
     },
     "AuthConfig": {
+      "additionalProperties": false,
       "description": "Repository authentication configuration.",
       "properties": {
         "type": {
@@ -257,6 +260,7 @@
       "type": "object"
     },
     "CacheConfig": {
+      "additionalProperties": false,
       "description": "Metadata cache configuration.",
       "properties": {
         "enabled": {
@@ -281,6 +285,7 @@
       "type": "object"
     },
     "DatabaseConfig": {
+      "additionalProperties": false,
       "description": "Database configuration.",
       "properties": {
         "url": {
@@ -308,6 +313,7 @@
       "type": "object"
     },
     "DebFilterConfig": {
+      "additionalProperties": false,
       "description": "DEB/APT-specific filters (future support).",
       "properties": {
         "components": {
@@ -348,6 +354,7 @@
       "type": "object"
     },
     "DownloadConfig": {
+      "additionalProperties": false,
       "description": "Download configuration for file downloads.",
       "properties": {
         "backend": {
@@ -380,6 +387,7 @@
       "type": "object"
     },
     "FilterConfig": {
+      "additionalProperties": false,
       "description": "Package filtering configuration.\n\nSupports both new structure and legacy flat structure for backward compatibility.\n\nStructure:\n- metadata: Generic filters (all package types)\n- rpm/deb/helm: Plugin-specific filters\n- patterns: Generic regex patterns\n- post_processing: Applied after all filters",
       "properties": {
         "metadata": {
@@ -502,6 +510,7 @@
       "type": "object"
     },
     "GenericMetadataFilterConfig": {
+      "additionalProperties": false,
       "description": "Generic metadata filters (work for all package types).",
       "properties": {
         "size_bytes": {
@@ -542,6 +551,7 @@
       "type": "object"
     },
     "GpgConfig": {
+      "additionalProperties": false,
       "description": "GPG signing configuration for APT repositories.\n\nUsed to sign regenerated metadata (Release) in filtered mode so that\nclients can verify the repository without ``[trusted=yes]``.\n\nThe signing key can be provided in three ways (checked in this order):\n\n1. ``key_file`` - import a private (secret) key from an ASCII-armored file.\n2. ``key_id`` - use a key already present in the keyring / ``gnupg_home``.\n3. ``generate_key`` - generate a new keypair if none of the above is set.",
       "properties": {
         "enabled": {
@@ -670,6 +680,7 @@
       "type": "object"
     },
     "ListFilterConfig": {
+      "additionalProperties": false,
       "description": "Generic list-based filtering (include/exclude).",
       "properties": {
         "include": {
@@ -707,6 +718,7 @@
       "type": "object"
     },
     "MetadataConfig": {
+      "additionalProperties": false,
       "description": "Metadata generation configuration (RPM, APT, etc.).",
       "properties": {
         "compression": {
@@ -727,6 +739,7 @@
       "type": "object"
     },
     "PatternFilterConfig": {
+      "additionalProperties": false,
       "description": "Pattern-based filters (regex).",
       "properties": {
         "include": {
@@ -764,6 +777,7 @@
       "type": "object"
     },
     "PostProcessingConfig": {
+      "additionalProperties": false,
       "description": "Post-processing configuration (applied after filtering).",
       "properties": {
         "only_latest_version": {
@@ -788,6 +802,7 @@
       "type": "object"
     },
     "ProxyConfig": {
+      "additionalProperties": false,
       "description": "HTTP proxy configuration.",
       "properties": {
         "http_proxy": {
@@ -1076,6 +1091,7 @@
       "type": "object"
     },
     "RetentionConfig": {
+      "additionalProperties": false,
       "description": "Package retention policy configuration.",
       "properties": {
         "policy": {
@@ -1100,6 +1116,7 @@
       "type": "object"
     },
     "RpmFilterConfig": {
+      "additionalProperties": false,
       "description": "RPM-specific filters.",
       "properties": {
         "exclude_source_rpms": {
@@ -1156,6 +1173,7 @@
       "type": "object"
     },
     "SSLConfig": {
+      "additionalProperties": false,
       "description": "SSL/TLS configuration for HTTPS connections.",
       "properties": {
         "ca_bundle": {
@@ -1216,6 +1234,7 @@
       "type": "object"
     },
     "ScheduleConfig": {
+      "additionalProperties": false,
       "description": "Repository sync schedule configuration.",
       "properties": {
         "enabled": {
@@ -1243,6 +1262,7 @@
       "type": "object"
     },
     "SignatureVerificationConfig": {
+      "additionalProperties": false,
       "description": "Verify the authenticity of an upstream repository via GPG.\n\nThis is independent of :class:`GpgConfig` (which holds the *private* signing\nkey used to re-sign regenerated metadata). Verification needs *public* trust\nanchors - the upstream vendor's public key(s).\n\nIntegrity (SHA256) is always checked during sync; this adds *authenticity*\n(the metadata/packages were signed by a trusted key), analogous to dnf's\n``repo_gpgcheck`` / ``gpgcheck`` and apt's Release signature check.",
       "properties": {
         "enabled": {
@@ -1327,6 +1347,7 @@
       "type": "object"
     },
     "SizeFilterConfig": {
+      "additionalProperties": false,
       "description": "Size-based filtering.",
       "properties": {
         "min": {
@@ -1358,6 +1379,7 @@
       "type": "object"
     },
     "StorageConfig": {
+      "additionalProperties": false,
       "description": "Storage paths configuration.",
       "properties": {
         "base_path": {
@@ -1411,6 +1433,7 @@
       "type": "object"
     },
     "TimeFilterConfig": {
+      "additionalProperties": false,
       "description": "Time-based filtering.",
       "properties": {
         "newer_than": {
@@ -1454,6 +1477,7 @@
       "type": "object"
     },
     "ViewConfig": {
+      "additionalProperties": false,
       "description": "View configuration - groups multiple repositories into one virtual repository.",
       "properties": {
         "name": {
