@@ -1,108 +1,13 @@
 name: CI
 
+# Runs on pull requests only. Pushes to main are validated by the Release
+# workflow, which calls the same reusable test suite before releasing, so the
+# full lint/type/unit/e2e suite never runs twice for one merge.
 on:
-  push:
-    branches:
-      - main  # Only run on pushes to main (direct commits)
   pull_request:
     branches:
-      - main  # Run on all PRs targeting main
+      - main
 
 jobs:
-  lint-and-type-check:
-    name: Lint and Type Check
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ['3.12', '3.13', '3.14']
-      fail-fast: false
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v7
-
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v6
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Cache pip packages
-        uses: actions/cache@v5
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('**/pyproject.toml') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-${{ matrix.python-version }}-
-            ${{ runner.os }}-pip-
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
-
-      - name: Run ruff (linting)
-        run: |
-          echo "Running ruff linter..."
-          ruff check src/chantal/ tests/ --output-format=github
-        continue-on-error: false
-
-      - name: Run black (code formatting check)
-        run: |
-          echo "Checking code formatting with black..."
-          black --check --diff src/chantal/ tests/
-        continue-on-error: false
-
-      - name: Run yamllint (YAML linting)
-        run: |
-          echo "Linting YAML files..."
-          yamllint --strict examples/ .github/
-        continue-on-error: false
-
-      - name: Run mypy (type checking)
-        run: |
-          echo "Running mypy type checker..."
-          mypy src/chantal/ --ignore-missing-imports
-        continue-on-error: false
-        # Type checking is now enforced - all code must pass mypy
-        # See CONTRIBUTING.md for type annotation guidelines
-
-      - name: Run pytest (unit tests)
-        run: |
-          echo "Running pytest..."
-          pytest tests/ -v --tb=short -m "not e2e"
-        continue-on-error: false
-
-  e2e:
-    name: E2E (${{ matrix.plugin }})
-    needs: lint-and-type-check
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        plugin: [rpm, apt, helm, apk]
-      fail-fast: false
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v7
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.14'
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
-
-      - name: Install rpm toolchain (for the real-rpm signature golden test)
-        if: matrix.plugin == 'rpm'
-        run: sudo apt-get update && sudo apt-get install -y rpm
-
-      - name: Run end-to-end sync->publish test
-        env:
-          # Require the real-rpm signature golden test to run (not skip) on the rpm leg.
-          CHANTAL_REQUIRE_RPM_E2E: ${{ matrix.plugin == 'rpm' && '1' || '' }}
-        run: |
-          echo "Running E2E sync->publish for ${{ matrix.plugin }}..."
-          pytest tests/e2e -v -s -m e2e -k ${{ matrix.plugin }}
+  test:
+    uses: ./.github/workflows/test.yml
