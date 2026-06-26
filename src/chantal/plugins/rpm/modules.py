@@ -23,10 +23,16 @@ import bz2
 import gzip
 import logging
 import lzma
+import zlib
 
 import yaml
 
 logger = logging.getLogger(__name__)
+
+
+class DecompressionLimitError(ValueError):
+    """Raised when decompressed output exceeds the requested ``max_output_bytes``."""
+
 
 # modulemd stream document -- the only type that binds RPM artifacts.
 _STREAM_DOCUMENT = "modulemd"
@@ -121,22 +127,65 @@ def filter_modules_yaml(yaml_bytes: bytes, available_nevras: set[str]) -> bytes 
     return dumped.encode("utf-8")
 
 
-def decompress_bytes(data: bytes, suffix: str) -> bytes:
-    """Decompress ``data`` according to a file-name ``suffix`` (e.g. ``.gz``)."""
+def _bounded(out: bytes, finished: bool, limit: int) -> bytes:
+    """Reject output that is over ``limit`` or not yet exhausted at ``limit``."""
+    if len(out) > limit or not finished:
+        raise DecompressionLimitError(
+            f"decompressed size exceeds {limit} bytes (decompression bomb?)"
+        )
+    return out
+
+
+def decompress_bytes(data: bytes, suffix: str, *, max_output_bytes: int | None = None) -> bytes:
+    """Decompress ``data`` according to a file-name ``suffix`` (e.g. ``.gz``).
+
+    When ``max_output_bytes`` is given the output is bounded incrementally and a
+    :class:`DecompressionLimitError` is raised as soon as it would exceed the
+    limit, so a small but highly-compressible input cannot expand into a memory
+    bomb. ``None`` (the default) decompresses without a cap.
+    """
+    if max_output_bytes is None:
+        if suffix == ".gz":
+            return gzip.decompress(data)
+        if suffix == ".xz":
+            return lzma.decompress(data)
+        if suffix == ".bz2":
+            return bz2.decompress(data)
+        if suffix == ".zst":
+            import io
+
+            import zstandard as zstd
+
+            # Use the streaming reader: the one-shot decompress() requires the
+            # frame to embed its content size, which streaming producers omit.
+            return zstd.ZstdDecompressor().stream_reader(io.BytesIO(data)).read()
+        return data
+
+    limit = max_output_bytes
     if suffix == ".gz":
-        return gzip.decompress(data)
+        decomp = zlib.decompressobj(wbits=31)  # 31 = gzip header
+        out = decomp.decompress(data, limit + 1)
+        return _bounded(out, decomp.eof, limit)
     if suffix == ".xz":
-        return lzma.decompress(data)
+        xz = lzma.LZMADecompressor()
+        out = xz.decompress(data, max_length=limit + 1)
+        return _bounded(out, xz.eof, limit)
     if suffix == ".bz2":
-        return bz2.decompress(data)
+        bz = bz2.BZ2Decompressor()
+        out = bz.decompress(data, max_length=limit + 1)
+        return _bounded(out, bz.eof, limit)
     if suffix == ".zst":
         import io
 
         import zstandard as zstd
 
-        # Use the streaming reader: the one-shot decompress() requires the frame
-        # to embed its content size, which streaming producers often omit.
-        return zstd.ZstdDecompressor().stream_reader(io.BytesIO(data)).read()
+        reader = zstd.ZstdDecompressor().stream_reader(io.BytesIO(data))
+        out = reader.read(limit + 1)
+        # A well-formed frame shorter than the cap stops at EOF; if we filled the
+        # whole (limit + 1) budget there is at least one byte too many.
+        return _bounded(out, len(out) <= limit, limit)
+    if len(data) > limit:
+        raise DecompressionLimitError(f"size exceeds {limit} bytes")
     return data
 
 
