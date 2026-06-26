@@ -49,7 +49,7 @@ def session(tmp_path):
 
 def _run(session, syncer, config, repo, parsed):
     with (
-        patch.object(syncer, "_fetch_apkindex", return_value=b""),
+        patch.object(syncer, "_fetch_apkindex", return_value=("", b"")),
         patch.object(syncer, "_store_apkindex_file"),
         patch.object(syncer, "_parse_apkindex", return_value=parsed),
         patch.object(
