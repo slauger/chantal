@@ -99,3 +99,134 @@ def test_db_cleanup_orphaned_clears_snapshot_associations(tmp_path):
             assert rows == 0, f"orphaned rows left in {assoc}"
     finally:
         session.close()
+
+
+def _config(tmp_path, db_url, repositories=None):
+    cfg = {
+        "database": {"url": db_url},
+        "storage": {
+            "base_path": str(tmp_path / "data"),
+            "pool_path": str(tmp_path / "data" / "pool"),
+            "published_path": str(tmp_path / "published"),
+        },
+        "repositories": repositories or [],
+    }
+    p = tmp_path / "config.yaml"
+    p.write_text(yaml.safe_dump(cfg), encoding="utf-8")
+    return str(p)
+
+
+def _seed_unreferenced(db_url):
+    """A repo with one referenced item + one truly unreferenced item."""
+    dbm = DatabaseManager(db_url)
+    Base.metadata.create_all(dbm.engine)
+    session = dbm.get_session()
+    repo = Repository(repo_id="keep", name="K", type="rpm", feed="http://x", mode="MIRROR")
+    session.add(repo)
+    session.flush()
+    referenced = ContentItem(
+        content_type="rpm",
+        name="ref",
+        version="1",
+        sha256="a" * 64,
+        size_bytes=100,
+        pool_path="aa/ref",
+        filename="ref.rpm",
+        content_metadata={},
+    )
+    orphan = ContentItem(
+        content_type="rpm",
+        name="orphan",
+        version="1",
+        sha256="b" * 64,
+        size_bytes=200,
+        pool_path="bb/orphan",
+        filename="orphan.rpm",
+        content_metadata={},
+    )
+    repo.content_items.append(referenced)
+    session.add_all([referenced, orphan])
+    session.commit()
+    session.close()
+
+
+def test_cleanup_unreferenced_deletes_only_orphan_items(tmp_path):
+    db_url = f"sqlite:///{tmp_path / 'chantal.db'}"
+    _seed_unreferenced(db_url)
+    # 'keep' is configured, so it is NOT an orphaned repo.
+    cfg = _config(
+        tmp_path, db_url, repositories=[{"id": "keep", "type": "rpm", "feed": "http://x"}]
+    )
+
+    result = CliRunner().invoke(
+        cli, ["--config", cfg, "db", "cleanup", "--unreferenced", "--force"]
+    )
+    assert result.exit_code == 0, f"{result.output}\n{result.exception}"
+    assert "TODO" not in result.output
+    assert "Deleted 1 unreferenced packages" in result.output
+
+    session = DatabaseManager(db_url).get_session()
+    try:
+        names = {c.name for c in session.query(ContentItem).all()}
+        assert names == {"ref"}, f"unexpected items: {names}"
+    finally:
+        session.close()
+
+
+def test_cleanup_unreferenced_dry_run_deletes_nothing(tmp_path):
+    db_url = f"sqlite:///{tmp_path / 'chantal.db'}"
+    _seed_unreferenced(db_url)
+    cfg = _config(
+        tmp_path, db_url, repositories=[{"id": "keep", "type": "rpm", "feed": "http://x"}]
+    )
+
+    result = CliRunner().invoke(
+        cli, ["--config", cfg, "db", "cleanup", "--unreferenced", "--dry-run"]
+    )
+    assert result.exit_code == 0, result.output
+    assert "Would delete 1 unreferenced packages" in result.output
+    session = DatabaseManager(db_url).get_session()
+    try:
+        assert session.query(ContentItem).count() == 2  # nothing deleted
+    finally:
+        session.close()
+
+
+def test_full_cleanup_removes_items_orphaned_by_repo_deletion(tmp_path):
+    """Deleting an orphaned repo unlinks its snapshot's content item; the same
+    run's unreferenced pass (recomputed) must then remove that item too."""
+    db_url = f"sqlite:///{tmp_path / 'chantal.db'}"
+    _seed_orphan(db_url)  # orphan repo + snapshot linked to one content item
+    cfg = _config(tmp_path, db_url, repositories=[])  # repo is orphaned
+
+    result = CliRunner().invoke(cli, ["--config", cfg, "db", "cleanup", "--force"])
+    assert result.exit_code == 0, f"{result.output}\n{result.exception}"
+
+    session = DatabaseManager(db_url).get_session()
+    try:
+        assert session.query(Repository).count() == 0
+        # The content item that was only linked via the deleted snapshot is gone.
+        assert session.query(ContentItem).count() == 0
+    finally:
+        session.close()
+
+
+def test_cleanup_unreferenced_confirmation_abort(tmp_path):
+    """Without --force, answering 'n' aborts and deletes nothing."""
+    db_url = f"sqlite:///{tmp_path / 'chantal.db'}"
+    _seed_unreferenced(db_url)
+    cfg = _config(
+        tmp_path, db_url, repositories=[{"id": "keep", "type": "rpm", "feed": "http://x"}]
+    )
+
+    result = CliRunner().invoke(
+        cli, ["--config", cfg, "db", "cleanup", "--unreferenced"], input="n\n"
+    )
+    assert result.exit_code == 0, result.output
+    assert "1 unreferenced packages" in result.output  # shown in the confirmation
+    assert "Aborted." in result.output
+    session = DatabaseManager(db_url).get_session()
+    try:
+        assert session.query(ContentItem).count() == 2  # nothing deleted
+    finally:
+        session.close()
