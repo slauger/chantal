@@ -366,7 +366,13 @@ class RpmSyncPlugin:
 
             # Step 8: Check for .treeinfo and download installer files
             self.output.phase("Checking for installer files (.treeinfo)", number=4)
-            treeinfo_url = urljoin(self.config.feed, ".treeinfo")
+            # Normalize the feed to a directory URL: without a trailing slash
+            # urljoin drops the last path segment (e.g. ".../el9" -> ".../"),
+            # fetching .treeinfo and the installer images from the wrong place.
+            feed_url = (
+                self.config.feed if self.config.feed.endswith("/") else self.config.feed + "/"
+            )
+            treeinfo_url = urljoin(feed_url, ".treeinfo")
             try:
                 response = self.session.get(treeinfo_url, timeout=30)
                 response.raise_for_status()
@@ -383,7 +389,7 @@ class RpmSyncPlugin:
                             self._download_installer_file(
                                 session=session,
                                 repository=repository,
-                                base_url=self.config.feed,
+                                base_url=feed_url,
                                 file_info=file_info,
                             )
                             installer_downloaded += 1

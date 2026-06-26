@@ -766,6 +766,10 @@ class RpmPublisher(PublisherPlugin):
                 with open(tmp_xml_path, "rb") as f_in:
                     with gzip.open(filtered_updateinfo_path, "wb") as f_out:
                         shutil.copyfileobj(f_in, f_out)
+            elif updateinfo_path.suffix == ".xz":
+                with open(tmp_xml_path, "rb") as f_in:
+                    with lzma.open(filtered_updateinfo_path, "wb") as f_out:
+                        shutil.copyfileobj(f_in, f_out)
             elif updateinfo_path.suffix == ".zst":
                 import zstandard as zstd
 
