@@ -156,7 +156,7 @@ class HelmSyncer:
                         stats["charts_updated"] += 1
                     else:
                         stats["charts_skipped"] += 1
-                    self.output.update_progress()
+                    # Progress is advanced once by the finally block below.
                     continue
 
                 # Download chart
@@ -187,6 +187,23 @@ class HelmSyncer:
                         f"digest mismatch for {chart_name}: index.yaml advertises "
                         f"{expected_digest}, downloaded content is {sha256} (possible tampering)"
                     )
+
+                # Deduplicate by the actual downloaded content. When index.yaml
+                # omits a digest the pre-download check above is skipped, so a
+                # re-sync would otherwise try to insert a second ContentItem with
+                # the same sha256 and hit the unique constraint (IntegrityError).
+                # Autoflush makes this also catch a duplicate added earlier in
+                # this same run. Link to the pooled chart instead of re-inserting.
+                existing_by_content = (
+                    session.query(ContentItem).filter_by(content_type="helm", sha256=sha256).first()
+                )
+                if existing_by_content:
+                    if repository not in existing_by_content.repositories:
+                        existing_by_content.repositories.append(repository)
+                        stats["charts_updated"] += 1
+                    else:
+                        stats["charts_skipped"] += 1
+                    continue
 
                 # Create metadata
                 metadata = HelmMetadata(**chart_entry)
