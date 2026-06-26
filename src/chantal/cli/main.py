@@ -76,19 +76,46 @@ def cli(ctx: click.Context, config: Path | None, verbose: bool) -> None:
 @click.pass_context
 def stats(ctx: click.Context, repo_id: str) -> None:
     """Show repository and package statistics."""
-    if repo_id:
-        click.echo(f"Statistics for repository: {repo_id}")
-        click.echo("TODO: Query repository-specific statistics")
-    else:
-        click.echo("Global Statistics:")
-        click.echo("TODO: Query global statistics")
-    click.echo()
-    click.echo("Expected output:")
-    click.echo("  Total Repositories: 5")
-    click.echo("  Total Packages: 12,450")
-    click.echo("  Deduplicated: 8,320 (33% savings)")
-    click.echo("  Total Size on Disk: 18.5 GB")
-    click.echo("  Total Snapshots: 23")
+    from sqlalchemy.exc import OperationalError
+
+    from chantal.core.stats import (
+        format_bytes,
+        gather_global_stats,
+        gather_repository_stats,
+    )
+    from chantal.db.connection import DatabaseManager
+
+    config: GlobalConfig = ctx.obj["config"]
+    db_manager = DatabaseManager(config.database.url)
+    try:
+        with db_manager.session() as session:
+            if repo_id:
+                s = gather_repository_stats(session, repo_id)
+                if s is None:
+                    click.echo(f"Repository '{repo_id}' not found in the database.", err=True)
+                    ctx.exit(1)
+                click.echo(f"Statistics for repository: {s['repo_id']} ({s['type']}, {s['mode']})")
+                click.echo(f"  Packages: {s['content_items']:,}")
+                for ctype, count in sorted(s["by_type"].items()):
+                    click.echo(f"    {ctype}: {count:,}")
+                click.echo(f"  Snapshots: {s['snapshots']:,}")
+                click.echo(f"  Size: {format_bytes(s['pool_bytes'])}")
+            else:
+                s = gather_global_stats(session)
+                click.echo("Global Statistics:")
+                click.echo(f"  Total Repositories: {s['repositories']:,}")
+                click.echo(f"  Total Packages: {s['content_items']:,}")
+                for ctype, count in sorted(s["by_type"].items()):
+                    click.echo(f"    {ctype}: {count:,}")
+                click.echo(f"  Total Snapshots: {s['snapshots']:,}")
+                click.echo(f"  Pool Size on Disk: {format_bytes(s['pool_bytes'])}")
+                click.echo(
+                    f"  Deduplication: {format_bytes(s['saved_bytes'])} saved "
+                    f"({s['dedup_pct']:.0f}%)"
+                )
+    except OperationalError:
+        click.echo("Database not initialized. Run 'chantal db init' first.", err=True)
+        ctx.exit(1)
 
 
 # ============================================================================

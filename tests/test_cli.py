@@ -72,11 +72,12 @@ def test_package_show():
 
 
 def test_stats():
-    """Test stats command."""
+    """stats against an uninitialized database degrades gracefully."""
     runner = CliRunner()
-    result = runner.invoke(cli, ["stats"])
-    assert result.exit_code == 0
-    assert "Statistics" in result.output
+    with runner.isolated_filesystem():
+        result = runner.invoke(cli, ["stats"])
+    assert result.exit_code == 1
+    assert "not initialized" in result.output
 
 
 def test_repo_check_updates():
@@ -92,11 +93,12 @@ def test_repo_check_updates():
 
 
 def test_db_stats():
-    """Test db stats command."""
+    """db stats against an uninitialized database degrades gracefully."""
     runner = CliRunner()
-    result = runner.invoke(cli, ["db", "stats"])
-    assert result.exit_code == 0
-    assert "Database Statistics" in result.output
+    with runner.isolated_filesystem():
+        result = runner.invoke(cli, ["db", "stats"])
+    assert result.exit_code == 1
+    assert "not initialized" in result.output
 
 
 def test_db_help():
