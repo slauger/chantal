@@ -63,20 +63,29 @@ def _build_charts(specs: list[tuple[str, str]]) -> dict[tuple[str, str], bytes]:
     return charts
 
 
-def _write_upstream(root: Path, charts: dict[tuple[str, str], bytes]) -> None:
-    """Write an upstream chart repo (the .tgz files + an index.yaml)."""
+def _write_upstream(
+    root: Path, charts: dict[tuple[str, str], bytes], url_base: str | None = None
+) -> None:
+    """Write an upstream chart repo (the .tgz files + an index.yaml).
+
+    When ``url_base`` is given the index uses absolute chart URLs (the Bitnami
+    case: ``https://charts.example.com/demo-0.1.0.tgz``); otherwise relative
+    filenames are used. The tarballs are always written under ``root`` so a
+    mirror that rewrites URLs to relative filenames can serve them locally.
+    """
     root.mkdir(parents=True, exist_ok=True)
     entries: dict[str, list] = {}
     for (name, version), data in charts.items():
         fname = f"{name}-{version}.tgz"
         (root / fname).write_bytes(data)
+        url = f"{url_base.rstrip('/')}/{fname}" if url_base else fname
         entries.setdefault(name, []).append(
             {
                 "name": name,
                 "version": version,
                 "apiVersion": "v2",
                 "digest": hashlib.sha256(data).hexdigest(),
-                "urls": [fname],
+                "urls": [url],
             }
         )
     index = {"apiVersion": "v1", "entries": entries, "generated": "2026-01-01T00:00:00Z"}
@@ -115,7 +124,7 @@ def _helm(published: Path, helm_script: str) -> subprocess.CompletedProcess:
 
 @requires_docker
 def test_helm_mirror_consumed_by_real_client(tmp_path, serve, chantal_env):
-    """A mirror-mode repo (verbatim index.yaml) is consumable by real helm."""
+    """A mirror-mode repo is consumable by real helm; URLs point at the mirror."""
     charts = _build_charts([("demo", "0.1.0")])
     upstream = tmp_path / "upstream"
     _write_upstream(upstream, charts)
@@ -132,10 +141,53 @@ def test_helm_mirror_consumed_by_real_client(tmp_path, serve, chantal_env):
     )
     target = chantal_env.sync_and_publish("demo-mirror")
 
-    # Mirror preserves the upstream index.yaml byte-for-byte.
-    assert (target / "index.yaml").read_bytes() == (
-        upstream / "index.yaml"
-    ).read_bytes(), "mirror index.yaml is not byte-identical to upstream"
+    # The mirror's index.yaml points clients at its own (relative) chart paths.
+    published = yaml.safe_load((target / "index.yaml").read_text())
+    assert published["entries"]["demo"][0]["urls"] == ["demo-0.1.0.tgz"]
+
+    ok = _helm(
+        target,
+        "helm pull local/demo --version 0.1.0; "
+        "test -f demo-0.1.0.tgz; "
+        "helm show chart local/demo | grep '^name: demo'",
+    )
+    assert ok.returncode == 0, (
+        f"real helm pull from mirror failed:\nstdout={ok.stdout.decode()[-800:]}\n"
+        f"stderr={ok.stderr.decode()[-800:]}"
+    )
+
+
+@requires_docker
+def test_helm_mirror_rewrites_absolute_urls(tmp_path, serve, chantal_env):
+    """Absolute upstream chart URLs (Bitnami-style) are rewritten to the mirror.
+
+    Without rewriting, the mirrored index would send `helm pull` back to the
+    (here unreachable) upstream host, defeating the offline mirror.
+    """
+    charts = _build_charts([("demo", "0.1.0")])
+    upstream = tmp_path / "upstream"
+    upstream.mkdir(parents=True, exist_ok=True)
+    # Absolute URLs back to the upstream server (the Bitnami pattern): reachable
+    # at sync time, but a mirror must rewrite them so offline clients use the
+    # local copy instead of being sent back upstream.
+    base = serve(upstream)
+    _write_upstream(upstream, charts, url_base=base)
+
+    chantal_env.write_config(
+        {
+            "id": "demo-mirror-abs",
+            "name": "Demo mirror abs",
+            "type": "helm",
+            "feed": base,
+            "enabled": True,
+            "mode": "mirror",
+        }
+    )
+    target = chantal_env.sync_and_publish("demo-mirror-abs")
+
+    published = yaml.safe_load((target / "index.yaml").read_text())
+    urls = published["entries"]["demo"][0]["urls"]
+    assert urls == ["demo-0.1.0.tgz"], f"absolute URL not rewritten: {urls}"
 
     ok = _helm(
         target,
