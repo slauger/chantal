@@ -10,6 +10,8 @@ Supports mirror mode (1:1 copy with all metadata and GPG signatures preserved).
 import logging
 import tempfile
 from dataclasses import dataclass
+from datetime import UTC, datetime
+from email.utils import parsedate_to_datetime
 from pathlib import Path, PurePosixPath
 from urllib.parse import urljoin
 
@@ -487,6 +489,13 @@ class AptSyncPlugin:
                     release_text = "\n".join(content_lines)
 
             release_metadata = parse_release_file(release_text)
+
+            # Reject a stale (but validly-signed) Release: signature verification
+            # proves authenticity, not freshness, so an attacker/mirror could
+            # replay an old signed Release to freeze the repo at a vulnerable
+            # state. Enforce Valid-Until when verification is enabled.
+            self._enforce_release_freshness(release_metadata.valid_until)
+
             self.output.verbose(
                 f"  → Parsed Release: {release_metadata.suite}/{release_metadata.codename}"
             )
@@ -573,6 +582,34 @@ class AptSyncPlugin:
         if policy == "warn":
             self.output.warning(f"Signature verification: {message}")
         # "skip": silently continue
+
+    def _enforce_release_freshness(self, valid_until: str | None) -> None:
+        """Reject an expired Release (Valid-Until in the past) when verifying.
+
+        A valid signature proves authenticity but not freshness; ``Valid-Until``
+        is what apt uses to refuse a replayed/rolled-back Release. Only enforced
+        when signature verification is enabled (an unverified Release is not
+        trusted anyway), applying the ``on_invalid_signature`` policy.
+        """
+        verify = self.config.verify
+        if not verify or not verify.enabled or not verify.repo_gpgcheck:
+            return
+        if not valid_until:
+            return
+        try:
+            expiry = parsedate_to_datetime(valid_until)
+        except (TypeError, ValueError):
+            expiry = None
+        if expiry is None:
+            self.output.warning(f"Could not parse Release Valid-Until: {valid_until!r}")
+            return
+        if expiry.tzinfo is None:
+            expiry = expiry.replace(tzinfo=UTC)
+        if datetime.now(UTC) > expiry:
+            self._handle_verify_policy(
+                verify.on_invalid_signature,
+                f"upstream Release has expired (Valid-Until: {valid_until})",
+            )
 
     def _build_metadata_file_list(
         self, release_metadata: dict, mode: str = "mirror"
