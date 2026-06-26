@@ -593,7 +593,17 @@ class RpmPublisher(PublisherPlugin):
                 target_file_path = target_path / ".treeinfo"
             else:
                 # original_path like "images/boot.iso" or "images/pxeboot/vmlinuz"
-                target_file_path = target_path / repo_file.original_path
+                # original_path is taken verbatim from the upstream .treeinfo, so
+                # confine it to the repository tree: a malicious entry like
+                # "../../etc/cron.d/x" or an absolute path would otherwise hardlink
+                # attacker-controlled content outside the published repo.
+                target_file_path = (target_path / repo_file.original_path).resolve()
+                if not target_file_path.is_relative_to(target_path.resolve()):
+                    print(
+                        f"Warning: skipping installer file with unsafe path: "
+                        f"{repo_file.original_path!r}"
+                    )
+                    continue
 
             # Create parent directories
             target_file_path.parent.mkdir(parents=True, exist_ok=True)
