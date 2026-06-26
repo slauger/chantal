@@ -93,10 +93,19 @@ jobs:
         if: matrix.plugin == 'rpm'
         run: sudo apt-get update && sudo apt-get install -y rpm
 
+      - name: Verify e2e toolchain is present
+        run: |
+          echo "docker: $(docker --version)"
+          echo "gpg: $(gpg --version | head -1)"
+
       - name: Run end-to-end sync->publish test
         env:
           # Require the real-rpm signature golden test to run (not skip) on the rpm leg.
           CHANTAL_REQUIRE_RPM_E2E: ${{ matrix.plugin == 'rpm' && '1' || '' }}
+          # Fail (not silently skip) if docker/gpg are missing on the runner, so a
+          # toolchain regression can't turn the real-client e2e tests green.
+          CHANTAL_REQUIRE_DOCKER: '1'
+          CHANTAL_REQUIRE_GPG: '1'
         run: |
           echo "Running E2E sync->publish for ${{ matrix.plugin }}..."
           pytest tests/e2e -v -s -m e2e -k ${{ matrix.plugin }}

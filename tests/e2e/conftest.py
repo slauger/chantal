@@ -15,6 +15,8 @@ from __future__ import annotations
 
 import functools
 import http.server
+import os
+import shutil
 import socketserver
 import subprocess
 import sys
@@ -24,6 +26,32 @@ from pathlib import Path
 
 import pytest
 import yaml
+
+# Real-client e2e tests skip when an external tool (docker/gpg) is missing, which
+# is fine for local runs but dangerous in CI: a silently-skipped test is green,
+# so the gate would pass without ever exercising the real client. Setting
+# CHANTAL_REQUIRE_DOCKER / CHANTAL_REQUIRE_GPG turns "missing tool" into a hard
+# failure instead, so CI fails loudly if the toolchain regresses.
+_TOOL_PRESENT = {
+    "docker": shutil.which("docker") is not None,
+    "gpg": shutil.which("gpg") is not None or shutil.which("gpg2") is not None,
+}
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _enforce_required_e2e_tools() -> None:
+    """Fail (not skip) the e2e suite when a CHANTAL_REQUIRE_*-mandated tool is absent."""
+    missing = [
+        tool
+        for tool, present in _TOOL_PRESENT.items()
+        if not present and os.environ.get(f"CHANTAL_REQUIRE_{tool.upper()}")
+    ]
+    if missing:
+        pytest.fail(
+            "Required e2e tool(s) not available but CHANTAL_REQUIRE_* is set: "
+            + ", ".join(sorted(missing)),
+            pytrace=False,
+        )
 
 
 @pytest.fixture
