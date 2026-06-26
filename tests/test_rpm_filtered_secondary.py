@@ -108,3 +108,53 @@ def test_filter_filelists_zst_matches_by_nvra(publisher, tmp_path, checksum_type
     names = [p.get("name") for p in root.findall(f"{{{FILELISTS_NS}}}package")]
     assert names == ["demo"], f"expected only the surviving NVRA, got {names}"
     assert root.get("packages") == "1"
+
+
+def _updateinfo_xml() -> str:
+    return (
+        "<updates>\n"
+        '  <update type="security" status="stable">\n'
+        "    <id>TEST-1</id>\n"
+        "    <title>demo advisory</title>\n"
+        '    <issued date="2026-01-01 00:00:00"/>\n'
+        "    <pkglist>\n"
+        "      <collection>\n"
+        '        <package name="demo" version="1.0" release="1.el9" epoch="0" arch="x86_64">\n'
+        "          <filename>demo-1.0-1.el9.x86_64.rpm</filename>\n"
+        "        </package>\n"
+        "      </collection>\n"
+        "    </pkglist>\n"
+        "  </update>\n"
+        "</updates>\n"
+    )
+
+
+def test_filter_updateinfo_xz_stays_xz_compressed(publisher, tmp_path):
+    """An xz updateinfo must be rewritten as valid xz, not plaintext under a .xz
+    name (the missing .xz branch corrupted errata)."""
+    import lzma
+
+    repodata = tmp_path / "repodata"
+    repodata.mkdir()
+    ui_path = repodata / "updateinfo.xml.xz"
+    ui_path.write_bytes(lzma.compress(_updateinfo_xml().encode()))
+
+    survivor = ContentItem(
+        content_type="rpm",
+        name="demo",
+        version="1.0",
+        sha256="d" * 64,
+        size_bytes=1,
+        pool_path="dd/dd/demo.rpm",
+        filename="demo-1.0-1.el9.x86_64.rpm",
+        content_metadata={"release": "1.el9", "arch": "x86_64"},
+    )
+
+    result = publisher._filter_and_regenerate_updateinfo(
+        [survivor], repodata, [("updateinfo", ui_path)]
+    )
+
+    _, out_path = next(ft for ft in result if ft[0] == "updateinfo")
+    # Must be genuinely xz-compressed; lzma raises on plaintext.
+    data = lzma.open(out_path, "rb").read()
+    assert b"TEST-1" in data  # the advisory survived the filter
