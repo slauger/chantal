@@ -141,11 +141,12 @@ class HelmPublisher(PublisherPlugin):
         charts: list[ContentItem],
         snapshot: Snapshot | None = None,
     ) -> None:
-        """Publish index.yaml: regenerate it (filtered/hosted) or hardlink it.
+        """Publish index.yaml: regenerate it (filtered/hosted) or rewrite it.
 
         Filtered mode always regenerates index.yaml from the published charts.
-        Mirror mode hardlinks the verbatim upstream index.yaml from the pool,
-        falling back to generation when none was stored.
+        Mirror mode republishes the upstream index.yaml but rewrites its chart
+        URLs to point at this mirror, falling back to generation when none was
+        stored.
 
         Args:
             session: Database session
@@ -157,9 +158,9 @@ class HelmPublisher(PublisherPlugin):
         """
         # In filtered mode the published chart set differs from upstream, so
         # always regenerate index.yaml from the published charts. Republishing
-        # the verbatim upstream index (stored unconditionally during sync) would
-        # still list charts that were filtered out. Mirror mode keeps the
-        # upstream index as-is.
+        # the upstream index (stored unconditionally during sync) would still
+        # list charts that were filtered out. Mirror mode republishes the
+        # upstream index with its chart URLs rewritten to this mirror.
         if repository.mode == RepositoryMode.FILTERED:
             self._generate_index_yaml(charts, target_path, config)
             return
@@ -181,14 +182,12 @@ class HelmPublisher(PublisherPlugin):
                     break
 
         if index_file:
-            # Mirror mode: Hardlink index.yaml from pool
+            # Mirror mode: republish the upstream index.yaml, but rewrite the
+            # chart URLs to point at this mirror. Upstream indexes (e.g. Bitnami)
+            # often use absolute URLs back to the upstream server; hardlinking
+            # them verbatim would send clients upstream, defeating the mirror.
             pool_path = self.storage.pool_path / index_file.pool_path
-            target_file = target_path / "index.yaml"
-
-            if target_file.exists():
-                target_file.unlink()
-
-            os.link(pool_path, target_file)
+            self._publish_mirror_index(pool_path, target_path, charts, config)
             logger.info(
                 f"Published index.yaml from pool (mirror mode): {index_file.sha256[:16]}..."
             )
@@ -196,6 +195,75 @@ class HelmPublisher(PublisherPlugin):
             # Fallback: Generate index.yaml from charts
             logger.info("No index.yaml in pool, generating from charts")
             self._generate_index_yaml(charts, target_path, config)
+
+    def _publish_mirror_index(
+        self,
+        index_pool_path: Path,
+        target_path: Path,
+        charts: list[ContentItem],
+        config: RepositoryConfig,
+    ) -> None:
+        """Republish the upstream index.yaml with chart URLs rewritten.
+
+        Each version entry's ``urls`` are rewritten to the bare published
+        filename (relative to the repo root, matching the regenerated/filtered
+        path and where the charts are actually published). Versions whose chart
+        was not published (download failed / digest mismatch) are dropped so the
+        index never references a missing tarball. On any parse error the index is
+        regenerated from the published charts rather than served unrewritten.
+        """
+        from chantal.plugins.helm.sync import normalize_digest
+
+        target_file = target_path / "index.yaml"
+        # Resolve each index version to the chart actually published for it. Match
+        # by content digest first (robust to cross-repo dedup, where the stored
+        # filename can differ from this index's basename) and fall back to the
+        # tarball basename. The value is the published filename to serve.
+        by_digest = {
+            normalize_digest(chart.sha256): chart.filename
+            for chart in charts
+            if normalize_digest(chart.sha256)
+        }
+        by_name = {chart.filename for chart in charts}
+
+        try:
+            data = yaml.safe_load(index_pool_path.read_text(encoding="utf-8"))
+            if not isinstance(data, dict) or not isinstance(data.get("entries"), dict):
+                raise ValueError("index.yaml has no entries mapping")
+        except Exception as exc:  # noqa: BLE001 - any malformed index -> regenerate
+            logger.warning(f"Could not parse upstream index.yaml ({exc}); regenerating from charts")
+            self._generate_index_yaml(charts, target_path, config)
+            return
+
+        for name, versions in list(data["entries"].items()):
+            if not isinstance(versions, list):
+                continue
+            kept = []
+            for entry in versions:
+                if not isinstance(entry, dict):
+                    continue
+                urls = entry.get("urls")
+                if not isinstance(urls, list) or not urls:
+                    continue
+                basename = Path(str(urls[0])).name
+                published_name = by_digest.get(normalize_digest(entry.get("digest")))
+                if published_name is None and basename in by_name:
+                    published_name = basename
+                if published_name is None:
+                    # Not mirrored (filtered out / download failed) -> drop it so
+                    # the index never references a missing tarball.
+                    continue
+                entry["urls"] = [published_name]
+                kept.append(entry)
+            if kept:
+                data["entries"][name] = kept
+            else:
+                del data["entries"][name]
+
+        if target_file.exists():
+            target_file.unlink()
+        with open(target_file, "w", encoding="utf-8") as f:
+            yaml.dump(data, f, default_flow_style=False, sort_keys=False)
 
     def _generate_index_yaml(
         self, charts: list[ContentItem], target_path: Path, config: RepositoryConfig

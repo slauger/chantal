@@ -428,6 +428,18 @@ class TestHelmIntegration:
         repo_files = db_session.query(RepositoryFile).all()
         assert len(repo_files) == 1
 
+        # The mirrored chart (its filename is the upstream tarball basename).
+        chart = ContentItem(
+            content_type="helm",
+            name="nginx",
+            version="1.0.0",
+            sha256="abc123def456",
+            size_bytes=1,
+            pool_path="ab/c1/nginx-1.0.0.tgz",
+            filename="nginx-1.0.0.tgz",
+            content_metadata={},
+        )
+
         # Publish
         publisher = HelmPublisher(storage=temp_storage)
         target_path = temp_storage.published_path
@@ -438,7 +450,7 @@ class TestHelmIntegration:
             repository=repository,
             target_path=target_path,
             config=repo_config,
-            charts=[],
+            charts=[chart],
             snapshot=None,
         )
 
@@ -446,6 +458,55 @@ class TestHelmIntegration:
         published_index = target_path / "index.yaml"
         assert published_index.exists()
 
-        # Verify content is byte-for-byte identical (mirror mode)
-        original_content = yaml.dump(sample_index_yaml).encode("utf-8")
-        assert published_index.read_bytes() == original_content
+        # The absolute upstream URL must be rewritten to point at this mirror
+        # (the relative chart filename), not back at charts.example.com.
+        published = yaml.safe_load(published_index.read_text())
+        assert published["entries"]["nginx"][0]["urls"] == ["nginx-1.0.0.tgz"]
+
+    def test_mirror_index_matches_by_digest_when_filename_differs(self, temp_storage):
+        """Cross-repo content dedup can make the published filename differ from
+        this index's basename; the version must still be matched (by digest) and
+        rewritten to the published filename, not dropped."""
+        index = {
+            "apiVersion": "v1",
+            "entries": {
+                "demo": [
+                    {
+                        "name": "demo",
+                        "version": "1.0.0",
+                        "digest": "sha256:" + "ab" * 32,
+                        # Upstream basename differs from the deduped pool filename.
+                        "urls": ["https://up.example.com/demo-renamed-1.0.0.tgz"],
+                    }
+                ]
+            },
+            "generated": "2026-01-01T00:00:00Z",
+        }
+        index_path = temp_storage.pool_path / "index.yaml"
+        index_path.parent.mkdir(parents=True, exist_ok=True)
+        index_path.write_text(yaml.safe_dump(index), encoding="utf-8")
+
+        # The published chart was pooled under a different filename (e.g. linked
+        # from another repo) but has the matching content digest.
+        chart = ContentItem(
+            content_type="helm",
+            name="demo",
+            version="1.0.0",
+            sha256="ab" * 32,
+            size_bytes=1,
+            pool_path="ab/ab/demo-pooled-1.0.0.tgz",
+            filename="demo-pooled-1.0.0.tgz",
+            content_metadata={},
+        )
+
+        publisher = HelmPublisher(storage=temp_storage)
+        target = temp_storage.published_path
+        target.mkdir(parents=True, exist_ok=True)
+        repo_config = RepositoryConfig(id="x", name="x", type="helm", feed="https://up.example.com")
+
+        publisher._publish_mirror_index(index_path, target, [chart], repo_config)
+
+        published = yaml.safe_load((target / "index.yaml").read_text())
+        # Matched by digest despite the differing basename -> rewritten to the
+        # actually-published filename, not dropped.
+        assert published["entries"]["demo"][0]["urls"] == ["demo-pooled-1.0.0.tgz"]
