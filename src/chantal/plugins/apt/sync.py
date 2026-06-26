@@ -1132,24 +1132,27 @@ class AptSyncPlugin:
 
         # Post-processing: only_latest_version
         if config.filters.post_processing and config.filters.post_processing.only_latest_version:
-            from packaging import version as pkg_version
+            # Keep the newest version of each (name, arch) using dpkg version
+            # ordering (Debian epoch/~/revision semantics; PEP 440 mis-orders or
+            # rejects them).
+            from chantal.plugins.apt.version import dpkg_compare
 
-            # Group by (package name, architecture)
-            by_name_arch = {}
+            by_name_arch: dict[tuple[str, str], DebMetadata] = {}
             for pkg in filtered:
                 key = (pkg.package, pkg.architecture)
-                if key not in by_name_arch:
+                current = by_name_arch.get(key)
+                if current is None:
                     by_name_arch[key] = pkg
-                else:
-                    # Compare versions
-                    try:
-                        if pkg_version.parse(pkg.version) > pkg_version.parse(
-                            by_name_arch[key].version
-                        ):
-                            by_name_arch[key] = pkg
-                    except Exception:
-                        # Version parsing failed - keep first one
-                        pass
+                    continue
+                try:
+                    if dpkg_compare(pkg.version, current.version) > 0:
+                        by_name_arch[key] = pkg
+                except ValueError as e:
+                    # Unparseable version: keep the already-stored package.
+                    logger.warning(
+                        f"Debian version comparison failed for {pkg.package} "
+                        f"({pkg.version} vs {current.version}): {e}"
+                    )
 
             filtered = list(by_name_arch.values())
 
