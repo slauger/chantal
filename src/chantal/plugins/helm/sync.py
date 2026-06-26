@@ -445,24 +445,27 @@ class HelmSyncer:
         # Post-processing: only_latest_version
         if config.filters and config.filters.post_processing:
             if config.filters.post_processing.only_latest_version:
-                # Group by chart name and keep only latest version
-                from packaging import version as pkg_version
+                # Keep the newest version of each chart using SemVer ordering
+                # (Helm versions are SemVer 2.0.0, not PEP 440).
+                from chantal.plugins.helm.version import semver_compare
 
-                by_name = {}
+                by_name: dict[str, dict] = {}
                 for chart in filtered:
                     name = chart["name"]
-                    ver = chart["version"]
-
-                    if name not in by_name:
+                    current = by_name.get(name)
+                    if current is None:
                         by_name[name] = chart
-                    else:
-                        # Compare versions
-                        try:
-                            if pkg_version.parse(ver) > pkg_version.parse(by_name[name]["version"]):
-                                by_name[name] = chart
-                        except Exception:
-                            # Version parsing failed - keep first one
-                            pass
+                        continue
+                    try:
+                        if semver_compare(chart["version"], current["version"]) > 0:
+                            by_name[name] = chart
+                    except ValueError as e:
+                        # Unparseable version: keep the already-stored chart so
+                        # the result is deterministic rather than arbitrary.
+                        logger.warning(
+                            f"Helm version comparison failed for {name} "
+                            f"({chart['version']} vs {current['version']}): {e}"
+                        )
 
                 filtered = list(by_name.values())
 
