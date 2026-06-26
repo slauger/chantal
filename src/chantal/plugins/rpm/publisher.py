@@ -178,6 +178,16 @@ class RpmPublisher(PublisherPlugin):
                 packages, repodata_path, published_metadata
             )
 
+        # Drop metadata variants we cannot republish correctly. zchunk (*_zck)
+        # needs de-chunking to recompute its open-checksum (no pure-Python
+        # support), so a regenerated repomd entry would be invalid in any mode;
+        # the sqlite (*_db) primary/filelists/other enumerate the full upstream
+        # package set, so they must not survive filtered mode (clients preferring
+        # them would see excluded packages). dnf/yum fall back to primary.xml(.gz).
+        published_metadata = self._drop_unpublishable_metadata(
+            published_metadata, repodata_path, mode
+        )
+
         # Produce exactly one primary.xml. Prefer regenerating it from the
         # upstream primary: that preserves the <format> block (provides /
         # requires / conflicts / obsoletes and the primary file list) that dnf
@@ -615,6 +625,33 @@ class RpmPublisher(PublisherPlugin):
             os.link(pool_file_path, target_file_path)
 
             print(f"  ✓ Published {repo_file.file_type}: {repo_file.original_path}")
+
+    def _drop_unpublishable_metadata(
+        self,
+        published_metadata: list[tuple[str, Path]],
+        repodata_path: Path,
+        mode: str,
+    ) -> list[tuple[str, Path]]:
+        """Drop metadata variants chantal cannot republish correctly.
+
+        - ``*_zck`` (zchunk): always dropped - chantal cannot recompute the
+          de-chunked open-checksum, so a repomd entry for it would be invalid.
+        - ``*_db`` (sqlite primary/filelists/other): dropped in filtered mode,
+          where they would otherwise enumerate the full upstream package set
+          including filtered-out packages.
+
+        The dropped files are also unlinked from the published repodata so the
+        repository does not carry metadata the repomd no longer references.
+        """
+        kept: list[tuple[str, Path]] = []
+        for file_type, file_path in published_metadata:
+            is_zck = file_type.endswith("_zck") or file_path.name.endswith(".zck")
+            is_db = file_type.endswith("_db")
+            if is_zck or (is_db and mode == RepositoryMode.FILTERED):
+                file_path.unlink(missing_ok=True)
+                continue
+            kept.append((file_type, file_path))
+        return kept
 
     def _generate_repomd_xml(
         self, repodata_path: Path, metadata_files: list[tuple[str, Path]]
