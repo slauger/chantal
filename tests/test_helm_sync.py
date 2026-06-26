@@ -463,6 +463,71 @@ class TestHelmIntegration:
         published = yaml.safe_load(published_index.read_text())
         assert published["entries"]["nginx"][0]["urls"] == ["nginx-1.0.0.tgz"]
 
+    @patch("chantal.plugins.helm.sync.HelmSyncer._store_index_file")
+    @patch("chantal.plugins.helm.sync.HelmSyncer._download_chart")
+    @patch("chantal.plugins.helm.sync.HelmSyncer._fetch_index")
+    def test_resync_digestless_index_does_not_crash(
+        self, mock_fetch, mock_download, mock_store, temp_storage, db_session, repository
+    ):
+        """An index.yaml without digests must be re-syncable.
+
+        With no digest the pre-download dedup is skipped, so a second sync used
+        to insert a duplicate ContentItem (same sha256) and hit the unique
+        constraint. The post-download dedup-by-content must link instead.
+        """
+        # index.yaml entry WITHOUT a digest field.
+        mock_fetch.return_value = {
+            "apiVersion": "v1",
+            "entries": {"demo": [{"name": "demo", "version": "0.1.0", "urls": ["demo-0.1.0.tgz"]}]},
+        }
+        mock_download.return_value = (Path("ab/cd/demo-0.1.0.tgz"), "ab" * 32, 123)
+
+        repo_config = RepositoryConfig(
+            id="test-helm", name="Test", type="helm", feed="https://charts.example.com"
+        )
+        syncer = HelmSyncer(storage=temp_storage, config=repo_config)
+
+        first = syncer.sync_repository(db_session, repository, repo_config)
+        assert first["charts_added"] == 1
+
+        # Second sync must not raise IntegrityError; it links the existing chart.
+        second = syncer.sync_repository(db_session, repository, repo_config)
+        assert second["charts_added"] == 0
+        assert second["charts_skipped"] + second["charts_updated"] == 1
+
+        charts = db_session.query(ContentItem).filter_by(content_type="helm").all()
+        assert len(charts) == 1
+
+    @patch("chantal.plugins.helm.sync.HelmSyncer._store_index_file")
+    @patch("chantal.plugins.helm.sync.HelmSyncer._download_chart")
+    @patch("chantal.plugins.helm.sync.HelmSyncer._fetch_index")
+    def test_digestless_duplicate_entries_in_one_sync_dedup(
+        self, mock_fetch, mock_download, mock_store, temp_storage, db_session, repository
+    ):
+        """Two digest-less index entries resolving to identical bytes in ONE sync
+        must dedup via autoflush, not hit the unique constraint."""
+        mock_fetch.return_value = {
+            "apiVersion": "v1",
+            "entries": {
+                "demo": [
+                    {"name": "demo", "version": "0.1.0", "urls": ["demo-0.1.0.tgz"]},
+                    {"name": "demo", "version": "0.1.0-dup", "urls": ["demo-0.1.0-dup.tgz"]},
+                ]
+            },
+        }
+        # Both "downloads" yield the same content (same sha256).
+        mock_download.return_value = (Path("ab/cd/demo.tgz"), "cd" * 32, 123)
+
+        repo_config = RepositoryConfig(
+            id="test-helm", name="Test", type="helm", feed="https://charts.example.com"
+        )
+        syncer = HelmSyncer(storage=temp_storage, config=repo_config)
+
+        stats = syncer.sync_repository(db_session, repository, repo_config)
+        assert stats["charts_added"] == 1  # second entry deduped within the run
+        charts = db_session.query(ContentItem).filter_by(content_type="helm").all()
+        assert len(charts) == 1
+
     def test_mirror_index_matches_by_digest_when_filename_differs(self, temp_storage):
         """Cross-repo content dedup can make the published filename differ from
         this index's basename; the version must still be matched (by digest) and

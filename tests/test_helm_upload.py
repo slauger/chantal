@@ -139,6 +139,18 @@ def test_parse_chart_rejects_non_dict_chart_yaml():
         _parse_bytes(buf.getvalue())
 
 
+def test_parse_chart_rejects_oversized_chart_yaml():
+    """A chart whose Chart.yaml expands to a huge size must be refused, not read."""
+    # ~4 MiB of highly-compressible YAML -> a few KB gzipped (a bomb), over the
+    # 1 MiB Chart.yaml cap.
+    bomb = ("a: " + "A" * (4 * 1024 * 1024) + "\nname: demo\nversion: 0.1.0\n").encode()
+    buf = io.BytesIO()
+    with tarfile.open(fileobj=buf, mode="w:gz") as tar:
+        _add(tar, "demo/Chart.yaml", bomb)
+    with pytest.raises(ChartFormatError, match="too large|maximum allowed size"):
+        _parse_bytes(buf.getvalue())
+
+
 def test_upload_maps_chart_fields(session, storage, repository, tmp_path):
     f = tmp_path / "demo-0.1.0.tgz"
     f.write_bytes(_build_chart())

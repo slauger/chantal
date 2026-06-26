@@ -19,6 +19,12 @@ class ChartFormatError(Exception):
     """Raised when the bytes are not a parseable Helm chart archive."""
 
 
+# A real Chart.yaml is a few KB. Cap the member well above any legitimate value
+# so a crafted archive declaring a huge Chart.yaml cannot exhaust memory when we
+# read it.
+_MAX_CHART_YAML_BYTES = 1 * 1024 * 1024
+
+
 def parse_chart_metadata(path: Path) -> dict:
     """Extract the ``Chart.yaml`` metadata from a packaged chart ``.tgz``.
 
@@ -42,6 +48,14 @@ def parse_chart_metadata(path: Path) -> dict:
             # The top-level Chart.yaml is the shallowest ("<chart>/Chart.yaml");
             # deeper ones belong to bundled subcharts (charts/<dep>/Chart.yaml).
             member = min(members, key=lambda m: m.name.count("/"))
+            # Reject an oversized Chart.yaml before reading it into memory so a
+            # crafted archive cannot exhaust memory. ``extractfile().read()`` is
+            # bounded by the (now-capped) member size.
+            if member.size > _MAX_CHART_YAML_BYTES:
+                raise ChartFormatError(
+                    f"Chart.yaml is too large ({member.size} bytes; "
+                    f"limit {_MAX_CHART_YAML_BYTES})"
+                )
             extracted = tar.extractfile(member)
             if extracted is None:
                 raise ChartFormatError("could not read Chart.yaml from chart archive")
