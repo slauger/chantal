@@ -11,7 +11,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any, Literal
 
 import yaml
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class ProxyConfig(BaseModel):
@@ -61,9 +61,8 @@ class AuthConfig(BaseModel):
     # Custom HTTP headers
     headers: dict[str, str] | None = None  # e.g., {"X-API-Key": "secret"}
 
-    # SSL/TLS verification
-    verify_ssl: bool = True  # Verify SSL certificates (set False to disable)
-    ca_bundle: str | None = None  # Path to CA bundle for custom CAs
+    # NOTE: SSL/TLS verification is configured under the repository's `ssl:`
+    # section (SSLConfig), not here.
 
 
 class RetentionConfig(BaseModel):
@@ -484,19 +483,23 @@ class FilterConfig(BaseModel):
         """Validate that only appropriate plugin-specific filters are used.
 
         Args:
-            repo_type: Repository type (rpm, deb, etc.)
+            repo_type: Repository type (rpm, apt, etc.)
 
         Raises:
             ValueError: If incompatible filters are specified
         """
         if repo_type == "rpm" and self.deb is not None:
             raise ValueError("Cannot use 'deb' filters with RPM repository")
-        if repo_type == "deb" and self.rpm is not None:
-            raise ValueError("Cannot use 'rpm' filters with DEB repository")
+        if repo_type == "apt" and self.rpm is not None:
+            raise ValueError("Cannot use 'rpm' filters with APT repository")
 
 
 class RepositoryConfig(BaseModel):
     """Repository configuration."""
+
+    # Reject unknown keys so a typo (e.g. `enabledd: true`) fails loudly at load
+    # time instead of being silently ignored.
+    model_config = ConfigDict(extra="forbid")
 
     id: str
     name: str | None = None
@@ -722,6 +725,9 @@ class DownloadConfig(BaseModel):
 class GlobalConfig(BaseModel):
     """Global Chantal configuration."""
 
+    # Reject unknown top-level keys so config typos fail loudly at load time.
+    model_config = ConfigDict(extra="forbid")
+
     database: DatabaseConfig = Field(default_factory=DatabaseConfig)
     storage: StorageConfig = Field(default_factory=StorageConfig)
     cache: CacheConfig | None = Field(default_factory=CacheConfig)
@@ -737,6 +743,24 @@ class GlobalConfig(BaseModel):
 
     # Include pattern for additional config files
     include: str | None = None
+
+    @model_validator(mode="after")
+    def validate_repositories_and_views(self) -> GlobalConfig:
+        """Normalize/validate repository filters and validate views at load time.
+
+        - Migrate legacy flat filters to the structured form for every repo
+          (previously only the RPM plugin did this, so APT silently ignored
+          legacy ``include_packages``/``exclude_packages``).
+        - Reject plugin-specific filters used with the wrong repository type.
+        - Reject views that reference unknown repositories or mix repo types.
+        """
+        for repo in self.repositories:
+            if repo.filters is not None:
+                repo.filters = repo.filters.normalize()
+                repo.filters.validate_for_repo_type(repo.type)
+        for view in self.views:
+            view.validate_repos(self.repositories)
+        return self
 
     def get_repository(self, repo_id: str) -> RepositoryConfig | None:
         """Get repository configuration by ID."""
