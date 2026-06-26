@@ -248,23 +248,6 @@
           ],
           "default": null,
           "title": "Headers"
-        },
-        "verify_ssl": {
-          "default": true,
-          "title": "Verify Ssl",
-          "type": "boolean"
-        },
-        "ca_bundle": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Ca Bundle"
         }
       },
       "required": [
@@ -872,6 +855,7 @@
       "type": "object"
     },
     "RepositoryConfig": {
+      "additionalProperties": false,
       "description": "Repository configuration.",
       "properties": {
         "id": {
@@ -1516,6 +1500,7 @@
       "type": "object"
     }
   },
+  "additionalProperties": false,
   "description": "Global Chantal configuration.",
   "properties": {
     "database": {
