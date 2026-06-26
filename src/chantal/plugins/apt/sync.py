@@ -37,6 +37,11 @@ logger = logging.getLogger(__name__)
 _INDEX_VARIANTS = (".gz", ".xz", ".bz2", ".zst", "")
 _COMPRESSED_SUFFIXES = (".gz", ".xz", ".bz2", ".zst")
 
+# Upper bound on a decompressed index. The largest real indices (Debian main
+# Contents-*) are a few hundred MB; this cap is far above that but stops a tiny,
+# highly-compressible Packages/Sources/Contents from expanding into many GB.
+_MAX_INDEX_BYTES = 2 * 1024 * 1024 * 1024
+
 
 def _pick_index_variant(base: str, checksums: dict) -> str | None:
     """Return the first present compression variant of ``base`` in ``checksums``.
@@ -52,9 +57,17 @@ def _pick_index_variant(base: str, checksums: dict) -> str | None:
 
 
 def _decompress_index(data: bytes, relative_path: str) -> bytes:
-    """Decompress an index file by its path suffix (gz/xz/bz2/zst or raw)."""
+    """Decompress an index file by its path suffix (gz/xz/bz2/zst or raw).
+
+    Bounded so a malicious (or, with verification disabled, simply untrusted)
+    upstream cannot ship a tiny index that inflates to many GB and OOMs the sync.
+    """
     suffix = PurePosixPath(relative_path).suffix
-    return decompress_bytes(data, suffix if suffix in _COMPRESSED_SUFFIXES else "")
+    return decompress_bytes(
+        data,
+        suffix if suffix in _COMPRESSED_SUFFIXES else "",
+        max_output_bytes=_MAX_INDEX_BYTES,
+    )
 
 
 @dataclass
