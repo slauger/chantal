@@ -407,16 +407,40 @@ def create_db_group(cli: click.Group) -> click.Group:
     @click.pass_context
     def db_stats(ctx: click.Context) -> None:
         """Show database statistics."""
-        click.echo("Database Statistics:")
-        click.echo("TODO: Query database statistics")
-        click.echo()
-        click.echo("Expected output:")
-        click.echo("  Total Packages: 8,320")
-        click.echo("  Referenced Packages: 8,273 (99%)")
-        click.echo("  Unreferenced Packages: 47 (1%, 450 MB)")
-        click.echo("  Total Repositories: 5")
-        click.echo("  Total Snapshots: 23")
-        click.echo("  Database Size: 245 MB")
+        from sqlalchemy.exc import OperationalError
+
+        from chantal.core.stats import (
+            format_bytes,
+            gather_global_stats,
+            unreferenced_content_items,
+        )
+
+        config: GlobalConfig = ctx.obj["config"]
+        db_manager = DatabaseManager(config.database.url)
+        session = db_manager.get_session()
+        try:
+            s = gather_global_stats(session)
+            unref = unreferenced_content_items(session)
+            unref_count = unref.count()
+            unref_bytes = sum(item.size_bytes for item in unref) if unref_count else 0
+            total = s["content_items"]
+            referenced = total - unref_count
+
+            click.echo("Database Statistics:")
+            click.echo(f"  Total Packages: {total:,}")
+            for ctype, count in sorted(s["by_type"].items()):
+                click.echo(f"    {ctype}: {count:,}")
+            ref_pct = (referenced / total * 100) if total else 0
+            click.echo(f"  Referenced Packages: {referenced:,} ({ref_pct:.0f}%)")
+            click.echo(f"  Unreferenced Packages: {unref_count:,} ({format_bytes(unref_bytes)})")
+            click.echo(f"  Total Repositories: {s['repositories']:,}")
+            click.echo(f"  Total Snapshots: {s['snapshots']:,}")
+            click.echo(f"  Pool Size on Disk: {format_bytes(s['pool_bytes'])}")
+        except OperationalError:
+            click.echo("Database not initialized. Run 'chantal db init' first.", err=True)
+            ctx.exit(1)
+        finally:
+            session.close()
 
     @db.command("verify")
     @click.pass_context
