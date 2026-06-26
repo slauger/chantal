@@ -24,6 +24,11 @@ from chantal.plugins.apk.models import ApkMetadata
 
 logger = logging.getLogger(__name__)
 
+# Even a very large Alpine repository's decompressed APKINDEX is well under this;
+# the cap stops a tiny but highly-compressible APKINDEX.tar.gz from exhausting
+# memory when extracted.
+_MAX_APKINDEX_BYTES = 256 * 1024 * 1024
+
 
 class ApkSyncer:
     """Syncer for Alpine APK repositories.
@@ -107,12 +112,12 @@ class ApkSyncer:
             f"{apk_config.branch}/{apk_config.repository}/{apk_config.architecture}/APKINDEX.tar.gz",
         )
 
-        # Fetch and parse APKINDEX
+        # Fetch and parse APKINDEX (single download, reused for storage)
         self.output.phase("Downloading APKINDEX.tar.gz", number=1)
-        index_data = self._fetch_apkindex(index_url, config)
+        index_data, raw_index = self._fetch_apkindex(index_url, config)
 
         # Store APKINDEX.tar.gz as RepositoryFile for mirror mode
-        self._store_apkindex_file(index_url, config, session, repository)
+        self._store_apkindex_file(raw_index, config, session, repository)
 
         # Parse packages from APKINDEX
         all_packages = self._parse_apkindex(index_data)
@@ -259,24 +264,27 @@ class ApkSyncer:
 
         return stats
 
-    def _fetch_apkindex(self, url: str, config: RepositoryConfig) -> str:
-        """Fetch and parse APKINDEX.tar.gz.
+    def _fetch_apkindex(self, url: str, config: RepositoryConfig) -> tuple[str, bytes]:
+        """Fetch APKINDEX.tar.gz once and extract its text content.
 
         Args:
             url: APKINDEX.tar.gz URL
             config: Repository configuration (for credentials)
 
         Returns:
-            str: Parsed APKINDEX text content
+            ``(apkindex_text, raw_tar_gz_bytes)`` - the raw bytes are reused to
+            store the file (mirror mode) without a second download, which also
+            closes the TOCTOU window between the parsed and stored index.
         """
         logger.info(f"Fetching APKINDEX from {url}")
 
         response = self.session.get(url, timeout=30)
         response.raise_for_status()
+        raw = response.content
 
         # Extract APKINDEX from tar.gz
         with tempfile.NamedTemporaryFile(delete=False, suffix=".tar.gz") as tmp:
-            tmp.write(response.content)
+            tmp.write(raw)
             tmp_path = tmp.name
 
         try:
@@ -284,10 +292,19 @@ class ApkSyncer:
                 # APKINDEX is the only file in the archive
                 for member in tar.getmembers():
                     if member.name == "APKINDEX" or member.name.endswith("/APKINDEX"):
+                        # Bound the decompressed size so a crafted tiny archive
+                        # cannot expand into a multi-GB buffer.
+                        if member.size > _MAX_APKINDEX_BYTES:
+                            raise ValueError(
+                                f"APKINDEX too large ({member.size} bytes; "
+                                f"limit {_MAX_APKINDEX_BYTES})"
+                            )
                         f = tar.extractfile(member)
                         if f:
-                            content = f.read().decode("utf-8")
-                            return content
+                            # Lenient decode: a stray non-UTF-8 byte in a third
+                            # party repo must not drop the whole index.
+                            content = f.read().decode("utf-8", "replace")
+                            return content, raw
 
             raise ValueError("APKINDEX file not found in archive")
         finally:
@@ -418,28 +435,25 @@ class ApkSyncer:
 
     def _store_apkindex_file(
         self,
-        index_url: str,
+        raw_index: bytes,
         config: RepositoryConfig,
         session: Session,
         repository: Repository,
     ) -> None:
-        """Download and store APKINDEX.tar.gz as RepositoryFile for mirror mode.
+        """Store the already-fetched APKINDEX.tar.gz as a RepositoryFile.
 
         Args:
-            index_url: URL to APKINDEX.tar.gz
+            raw_index: The APKINDEX.tar.gz bytes fetched by ``_fetch_apkindex``
+                (reused to avoid a second download / TOCTOU).
             config: Repository configuration
             session: Database session
             repository: Repository model instance
         """
         logger.info("Storing APKINDEX.tar.gz as RepositoryFile")
 
-        # Download APKINDEX.tar.gz
-        response = self.session.get(index_url, timeout=30)
-        response.raise_for_status()
-
-        # Write to temporary file
+        # Write the already-downloaded bytes to a temporary file for pooling.
         with tempfile.NamedTemporaryFile(delete=False, suffix=".tar.gz") as tmp:
-            tmp.write(response.content)
+            tmp.write(raw_index)
             tmp_path = Path(tmp.name)
 
         try:
