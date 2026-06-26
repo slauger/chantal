@@ -547,11 +547,16 @@ class HelmSyncer:
             # Build helm command
             cmd = ["helm", "pull", url, "--destination", str(tmpdir_path)]
 
-            # Add registry credentials if available
+            # Pass registry credentials directly so private OCI registries work
+            # without relying on a prior `helm registry login` (which would make
+            # the mirror depend on ambient host state).
             if config.auth and config.auth.username and config.auth.password:
-                # helm pull will use credentials from helm registry login
-                # For inline credentials, we'd need to run helm registry login first
-                logger.debug("Registry credentials available but helm pull uses stored credentials")
+                cmd += [
+                    "--username",
+                    config.auth.username,
+                    "--password",
+                    config.auth.password,
+                ]
 
             try:
                 # Execute helm pull

@@ -115,6 +115,14 @@ class HelmPublisher(PublisherPlugin):
         """
         target_path.mkdir(parents=True, exist_ok=True)
 
+        # A repackaged chart (same name+version, hence same filename, but new
+        # bytes) leaves two ContentItems linked. Publishing both hardlinks the
+        # same filename twice (last wins on disk) and emits two index entries with
+        # conflicting digests pointing at the one file - a client resolving the
+        # wrong digest then fails verification. Keep one chart per filename (the
+        # most recently synced, i.e. highest id) so disk and index agree.
+        charts = self._dedup_charts_by_filename(charts)
+
         # Hardlink chart files to target directory
         for chart in charts:
             pool_path = self.storage.get_absolute_pool_path(chart.sha256, chart.filename)
@@ -131,6 +139,22 @@ class HelmPublisher(PublisherPlugin):
         )
 
         logger.info(f"Published {len(charts)} charts to {target_path}")
+
+    @staticmethod
+    def _dedup_charts_by_filename(charts: list[ContentItem]) -> list[ContentItem]:
+        """Keep a single chart per published filename (the highest-id one).
+
+        Two ContentItems can share a filename when upstream repackages a chart
+        (same name+version, new bytes). They map to one tarball on disk, so the
+        published index must reference exactly one of them; keep the most recently
+        synced (highest id) so the index digest matches the file that wins on disk.
+        """
+        by_filename: dict[str, ContentItem] = {}
+        for chart in charts:
+            existing = by_filename.get(chart.filename)
+            if existing is None or (chart.id or 0) > (existing.id or 0):
+                by_filename[chart.filename] = chart
+        return list(by_filename.values())
 
     def _publish_metadata_files(
         self,
