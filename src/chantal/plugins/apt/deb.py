@@ -20,6 +20,12 @@ from chantal.plugins.rpm.modules import decompress_bytes
 _AR_MAGIC = b"!<arch>\n"
 _AR_HEADER_SIZE = 60
 
+# A real Debian control.tar is a few KB and virtually never exceeds a few
+# hundred KB. Cap the decompressed size well above any legitimate value so a
+# tiny but highly-compressible control.tar.* cannot expand into a memory bomb.
+# (Only control.tar is decompressed here; the large data.tar is never touched.)
+_MAX_CONTROL_TAR_BYTES = 16 * 1024 * 1024
+
 
 class DebFormatError(Exception):
     """Raised when the bytes are not a parseable ``.deb`` package."""
@@ -41,6 +47,14 @@ def _iter_ar_members(data: bytes) -> Iterator[tuple[str, bytes]]:
         except ValueError as exc:
             raise DebFormatError("corrupt ar header (bad size)") from exc
         start = offset + _AR_HEADER_SIZE
+        # A negative size would move ``offset`` backwards and loop forever; an
+        # oversized one would yield a silently-truncated payload. Rejecting both
+        # also guarantees forward progress (offset advances by >= the header size
+        # every iteration), so the loop always terminates.
+        if size < 0:
+            raise DebFormatError("corrupt ar header (negative size)")
+        if start + size > len(data):
+            raise DebFormatError("corrupt ar header (size exceeds archive)")
         payload = data[start : start + size]
         yield name, payload
         # Member data is padded to an even byte boundary.
@@ -83,7 +97,11 @@ def parse_deb_control(data: bytes) -> dict[str, str]:
         raise DebFormatError("no control.tar member found in .deb")
 
     try:
-        tar_bytes = decompress_bytes(control_bytes, _control_suffix(control_name))
+        tar_bytes = decompress_bytes(
+            control_bytes,
+            _control_suffix(control_name),
+            max_output_bytes=_MAX_CONTROL_TAR_BYTES,
+        )
         with tarfile.open(fileobj=BytesIO(tar_bytes)) as tar:
             member = next(
                 (m for m in tar.getmembers() if m.name in ("./control", "control")),

@@ -128,6 +128,43 @@ def test_parse_deb_control_rejects_non_deb():
         parse_deb_control(b"not a deb at all")
 
 
+def _ar_member_raw_size(name: str, size_str: str, data: bytes) -> bytes:
+    """Build an ar member with an attacker-controlled size field."""
+    header = (
+        name.ljust(16).encode()
+        + b"0".ljust(12)
+        + b"0".ljust(6)
+        + b"0".ljust(6)
+        + b"100644".ljust(8)
+        + size_str.ljust(10).encode()
+        + b"`\n"
+    )
+    return header + data
+
+
+def test_iter_ar_members_rejects_negative_size():
+    """A negative ar size used to move the cursor backwards -> infinite loop."""
+    deb = b"!<arch>\n" + _ar_member_raw_size("debian-binary", "-100", b"2.0\n")
+    with pytest.raises(DebFormatError, match="negative size"):
+        parse_deb_control(deb)
+
+
+def test_iter_ar_members_rejects_oversized_member():
+    """A size larger than the remaining archive must be rejected, not truncated."""
+    deb = b"!<arch>\n" + _ar_member_raw_size("control.tar", "99999999", b"short")
+    with pytest.raises(DebFormatError, match="exceeds archive"):
+        parse_deb_control(deb)
+
+
+def test_parse_deb_control_rejects_decompression_bomb():
+    """A tiny control.tar.gz that expands past the cap must be refused."""
+    # ~32 MiB of highly-compressible data in ./control -> a few KB gzipped,
+    # well over the 16 MiB control.tar cap.
+    deb = _build_deb("X" * (32 * 1024 * 1024), compression="gz")
+    with pytest.raises(DebFormatError, match="decompression bomb|exceeds"):
+        parse_deb_control(deb)
+
+
 def test_upload_maps_control_fields(session, storage, repository, tmp_path):
     f = tmp_path / "demo_1.0_amd64.deb"
     f.write_bytes(_build_deb())
