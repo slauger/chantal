@@ -25,6 +25,25 @@ def test_unknown_top_level_key_is_rejected():
         GlobalConfig(databse={"url": "sqlite://"})
 
 
+@pytest.mark.parametrize(
+    "section, payload",
+    [
+        ("ssl", {"verifyy": False}),  # SSLConfig typo
+        ("apt", {"distribution": "jammy", "componentss": ["main"]}),  # AptConfig typo
+        ("schedule", {"enabledd": True}),  # ScheduleConfig typo
+        ("storage", {"base_pathh": "/tmp"}),  # StorageConfig typo (top-level section)
+    ],
+)
+def test_unknown_key_on_nested_model_is_rejected(section, payload):
+    """A typo in a nested config section must fail loudly, not be silently dropped."""
+    if section == "storage":
+        with pytest.raises(ValidationError, match="Extra inputs|base_pathh"):
+            GlobalConfig(storage=payload)
+    else:
+        with pytest.raises(ValidationError, match="Extra inputs"):
+            RepositoryConfig(**_repo(**{section: payload}))
+
+
 def test_view_referencing_unknown_repo_is_rejected():
     with pytest.raises(ValidationError, match="unknown repository"):
         GlobalConfig(
