@@ -367,41 +367,30 @@ class ApkSyncer:
         # Post-processing: only_latest_version
         if config.filters and config.filters.post_processing:
             if config.filters.post_processing.only_latest_version:
-                # Group by package name and keep only latest version
-                from packaging import version as pkg_version
+                # Keep only the newest version of each (name, arch), using apk's
+                # own version ordering (PEP 440 disagrees on _pre/_p/_rc suffixes
+                # and on numeric -rN ordering).
+                from chantal.plugins.apk.version import apk_version_compare
 
-                by_name = {}
+                by_key: dict[tuple[str, str], dict] = {}
                 for pkg in filtered:
-                    name = pkg["name"]
-                    ver = pkg["version"]
+                    key = (pkg["name"], pkg.get("architecture", ""))
+                    current = by_key.get(key)
+                    if current is None:
+                        by_key[key] = pkg
+                        continue
+                    try:
+                        if apk_version_compare(pkg["version"], current["version"]) > 0:
+                            by_key[key] = pkg
+                    except ValueError as e:
+                        # Unparseable version: keep the already-stored package so
+                        # the result is deterministic rather than crashing a sync.
+                        logger.warning(
+                            f"APK version comparison failed for {pkg['name']} "
+                            f"({pkg['version']} vs {current['version']}): {e}"
+                        )
 
-                    # APK versions can have -rN suffix (package release)
-                    # For comparison, we'll use the full version string
-                    if name not in by_name:
-                        by_name[name] = pkg
-                    else:
-                        # Compare versions (APK uses -rN suffix)
-                        try:
-                            current_ver = ver.split("-r")[0]  # Strip -rN for comparison
-                            stored_ver = by_name[name]["version"].split("-r")[0]
-
-                            if pkg_version.parse(current_ver) > pkg_version.parse(stored_ver):
-                                by_name[name] = pkg
-                            elif pkg_version.parse(current_ver) == pkg_version.parse(stored_ver):
-                                # Same version, check release number
-                                current_rel = int(ver.split("-r")[1]) if "-r" in ver else 0
-                                stored_rel = (
-                                    int(by_name[name]["version"].split("-r")[1])
-                                    if "-r" in by_name[name]["version"]
-                                    else 0
-                                )
-                                if current_rel > stored_rel:
-                                    by_name[name] = pkg
-                        except Exception as e:
-                            logger.warning(f"Version comparison failed for {name}: {e}")
-                            pass
-
-                filtered = list(by_name.values())
+                filtered = list(by_key.values())
 
         return filtered
 
