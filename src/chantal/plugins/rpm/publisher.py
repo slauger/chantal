@@ -9,6 +9,8 @@ This module implements publishing for RPM repositories with yum/dnf metadata.
 import bz2
 import gzip
 import hashlib
+import io
+import lzma
 import shutil
 import xml.etree.ElementTree as ET
 from datetime import UTC, datetime
@@ -805,16 +807,25 @@ class RpmPublisher(PublisherPlugin):
 
         return nvras
 
-    def _build_package_pkgid_set(self, packages: list[ContentItem]) -> set[str]:
-        """Build set of package IDs (SHA256) for filtering.
+    @staticmethod
+    def _package_elem_nvra(package_elem: ET.Element, ns: str) -> str | None:
+        """NVRA of a filelists/other ``<package>`` element, or None if incomplete.
 
-        Args:
-            packages: List of ContentItem packages
-
-        Returns:
-            Set of pkgid strings (SHA256 checksums)
+        filelists.xml/other.xml ``<package>`` carry ``name``/``arch`` attributes
+        and a ``<version epoch ver rel/>`` child - the same fields used to build
+        the surviving-package NVRA set, so matching is algorithm-agnostic (works
+        for sha1/sha256/sha512 repos, unlike the pkgid checksum).
         """
-        return {pkg.sha256 for pkg in packages}
+        name = package_elem.get("name")
+        arch = package_elem.get("arch")
+        version_elem = package_elem.find(f"{{{ns}}}version")
+        if version_elem is None or not name or not arch:
+            return None
+        ver = version_elem.get("ver")
+        rel = version_elem.get("rel")
+        if not ver or not rel:
+            return None
+        return f"{name}-{ver}-{rel}.{arch}"
 
     def _build_module_artifact_nevra_set(self, packages: list[ContentItem]) -> set[str]:
         """Build the modulemd-style NEVRA set used to filter ``modules.yaml``.
@@ -951,43 +962,27 @@ class RpmPublisher(PublisherPlugin):
         filelists_path = filelists_entry[1]
 
         try:
-            # Build set of available package IDs
-            available_pkgids = self._build_package_pkgid_set(packages)
+            # Match by NVRA (not pkgid): the filelists pkgid is the package
+            # checksum in the repo's algorithm (sha1/sha256/sha512), which need
+            # not equal the locally-computed sha256 we store. NVRA matches the
+            # primary filter exactly, so primary and filelists always agree.
+            available_nvras = self._build_package_nvra_set(packages)
+            ns = "http://linux.duke.edu/metadata/filelists"
 
-            # Parse and filter filelists.xml
-            import lzma
-            import xml.etree.ElementTree as ET
-
-            # Decompress based on extension
-            if filelists_path.suffix == ".xz":
-                with lzma.open(filelists_path, "rb") as f:
-                    tree = ET.parse(f)
-            elif filelists_path.suffix == ".bz2":
-                with bz2.open(filelists_path, "rb") as f:
-                    tree = ET.parse(f)
-            elif filelists_path.suffix == ".gz":
-                with gzip.open(filelists_path, "rb") as f:
-                    tree = ET.parse(f)
-            elif filelists_path.suffix == ".zst":
-                import io
-
-                import zstandard as zstd
-
-                with open(filelists_path, "rb") as f:
-                    dctx = zstd.ZstdDecompressor()
-                    decompressed = dctx.decompress(f.read())
-                    tree = ET.parse(io.BytesIO(decompressed))
-            else:
-                tree = ET.parse(filelists_path)
+            # Stream-decompress (the one-shot zstd path fails on frames without an
+            # embedded content size, which createrepo_c often omits).
+            tree = ET.parse(
+                io.BytesIO(decompress_bytes(filelists_path.read_bytes(), filelists_path.suffix))
+            )
 
             root = tree.getroot()
             original_count = int(root.get("packages", "0"))
 
-            # Filter packages by pkgid
+            # Filter packages by NVRA
             packages_to_remove = []
-            for package_elem in root.findall("{http://linux.duke.edu/metadata/filelists}package"):
-                pkgid = package_elem.get("pkgid")
-                if pkgid not in available_pkgids:
+            for package_elem in root.findall(f"{{{ns}}}package"):
+                nvra = self._package_elem_nvra(package_elem, ns)
+                if nvra is None or nvra not in available_nvras:
                     packages_to_remove.append(package_elem)
 
             for package_elem in packages_to_remove:
@@ -1088,43 +1083,24 @@ class RpmPublisher(PublisherPlugin):
         other_path = other_entry[1]
 
         try:
-            # Build set of available package IDs
-            available_pkgids = self._build_package_pkgid_set(packages)
+            # Match by NVRA (not pkgid) - see _filter_and_regenerate_filelists.
+            available_nvras = self._build_package_nvra_set(packages)
+            ns = "http://linux.duke.edu/metadata/other"
 
-            # Parse and filter other.xml
-            import lzma
-            import xml.etree.ElementTree as ET
-
-            # Decompress based on extension
-            if other_path.suffix == ".xz":
-                with lzma.open(other_path, "rb") as f:
-                    tree = ET.parse(f)
-            elif other_path.suffix == ".bz2":
-                with bz2.open(other_path, "rb") as f:
-                    tree = ET.parse(f)
-            elif other_path.suffix == ".gz":
-                with gzip.open(other_path, "rb") as f:
-                    tree = ET.parse(f)
-            elif other_path.suffix == ".zst":
-                import io
-
-                import zstandard as zstd
-
-                with open(other_path, "rb") as f:
-                    dctx = zstd.ZstdDecompressor()
-                    decompressed = dctx.decompress(f.read())
-                    tree = ET.parse(io.BytesIO(decompressed))
-            else:
-                tree = ET.parse(other_path)
+            # Stream-decompress (the one-shot zstd path fails on frames without an
+            # embedded content size, which createrepo_c often omits).
+            tree = ET.parse(
+                io.BytesIO(decompress_bytes(other_path.read_bytes(), other_path.suffix))
+            )
 
             root = tree.getroot()
             original_count = int(root.get("packages", "0"))
 
-            # Filter packages by pkgid
+            # Filter packages by NVRA
             packages_to_remove = []
-            for package_elem in root.findall("{http://linux.duke.edu/metadata/other}package"):
-                pkgid = package_elem.get("pkgid")
-                if pkgid not in available_pkgids:
+            for package_elem in root.findall(f"{{{ns}}}package"):
+                nvra = self._package_elem_nvra(package_elem, ns)
+                if nvra is None or nvra not in available_nvras:
                     packages_to_remove.append(package_elem)
 
             for package_elem in packages_to_remove:
