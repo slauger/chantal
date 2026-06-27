@@ -43,8 +43,8 @@ The RPM plugin consists of:
 - ✅ Compression level tests
 - ✅ Large data handling tests
 
-**Planned:**
-- 🚧 Delta RPMs
+**Not supported:**
+- ❌ Delta RPMs (drpm / prestodelta) — see [Limitations](#limitations)
 
 **Note:** RPM packages are served unmodified and keep their upstream signatures
 (verified client-side with `gpgcheck=1`). Chantal signs only the repository
@@ -146,10 +146,13 @@ repositories:
 ```
 
 **Behavior:**
-- ✅ All metadata files downloaded: updateinfo, filelists, other, comps, modules, etc.
-- ✅ Metadata published unchanged (no filtering)
-- ✅ Perfect 1:1 mirror of upstream repository
-- ✅ Ideal for: Complete repository mirrors, compliance requirements
+- ✅ All package files mirrored; `primary`/`filelists`/`other`/`updateinfo`/`comps`/`modules` published
+- ⚠️ `primary.xml` and `repomd.xml` are **regenerated** (package `<location>`s are
+  rewritten to the republished `Packages/` layout), so the published repo is not
+  byte-for-byte identical to upstream
+- ⚠️ zchunk (`*_zck`) and sqlite (`*_db`) metadata variants are **dropped** — see
+  [Limitations](#limitations); clients fall back to `primary.xml.gz`
+- ✅ Ideal for: complete repository mirrors, compliance requirements
 
 **Metadata types mirrored:**
 - `primary` - Package metadata (name, version, arch, dependencies)
@@ -471,10 +474,9 @@ Zero-copy publishing using hardlinks.
 #### 4. Publish Metadata
 
 **Mirror Mode:**
-- Copy ALL metadata files from pool to `repodata/`
-- Hardlinks: `pool/files/{sha256}.xml.gz` → `repodata/{type}.xml.gz`
-- Copy `repomd.xml` unchanged
-- Perfect 1:1 mirror
+- Hardlink metadata files from pool to `repodata/` (zchunk/sqlite variants dropped)
+- Regenerate `primary.xml` and `repomd.xml` (locations rewritten, repomd re-signed
+  when a GPG key is configured)
 
 **Filtered Mode:**
 - Generate `primary.xml` with filtered package list
@@ -869,9 +871,19 @@ Warning: Filtered out all packages, 0 remaining
 - Verify architecture filter includes needed architectures
 - Review `only_latest_version` setting
 
-## Future Enhancements
+## Limitations
 
-- **Delta RPMs** - Download only package deltas (drpm)
+- **No Delta RPMs (drpm / prestodelta).** Not supported and not planned: for an
+  offline mirror the bandwidth saving (client↔mirror) is marginal, and chantal
+  downloads full RPMs anyway. The `prestodelta` metadata and `.drpm` files are not
+  mirrored.
+- **zchunk (`*_zck`) is dropped in every mode.** chantal cannot recompute a
+  zchunk's de-chunked open-checksum without a zchunk library, so it cannot emit a
+  valid repomd entry for it. dnf falls back to `primary.xml.gz`.
+- **sqlite (`*_db`) is dropped in every mode.** chantal regenerates `primary.xml`
+  with rewritten package locations but cannot rewrite the sqlite databases, whose
+  embedded locations would then be stale. Old yum clients fall back to
+  `primary.xml.gz`.
 
 (Modular repositories, GPG package-signature verification, comps, updateinfo, and
 filelists are already implemented — see the sections above.)

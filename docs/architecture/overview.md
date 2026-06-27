@@ -345,16 +345,24 @@ See [Plugin System](plugin-system.md) for details.
 ## Security Considerations
 
 1. **Certificate validation:** Always verify SSL certificates
-2. **Checksum verification:** All packages verified via SHA256
-3. **Database injection:** SQLAlchemy prevents SQL injection
-4. **Path traversal:** All paths validated and normalized
-5. **Permissions:** Follow principle of least privilege
+2. **Checksum verification:** All packages verified via SHA256 (integrity)
+3. **Signature verification (authenticity):** GPG/OpenPGP verification of upstream
+   metadata (RPM `repomd.xml.asc`, APT `InRelease`/`Release.gpg`, RPM package
+   header signatures) is implemented but **OFF by default** — enable it under the
+   repository's `verify:` block. Until enabled, a mirror is authenticated only by
+   checksum, so a compromised or MITM'd upstream that serves a self-consistent
+   metadata set is trusted. APT additionally rejects an expired (`Valid-Until` in
+   the past) Release when verification is enabled.
+4. **Database injection:** SQLAlchemy prevents SQL injection
+5. **Path traversal:** All paths validated and normalized
+6. **Permissions:** Follow principle of least privilege
 
 ## Future Enhancements
 
 1. **Parallel downloads:** Download multiple packages concurrently
-2. **Delta syncs:** Only download package deltas
-3. **Signature verification:** GPG signature checking
-4. **Compression:** Compress pool storage
-5. **Web UI:** Read-only web interface
-6. **REST API:** HTTP API for automation
+2. **Compression:** Compress pool storage
+3. **Web UI:** Read-only web interface
+4. **REST API:** HTTP API for automation
+
+> Delta RPMs (drpm/prestodelta) are **not planned** — see the RPM plugin
+> limitations.

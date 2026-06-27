@@ -4,7 +4,7 @@ First off, thank you for considering contributing to Chantal!
 
 ## Project Status
 
-**✅ Chantal is an actively maintained, released project (v1.4.0, available on [PyPI](https://pypi.org/project/chantal/)).**
+**✅ Chantal is an actively maintained, released project (available on [PyPI](https://pypi.org/project/chantal/)).**
 
 Contributions are welcome - bug reports, feature requests, documentation improvements, and pull requests.
 
@@ -100,11 +100,20 @@ ruff check --fix src/  # Auto-fix issues
 #### 4. Testing (pytest)
 
 ```bash
-pytest tests/ -v
+# Unit tests (fast, no external tools)
+pytest tests/ -v -m "not e2e"
+
+# End-to-end tests (build a fixture repo, sync, publish, and consume with a
+# real client). These require docker and gpg; without them the docker/gpg-gated
+# tests skip. Select a single plugin's e2e with its marker:
+pytest tests/e2e -v -m "e2e and rpm"   # or apt / helm / apk
 ```
 
 - Write tests for new features
 - All tests must pass
+- CI sets `CHANTAL_REQUIRE_DOCKER=1` / `CHANTAL_REQUIRE_GPG=1` so a missing tool
+  **fails** (rather than silently skips) the e2e suite — install docker and gpg
+  to run the real-client tests locally.
 
 ### Common Type Patterns
 
