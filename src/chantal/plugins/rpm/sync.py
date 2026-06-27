@@ -312,6 +312,9 @@ class RpmSyncPlugin:
                     # than silently skipping the offending package.
                     raise
                 except Exception as e:
+                    # Roll back so a failed commit (e.g. a stray IntegrityError)
+                    # doesn't poison the session for every subsequent package.
+                    session.rollback()
                     self.output.error(f"Failed to download {nvra}: {e}")
                     # Continue with next package
 
@@ -811,6 +814,19 @@ class RpmSyncPlugin:
                 sha256, pool_path, size_bytes = self.storage.add_package(
                     tmp_path, filename, verify_checksum=True
                 )
+
+                # Deduplicate by the locally-computed sha256 (the unique key).
+                # The pre-download check keys on the upstream pkgid, which is the
+                # package checksum in the repo's algorithm (sha1/sha512), so for a
+                # non-sha256 repo it never matches our sha256 and a re-sync would
+                # otherwise try to insert a duplicate row -> IntegrityError. Link
+                # the existing package to this repository instead.
+                existing = session.query(ContentItem).filter_by(sha256=sha256).first()
+                if existing is not None:
+                    if repository not in existing.repositories:
+                        existing.repositories.append(repository)
+                        session.commit()
+                    return bytes_downloaded
 
                 # Build RPM metadata
                 rpm_metadata = RpmMetadata(
