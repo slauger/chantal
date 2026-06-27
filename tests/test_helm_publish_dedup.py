@@ -35,6 +35,12 @@ def test_dedup_keeps_highest_id_per_filename():
     assert len(result) == 1
     assert result[0].sha256 == "b" * 64
 
+    # Highest id wins regardless of input order (not "last seen"): feeding the
+    # newer chart first must still keep the newer one.
+    result_desc = HelmPublisher._dedup_charts_by_filename([newer, older])
+    assert len(result_desc) == 1
+    assert result_desc[0].sha256 == "b" * 64
+
     # Distinct filenames are all kept.
     other = _chart(3, "c" * 64, filename="other-2.0.0.tgz")
     result2 = HelmPublisher._dedup_charts_by_filename([older, newer, other])

@@ -7,6 +7,8 @@ repository at a vulnerable state.
 
 from __future__ import annotations
 
+from unittest.mock import Mock
+
 import pytest
 
 from chantal.core.config import AptConfig, RepositoryConfig, SignatureVerificationConfig
@@ -38,8 +40,12 @@ def test_expired_release_fails_under_fail_policy():
 
 
 def test_expired_release_warns_under_warn_policy():
-    # warn policy logs but does not raise.
-    _syncer(policy="warn")._enforce_release_freshness(_PAST)
+    # warn policy must surface a warning (not silently accept) without raising.
+    syncer = _syncer(policy="warn")
+    syncer.output.warning = Mock()
+    syncer._enforce_release_freshness(_PAST)
+    assert syncer.output.warning.call_count == 1
+    assert "expired" in syncer.output.warning.call_args.args[0]
 
 
 def test_future_release_is_accepted():
@@ -50,8 +56,14 @@ def test_no_valid_until_is_accepted():
     _syncer(policy="fail")._enforce_release_freshness(None)
 
 
-def test_unparseable_valid_until_does_not_raise():
-    _syncer(policy="fail")._enforce_release_freshness("not a date")
+def test_unparseable_valid_until_warns_and_does_not_raise():
+    # An unparseable Valid-Until must not be silently treated as fresh: warn,
+    # but do not raise (we cannot prove staleness from a date we can't read).
+    syncer = _syncer(policy="fail")
+    syncer.output.warning = Mock()
+    syncer._enforce_release_freshness("not a date")
+    assert syncer.output.warning.call_count == 1
+    assert "Valid-Until" in syncer.output.warning.call_args.args[0]
 
 
 def test_verification_disabled_skips_enforcement():
