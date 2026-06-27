@@ -480,7 +480,12 @@ class TestHelmIntegration:
             "apiVersion": "v1",
             "entries": {"demo": [{"name": "demo", "version": "0.1.0", "urls": ["demo-0.1.0.tgz"]}]},
         }
-        mock_download.return_value = (Path("ab/cd/demo-0.1.0.tgz"), "ab" * 32, 123, "demo-0.1.0.tgz")
+        mock_download.return_value = (
+            Path("ab/cd/demo-0.1.0.tgz"),
+            "ab" * 32,
+            123,
+            "demo-0.1.0.tgz",
+        )
 
         repo_config = RepositoryConfig(
             id="test-helm", name="Test", type="helm", feed="https://charts.example.com"
