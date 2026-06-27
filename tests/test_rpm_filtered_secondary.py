@@ -188,15 +188,16 @@ def test_filtered_mode_drops_zck_and_db(publisher, tmp_path):
     assert not (repodata / "3333-primary.sqlite.bz2").exists()
 
 
-def test_mirror_mode_drops_zck_but_keeps_db(publisher, tmp_path):
-    """Mirror mode keeps the valid *_db (correct open-checksum) but still drops
-    *_zck, which chantal cannot re-checksum without zchunk de-chunking."""
+def test_mirror_mode_drops_zck_and_db(publisher, tmp_path):
+    """Mirror mode also drops *_zck and *_db: chantal regenerates primary.xml
+    with rewritten Packages/ locations even in mirror mode, so the kept sqlite
+    would point sqlite-consuming clients at stale upstream paths."""
     repodata = tmp_path / "repodata"
     repodata.mkdir()
     published = _published(repodata)
 
     kept = publisher._drop_unpublishable_metadata(published, repodata, "mirror")
 
-    assert sorted(ft for ft, _ in kept) == ["primary", "primary_db"]
+    assert [ft for ft, _ in kept] == ["primary"]
     assert not (repodata / "2222-primary.xml.zck").exists()
-    assert (repodata / "3333-primary.sqlite.bz2").exists()
+    assert not (repodata / "3333-primary.sqlite.bz2").exists()

@@ -631,20 +631,27 @@ class RpmPublisher(PublisherPlugin):
     ) -> list[tuple[str, Path]]:
         """Drop metadata variants chantal cannot republish correctly.
 
-        - ``*_zck`` (zchunk): always dropped - chantal cannot recompute the
-          de-chunked open-checksum, so a repomd entry for it would be invalid.
-        - ``*_db`` (sqlite primary/filelists/other): dropped in filtered mode,
-          where they would otherwise enumerate the full upstream package set
-          including filtered-out packages.
+        Both are dropped in *every* mode, because chantal regenerates primary.xml
+        with each package ``<location>`` rewritten to the republished ``Packages/``
+        layout in mirror mode too:
 
-        The dropped files are also unlinked from the published repodata so the
-        repository does not carry metadata the repomd no longer references.
+        - ``*_zck`` (zchunk): chantal cannot recompute the de-chunked
+          open-checksum, so a repomd entry for it would be invalid.
+        - ``*_db`` (sqlite primary/filelists/other): the sqlite still carries the
+          upstream package locations (and, in filtered mode, the full upstream
+          package set), so a sqlite-consuming client would resolve wrong/removed
+          download URLs. chantal cannot rewrite sqlite, so drop it.
+
+        dnf/yum fall back to ``primary.xml(.gz)``. The dropped files are unlinked
+        from the published repodata so the repository does not carry metadata the
+        repomd no longer references. (``mode`` is retained for signature parity
+        with the other filter helpers.)
         """
         kept: list[tuple[str, Path]] = []
         for file_type, file_path in published_metadata:
             is_zck = file_type.endswith("_zck") or file_path.name.endswith(".zck")
             is_db = file_type.endswith("_db")
-            if is_zck or (is_db and mode == RepositoryMode.FILTERED):
+            if is_zck or is_db:
                 file_path.unlink(missing_ok=True)
                 continue
             kept.append((file_type, file_path))
