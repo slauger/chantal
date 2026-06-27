@@ -12,7 +12,8 @@ import hashlib
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-from urllib.parse import quote, urlsplit, urlunsplit
+from typing import Any
+from urllib.parse import quote, urlparse, urlsplit, urlunsplit
 
 import requests
 
@@ -220,7 +221,29 @@ class RequestsBackend(DownloadBackend):
             # Custom HTTP headers
             if auth.headers:
                 session.headers.update(auth.headers)
-                print("Using custom HTTP headers")
+                # requests strips Authorization on a cross-host redirect but not
+                # arbitrary headers, so a custom secret header (e.g. X-API-Key)
+                # would be forwarded to whatever host an upstream redirects to.
+                # Strip our custom headers too when the redirect target's host
+                # differs from the original.
+                self._strip_custom_headers_on_redirect(session, set(auth.headers))
+
+    @staticmethod
+    def _strip_custom_headers_on_redirect(
+        session: requests.Session, custom_header_names: set[str]
+    ) -> None:
+        """Drop custom auth headers when a redirect crosses to a different host."""
+        original_rebuild_auth = session.rebuild_auth
+
+        def rebuild_auth(prepared_request: Any, response: Any) -> None:
+            original_rebuild_auth(prepared_request, response)
+            new_host = urlparse(prepared_request.url).hostname
+            old_host = urlparse(response.request.url).hostname
+            if new_host != old_host:
+                for name in custom_header_names:
+                    prepared_request.headers.pop(name, None)
+
+        session.rebuild_auth = rebuild_auth  # type: ignore[method-assign]
 
     def download_file(self, url: str, dest: Path, expected_sha256: str | None = None) -> Path:
         """Download a single file with retry and checksum verification.

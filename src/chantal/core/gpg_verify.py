@@ -12,6 +12,7 @@ package header signatures).
 Wraps the ``gpg`` binary via ``python-gnupg`` (already a dependency).
 """
 
+import logging
 import os
 import tempfile
 from pathlib import Path
@@ -20,6 +21,8 @@ from types import TracebackType
 import gnupg
 
 from chantal.core.config import SignatureVerificationConfig
+
+logger = logging.getLogger(__name__)
 
 
 class GpgVerificationError(Exception):
@@ -53,6 +56,19 @@ class GpgVerifier:
         os.chmod(self._gnupg_home, 0o700)
         self.gpg = gnupg.GPG(gnupghome=str(self._gnupg_home))
         self.gpg.encoding = "utf-8"
+
+        # A signature is accepted if it's valid AND made by any key in the
+        # keyring. With the default temp keyring that's only the configured trust
+        # anchors. But a configured (possibly pre-existing/shared) gnupg_home may
+        # already contain other keys, so without fingerprint pinning any of them
+        # would be trusted. Warn so the operator pins via trusted_fingerprints.
+        if config.gnupg_home and not config.trusted_fingerprints:
+            logger.warning(
+                "Signature verification uses a configured gnupg_home (%s) without "
+                "trusted_fingerprints: any key already in that keyring will be "
+                "trusted. Set verify.trusted_fingerprints to pin the upstream key.",
+                config.gnupg_home,
+            )
 
     def __enter__(self) -> GpgVerifier:
         return self
