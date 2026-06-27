@@ -9,12 +9,22 @@ to avoid repeated downloads of large metadata files.
 
 import hashlib
 import logging
+import re
 import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
+
+# A cache key is an upstream-supplied checksum (sha1/sha256/sha512 hex). Validate
+# it before interpolating it into a path so a crafted value like "../../x" cannot
+# traverse out of the cache dir (and feed an arbitrary file to pickle.loads).
+_HEX_KEY_RE = re.compile(r"^[0-9a-fA-F]{32,128}$")
+
+
+def _is_safe_key(checksum: str) -> bool:
+    return bool(checksum) and _HEX_KEY_RE.match(checksum) is not None
 
 
 @dataclass
@@ -68,7 +78,7 @@ class MetadataCache:
         Returns:
             Path to cached file, or None if not found/invalid
         """
-        if not self.enabled or not self.cache_path:
+        if not self.enabled or not self.cache_path or not _is_safe_key(checksum):
             return None
 
         # Build cache file path
@@ -170,7 +180,7 @@ class MetadataCache:
         Returns:
             Parsed data (list[dict] for packages), or None if not found/invalid
         """
-        if not self.enabled or not self.cache_path:
+        if not self.enabled or not self.cache_path or not _is_safe_key(checksum):
             return None
 
         # Build cache file path for parsed data

@@ -198,14 +198,33 @@ def create_pool_group(cli: click.Group) -> click.Group:
                 else:
                     click.echo("Removing database entries with missing files...")
 
-                # Find packages with missing files
-                packages = session.query(ContentItem).all()
-                missing_packages = []
-
-                for package in packages:
-                    pool_file = storage.pool_path / package.pool_path
-                    if not pool_file.exists():
+                # A wholly-absent pool usually means the storage volume is not
+                # mounted, not that every package was deleted - refuse rather than
+                # wipe the whole catalog (and corrupt every snapshot).
+                protected_count = 0
+                missing_packages: list[ContentItem] = []
+                if not storage.pool_path.exists():
+                    click.echo(
+                        "  Pool directory not found - is the storage volume "
+                        "mounted? Skipping missing-entry cleanup."
+                    )
+                else:
+                    # Find packages with missing files.
+                    packages = session.query(ContentItem).all()
+                    for package in packages:
+                        pool_file = storage.pool_path / package.pool_path
+                        if pool_file.exists():
+                            continue
+                        # Never delete a content item an immutable snapshot still
+                        # references - a missing pool file there is far more likely
+                        # a transiently-unavailable pool than a real deletion.
+                        if package.snapshots:
+                            protected_count += 1
+                            continue
                         missing_packages.append(package)
+
+                if protected_count:
+                    click.echo(f"  Kept {protected_count:,} entries still referenced by snapshots")
 
                 if not dry_run:
                     for package in missing_packages:
