@@ -312,17 +312,22 @@ Error: Configuration validation failed:
 
 ## Environment Variables
 
-Chantal supports environment variable interpolation:
+The config file is parsed as plain YAML — Chantal does **not** expand `${VAR}`
+references inside it, so a value like `url: ${DATABASE_URL}` is stored literally.
+Supply secrets through the values directly (e.g. from a templating step in your
+deployment), or point Chantal at a different config file per environment with
+`--config` / `CHANTAL_CONFIG`.
 
-```yaml
-database:
-  url: ${DATABASE_URL:-sqlite:///chantal.db}
+## Strict configuration validation
 
-storage:
-  base_path: ${CHANTAL_STORAGE_PATH:-/var/lib/chantal}
+Unknown keys are **rejected**, including in nested sections, so a typo fails the
+load loudly instead of being silently ignored:
+
+```text
+Error: Configuration validation error:
+repositories.0.schedule.enabledd
+  Extra inputs are not permitted
 ```
-
-**Note:** This feature may be added in a future version.
 
 ## Best Practices
 

@@ -4,7 +4,7 @@ The APT plugin provides support for Debian/Ubuntu APT repositories.
 
 ## Overview
 
-**Status:** ✅ Available (v0.2.0)
+**Status:** ✅ Available
 
 The APT plugin consists of:
 - **AptSyncPlugin** - Syncs packages from upstream APT repositories
@@ -396,7 +396,7 @@ repositories:
 
 ### FILTERED Mode
 
-**Status:** ✅ Available (v0.2.0) - without GPG signing
+**Status:** ✅ Available (regenerated metadata is GPG-signed when a key is configured)
 
 Regenerates metadata for filtered package sets based on configured filters.
 
@@ -631,6 +631,10 @@ without their own). Notes specific to APT:
 - A failed check under `on_invalid_signature: fail` (or a missing signature
   under `on_missing_signature: fail`) aborts the sync before any metadata is
   trusted or any package is downloaded.
+- **Freshness (`Valid-Until`):** when verification is enabled, an otherwise-valid
+  Release whose `Valid-Until` is in the past is rejected (applying the
+  `on_invalid_signature` policy) — a valid signature proves authenticity, not
+  freshness, so this blocks a replayed/rolled-back Release.
 
 > **Note:** this verifies the *upstream* signature on sync. Re-signing the
 > regenerated metadata for *your* clients (filtered mode) is the separate `gpg`

@@ -444,8 +444,7 @@ chantal repo sync --repo-id epel9-webservers --dry-run
 See which packages are filtered and why:
 
 ```bash
-# Future feature
-chantal repo sync --repo-id epel9-webservers --verbose
+chantal repo sync --repo-id epel9-webservers -v   # --verbose
 ```
 
 ## Best Practices
