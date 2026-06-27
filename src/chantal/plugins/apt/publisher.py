@@ -259,7 +259,30 @@ class AptPublisher(PublisherPlugin):
             for arch in targets:
                 grouped.setdefault((component, arch), []).append(package)
 
-        return grouped
+        return {key: self._dedup_by_filename(pkgs) for key, pkgs in grouped.items()}
+
+    @staticmethod
+    def _dedup_by_filename(packages: list[ContentItem]) -> list[ContentItem]:
+        """Keep one package per published filename (the highest-id one).
+
+        Two ContentItems can share a published ``.deb`` filename when upstream
+        repackages a package (same name+version+arch, new bytes). They hardlink
+        to a single file on disk (last link wins), so emitting a stanza for each
+        yields a Packages index whose extra stanza's SHA256 cannot match the
+        published file. Keep the most recently synced (highest id) so the index
+        matches the file that wins on disk.
+        """
+        by_filename: dict[object, ContentItem] = {}
+        for pkg in packages:
+            # A package without a filename has no on-disk collision to resolve;
+            # key it by identity so distinct ones are never merged together.
+            key: object = Path(pkg.filename).name if pkg.filename else id(pkg)
+            existing = by_filename.get(key)
+            if existing is None or (pkg.id or 0) > (existing.id or 0):
+                by_filename[key] = pkg
+        # Preserve input order for stable, diff-friendly index output.
+        kept = {id(p) for p in by_filename.values()}
+        return [p for p in packages if id(p) in kept]
 
     @staticmethod
     def _safe_name(name: str) -> str:
