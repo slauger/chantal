@@ -78,7 +78,7 @@ def _syncer(storage, repo_config, *, downloaded_sha: str):
     # Avoid real HTTP for the index-store side effect.
     syncer._store_index_file = lambda *a, **k: None  # type: ignore[method-assign]
     # _download_chart returns (pool_path, sha256, size).
-    syncer._download_chart = lambda *a, **k: (Path("/pool/demo-0.1.0.tgz"), downloaded_sha, 123)  # type: ignore[method-assign]
+    syncer._download_chart = lambda *a, **k: (Path("/pool/demo-0.1.0.tgz"), downloaded_sha, 123, "demo-0.1.0.tgz")  # type: ignore[method-assign]
     return syncer
 
 

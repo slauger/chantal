@@ -125,7 +125,10 @@ class HelmPublisher(PublisherPlugin):
 
         # Hardlink chart files to target directory
         for chart in charts:
-            pool_path = self.storage.get_absolute_pool_path(chart.sha256, chart.filename)
+            # Use the authoritative stored pool_path, not a path reconstructed
+            # from sha256+filename (which diverges for oci:// / query-string
+            # filenames).
+            pool_path = self.storage.pool_path / chart.pool_path
             target_file = target_path / chart.filename
 
             # Create hardlink

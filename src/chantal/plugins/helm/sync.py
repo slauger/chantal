@@ -178,7 +178,7 @@ class HelmSyncer:
                 chart_name = f"{chart_entry['name']}-{chart_entry['version']}"
                 self.output.downloading(chart_name, 0, i, len(filtered_charts))
 
-                pool_path, sha256, size = self._download_chart(chart_url, config)
+                pool_path, sha256, size, filename = self._download_chart(chart_url, config)
 
                 # Verify the downloaded bytes against the digest advertised in
                 # index.yaml. A mismatch means the tarball was tampered with or
@@ -186,11 +186,11 @@ class HelmSyncer:
                 # stored or published).
                 if expected_digest and sha256 != expected_digest:
                     # The download already content-addressed the bytes into the
-                    # pool; remove the orphan if nothing else references it.
+                    # pool; remove the orphan if nothing else references it. Use
+                    # the actual pool path (the chart url basename is unreliable
+                    # for oci:// and signed/query URLs).
                     if not session.query(ContentItem).filter_by(sha256=sha256).first():
-                        self.storage.get_absolute_pool_path(sha256, Path(chart_url).name).unlink(
-                            missing_ok=True
-                        )
+                        (self.storage.pool_path / pool_path).unlink(missing_ok=True)
                     raise ValueError(
                         f"digest mismatch for {chart_name}: index.yaml advertises "
                         f"{expected_digest}, downloaded content is {sha256} (possible tampering)"
@@ -221,7 +221,7 @@ class HelmSyncer:
                     name=metadata.name,
                     version=metadata.version,
                     sha256=sha256,
-                    filename=Path(chart_url).name,
+                    filename=filename,
                     size_bytes=size,
                     pool_path=str(pool_path),
                     content_type="helm",
@@ -471,7 +471,7 @@ class HelmSyncer:
 
         return filtered
 
-    def _download_chart(self, url: str, config: RepositoryConfig) -> tuple[Path, str, int]:
+    def _download_chart(self, url: str, config: RepositoryConfig) -> tuple[Path, str, int, str]:
         """Download chart .tgz file to pool.
 
         Supports both HTTP/HTTPS and OCI registry URLs.
@@ -481,7 +481,9 @@ class HelmSyncer:
             config: Repository configuration (for credentials)
 
         Returns:
-            tuple: (pool_path, sha256, size_bytes)
+            tuple: (pool_path, sha256, size_bytes, filename) - filename is the
+            name the chart was actually pooled/published under (NOT the raw URL
+            basename, which is wrong for oci:// and signed/query URLs).
         """
         logger.debug(f"Downloading chart from {url}")
 
@@ -492,7 +494,9 @@ class HelmSyncer:
         else:
             return self._download_http_chart(url, config)
 
-    def _download_http_chart(self, url: str, config: RepositoryConfig) -> tuple[Path, str, int]:
+    def _download_http_chart(
+        self, url: str, config: RepositoryConfig
+    ) -> tuple[Path, str, int, str]:
         """Download chart from HTTP/HTTPS URL.
 
         Args:
@@ -500,7 +504,7 @@ class HelmSyncer:
             config: Repository configuration
 
         Returns:
-            tuple: (pool_path, sha256, size_bytes)
+            tuple: (pool_path, sha256, size_bytes, filename)
         """
         response = self.session.get(url, timeout=300, stream=True)
         response.raise_for_status()
@@ -511,7 +515,10 @@ class HelmSyncer:
                 tmp.write(chunk)
             tmp_path = Path(tmp.name)
 
-        filename = Path(url).name
+        # Strip any query string/fragment from the URL before taking the
+        # basename, so a signed/parameterized URL doesn't bake `?token=...` into
+        # the pooled and published filename (and the served index.yaml).
+        filename = Path(urlparse(url).path).name
 
         # Add to pool (this calculates SHA256, deduplicates, and moves file)
         sha256, pool_path, size = self.storage.add_package(tmp_path, filename)
@@ -521,9 +528,9 @@ class HelmSyncer:
 
         logger.debug(f"Stored chart in pool: {pool_path}")
 
-        return Path(pool_path), sha256, size
+        return Path(pool_path), sha256, size, filename
 
-    def _download_oci_chart(self, url: str, config: RepositoryConfig) -> tuple[Path, str, int]:
+    def _download_oci_chart(self, url: str, config: RepositoryConfig) -> tuple[Path, str, int, str]:
         """Download chart from OCI registry.
 
         Uses helm CLI to pull charts from OCI registries.
@@ -533,7 +540,8 @@ class HelmSyncer:
             config: Repository configuration (may contain registry credentials)
 
         Returns:
-            tuple: (pool_path, sha256, size_bytes)
+            tuple: (pool_path, sha256, size_bytes, filename) - filename is the
+            real ``<chart>-<version>.tgz`` helm produced, not the oci:// basename.
 
         Raises:
             RuntimeError: If helm binary not found or pull fails
@@ -602,4 +610,4 @@ class HelmSyncer:
 
             logger.debug(f"Stored OCI chart in pool: {pool_path}")
 
-            return Path(pool_path), sha256, size
+            return Path(pool_path), sha256, size, filename

@@ -83,7 +83,9 @@ def test_digestless_duplicate_in_one_sync_dedup_autoflush_off(session):
     with (
         patch.object(syncer, "_fetch_index", return_value=index),
         patch.object(syncer, "_store_index_file", return_value="e" * 64),
-        patch.object(syncer, "_download_chart", return_value=("ab/cd/demo.tgz", "cd" * 32, 123)),
+        patch.object(
+            syncer, "_download_chart", return_value=("ab/cd/demo.tgz", "cd" * 32, 123, "demo.tgz")
+        ),
     ):
         stats = syncer.sync_repository(session, repo, config)
 
