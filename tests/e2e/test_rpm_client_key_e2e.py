@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = pytest.mark.e2e
+pytestmark = [pytest.mark.e2e, pytest.mark.rpm]
 
 _UPSTREAM_KEY = (
     "-----BEGIN PGP PUBLIC KEY BLOCK-----\n"

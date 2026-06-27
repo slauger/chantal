@@ -17,7 +17,7 @@ import subprocess
 
 import pytest
 
-pytestmark = pytest.mark.e2e
+pytestmark = [pytest.mark.e2e, pytest.mark.rpm]
 
 _HAVE_RPM = bool(
     shutil.which("rpmbuild")

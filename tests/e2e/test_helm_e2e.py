@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-pytestmark = pytest.mark.e2e
+pytestmark = [pytest.mark.e2e, pytest.mark.helm]
 
 
 def _build_helm_upstream(root: Path) -> None:

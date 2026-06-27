@@ -29,7 +29,7 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = pytest.mark.e2e
+pytestmark = [pytest.mark.e2e, pytest.mark.apt]
 
 _HAVE_DOCKER = shutil.which("docker") is not None
 _HAVE_GPG = shutil.which("gpg") is not None

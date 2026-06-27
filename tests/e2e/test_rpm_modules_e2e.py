@@ -13,7 +13,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-pytestmark = pytest.mark.e2e
+pytestmark = [pytest.mark.e2e, pytest.mark.rpm]
 
 
 def _build_rpm_upstream_with_modules(root: Path) -> None:

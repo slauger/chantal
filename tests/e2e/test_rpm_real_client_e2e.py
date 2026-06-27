@@ -22,7 +22,7 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = pytest.mark.e2e
+pytestmark = [pytest.mark.e2e, pytest.mark.rpm]
 
 _HAVE_DOCKER = shutil.which("docker") is not None
 _IMAGE = "almalinux:9"
