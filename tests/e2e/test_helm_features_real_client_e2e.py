@@ -30,7 +30,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-pytestmark = pytest.mark.e2e
+pytestmark = [pytest.mark.e2e, pytest.mark.helm]
 
 _HAVE_DOCKER = shutil.which("docker") is not None
 _IMAGE = "alpine/helm"

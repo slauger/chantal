@@ -11,7 +11,7 @@ import pytest
 
 from chantal.plugins.apk.checksum import compute_apk_control_checksum
 
-pytestmark = pytest.mark.e2e
+pytestmark = [pytest.mark.e2e, pytest.mark.apk]
 
 BRANCH = "v3.19"
 REPO = "main"

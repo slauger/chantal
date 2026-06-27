@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = pytest.mark.e2e
+pytestmark = [pytest.mark.e2e, pytest.mark.rpm]
 
 
 def _build_sha512_rpm_upstream(root: Path, *, corrupt_package_checksum: bool = False) -> None:

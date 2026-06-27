@@ -136,6 +136,10 @@ python_classes = "Test*"
 python_functions = "test_*"
 markers = [
     "e2e: end-to-end sync->publish tests (build a fixture repo, sync, publish)",
+    "rpm: RPM-plugin e2e tests (selected by the rpm CI leg)",
+    "apt: APT/DEB-plugin e2e tests (selected by the apt CI leg)",
+    "helm: Helm-plugin e2e tests (selected by the helm CI leg)",
+    "apk: Alpine APK-plugin e2e tests (selected by the apk CI leg)",
 ]
 
 # Coverage configuration
