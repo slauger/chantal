@@ -10,8 +10,6 @@ import re
 from collections import defaultdict
 from datetime import datetime, timedelta
 
-from packaging import version
-
 from chantal.core.config import (
     FilterConfig,
     GenericMetadataFilterConfig,
@@ -20,6 +18,7 @@ from chantal.core.config import (
     PostProcessingConfig,
     RpmFilterConfig,
 )
+from chantal.plugins.rpm.version import evr_pkg_key
 
 
 def apply_filters(packages: list[dict], filters: FilterConfig) -> list[dict]:
@@ -253,35 +252,12 @@ def keep_only_latest_versions(packages: list[dict], n: int = 1) -> list[dict]:
         key = (name, arch)
         grouped[key].append(pkg)
 
-    # For each group, keep only latest N versions
+    # For each group, keep only the latest N versions (newest first) using RPM's
+    # own EVR ordering (rpmvercmp). PEP 440 mis-orders releases like 10.el9 vs
+    # 9.el9 and rejects/mishandles RPM '~'/'^' versions.
     result = []
-    for (name, arch), pkg_list in grouped.items():
-        # Sort by version (newest first)
-        # Use tuple comparison: (epoch, version, release) for RPM version semantics
-        try:
-            sorted_pkgs = sorted(
-                pkg_list,
-                key=lambda p: (
-                    int(p.get("epoch", 0) or 0),  # Epoch as int
-                    version.parse(p.get("version", "")),  # Parse version
-                    p.get("release", ""),  # Release as string
-                ),
-                reverse=True,
-            )
-        except Exception as e:
-            # If version parsing fails, fall back to simple tuple comparison
-            print(f"Warning: Version parsing failed for {name}.{arch}: {e}")
-            sorted_pkgs = sorted(
-                pkg_list,
-                key=lambda p: (
-                    int(p.get("epoch", 0) or 0),
-                    p.get("version", ""),
-                    p.get("release", ""),
-                ),
-                reverse=True,
-            )
-
-        # Keep only latest N versions
+    for pkg_list in grouped.values():
+        sorted_pkgs = sorted(pkg_list, key=evr_pkg_key, reverse=True)
         result.extend(sorted_pkgs[:n])
 
     return result
