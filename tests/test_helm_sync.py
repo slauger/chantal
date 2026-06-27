@@ -580,3 +580,79 @@ class TestHelmIntegration:
         # Matched by digest despite the differing basename -> rewritten to the
         # actually-published filename, not dropped.
         assert published["entries"]["demo"][0]["urls"] == ["demo-pooled-1.0.0.tgz"]
+
+    def test_mirror_index_drops_entry_whose_digest_is_not_published(self, temp_storage):
+        """An entry advertising a digest we don't have (upstream repackaged the
+        version; only the old tarball is pooled) must be dropped, not rewritten to
+        the old file under the new digest - that would fail client verification."""
+        index = {
+            "apiVersion": "v1",
+            "entries": {
+                "demo": [
+                    {
+                        "name": "demo",
+                        "version": "1.0.0",
+                        "digest": "sha256:" + "cd" * 32,  # the repackaged (new) digest
+                        "urls": ["https://up.example.com/demo-1.0.0.tgz"],
+                    }
+                ]
+            },
+            "generated": "2026-01-01T00:00:00Z",
+        }
+        index_path = temp_storage.pool_path / "index.yaml"
+        index_path.parent.mkdir(parents=True, exist_ok=True)
+        index_path.write_text(yaml.safe_dump(index), encoding="utf-8")
+
+        # We only have the OLD tarball (same name+version+basename, old digest).
+        old_chart = ContentItem(
+            content_type="helm",
+            name="demo",
+            version="1.0.0",
+            sha256="ab" * 32,  # != the index's "cd"*32
+            size_bytes=1,
+            pool_path="ab/ab/demo-1.0.0.tgz",
+            filename="demo-1.0.0.tgz",
+            content_metadata={},
+        )
+
+        publisher = HelmPublisher(storage=temp_storage)
+        target = temp_storage.published_path
+        target.mkdir(parents=True, exist_ok=True)
+        repo_config = RepositoryConfig(id="x", name="x", type="helm", feed="https://up.example.com")
+
+        publisher._publish_mirror_index(index_path, target, [old_chart], repo_config)
+
+        published = yaml.safe_load((target / "index.yaml").read_text())
+        # The version had no matching-digest tarball -> dropped entirely.
+        assert "demo" not in published.get("entries", {})
+
+    def test_mirror_index_keeps_digestless_entry_by_basename(self, temp_storage):
+        """A digest-LESS entry may still fall back to the basename match."""
+        index = {
+            "apiVersion": "v1",
+            "entries": {"demo": [{"name": "demo", "version": "1.0.0", "urls": ["demo-1.0.0.tgz"]}]},
+        }
+        index_path = temp_storage.pool_path / "index.yaml"
+        index_path.parent.mkdir(parents=True, exist_ok=True)
+        index_path.write_text(yaml.safe_dump(index), encoding="utf-8")
+
+        chart = ContentItem(
+            content_type="helm",
+            name="demo",
+            version="1.0.0",
+            sha256="ab" * 32,
+            size_bytes=1,
+            pool_path="ab/ab/demo-1.0.0.tgz",
+            filename="demo-1.0.0.tgz",
+            content_metadata={},
+        )
+
+        publisher = HelmPublisher(storage=temp_storage)
+        target = temp_storage.published_path
+        target.mkdir(parents=True, exist_ok=True)
+        repo_config = RepositoryConfig(id="x", name="x", type="helm", feed="https://up.example.com")
+
+        publisher._publish_mirror_index(index_path, target, [chart], repo_config)
+
+        published = yaml.safe_load((target / "index.yaml").read_text())
+        assert published["entries"]["demo"][0]["urls"] == ["demo-1.0.0.tgz"]

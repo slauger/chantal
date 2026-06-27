@@ -272,12 +272,19 @@ class HelmPublisher(PublisherPlugin):
                 if not isinstance(urls, list) or not urls:
                     continue
                 basename = Path(str(urls[0])).name
-                published_name = by_digest.get(normalize_digest(entry.get("digest")))
-                if published_name is None and basename in by_name:
+                entry_digest = normalize_digest(entry.get("digest"))
+                published_name = by_digest.get(entry_digest) if entry_digest else None
+                # The basename fallback is only safe for a digest-LESS entry. If
+                # the entry advertises a digest we don't have (e.g. upstream
+                # repackaged this version and only the old tarball is pooled),
+                # serving the same-named old file under the new digest would fail
+                # the client's digest verification - drop it instead.
+                if published_name is None and not entry_digest and basename in by_name:
                     published_name = basename
                 if published_name is None:
-                    # Not mirrored (filtered out / download failed) -> drop it so
-                    # the index never references a missing tarball.
+                    # Not mirrored (filtered out / download failed / a digest we
+                    # don't have) -> drop it so the index never references a
+                    # missing or digest-mismatched tarball.
                     continue
                 entry["urls"] = [published_name]
                 kept.append(entry)
