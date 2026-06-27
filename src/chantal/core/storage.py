@@ -7,9 +7,11 @@ This module provides SHA256-based deduplication storage that works
 for all package types (RPM, DEB, etc.).
 """
 
+import errno
 import hashlib
 import os
 import shutil
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -160,22 +162,10 @@ class StorageManager:
                 raise ValueError(f"Pool file exists but checksum mismatch: {pool_path_abs}")
             return sha256, pool_path_rel, size_bytes
 
-        # Create directory structure
-        pool_path_abs.parent.mkdir(parents=True, exist_ok=True)
-
-        # Copy file to pool
-        shutil.copy2(source_path, pool_path_abs)
-
-        # Verify checksum if requested
-        if verify_checksum:
-            copied_sha256 = self.calculate_sha256(pool_path_abs)
-            if copied_sha256 != sha256:
-                # Checksum mismatch, remove bad file
-                pool_path_abs.unlink()
-                raise ValueError(
-                    f"Checksum verification failed after copy: "
-                    f"expected {sha256}, got {copied_sha256}"
-                )
+        # Copy into the pool atomically (temp file + rename), so a crash never
+        # leaves a truncated blob at the canonical path that would then fail the
+        # checksum on every later run.
+        self._atomic_store(source_path, pool_path_abs, sha256, verify_checksum)
 
         return sha256, pool_path_rel, size_bytes
 
@@ -221,29 +211,61 @@ class StorageManager:
                 raise ValueError(f"Pool file exists but checksum mismatch: {pool_path_abs}")
             return sha256, pool_path_rel, size_bytes
 
-        # Create directory structure
-        pool_path_abs.parent.mkdir(parents=True, exist_ok=True)
-
-        # Copy file to pool
-        shutil.copy2(source_path, pool_path_abs)
-
-        # Verify checksum if requested
-        if verify_checksum:
-            copied_sha256 = self.calculate_sha256(pool_path_abs)
-            if copied_sha256 != sha256:
-                # Checksum mismatch, remove bad file
-                pool_path_abs.unlink()
-                raise ValueError(
-                    f"Checksum verification failed after copy: "
-                    f"expected {sha256}, got {copied_sha256}"
-                )
+        # Copy into the pool atomically (temp file + rename) - see add_package.
+        self._atomic_store(source_path, pool_path_abs, sha256, verify_checksum)
 
         return sha256, pool_path_rel, size_bytes
+
+    def _atomic_store(
+        self, source_path: Path, pool_path_abs: Path, sha256: str, verify_checksum: bool
+    ) -> None:
+        """Copy ``source_path`` into the pool atomically.
+
+        Writes to a temp file in the destination directory, verifies it, then
+        ``os.replace``s it onto the canonical path. A crash or checksum failure
+        therefore never leaves a partial/corrupt blob at the final path.
+        """
+        pool_path_abs.parent.mkdir(parents=True, exist_ok=True)
+        fd, tmp_name = tempfile.mkstemp(dir=pool_path_abs.parent, suffix=".tmp")
+        os.close(fd)
+        tmp_path = Path(tmp_name)
+        try:
+            shutil.copy2(source_path, tmp_path)
+            if verify_checksum:
+                copied_sha256 = self.calculate_sha256(tmp_path)
+                if copied_sha256 != sha256:
+                    raise ValueError(
+                        f"Checksum verification failed after copy: "
+                        f"expected {sha256}, got {copied_sha256}"
+                    )
+            os.replace(tmp_path, pool_path_abs)
+        finally:
+            # No-op once the file has been renamed into place.
+            tmp_path.unlink(missing_ok=True)
+
+    def link_or_copy(self, source_path: Path, target_path: Path) -> None:
+        """Hardlink ``source_path`` to ``target_path``, copying across filesystems.
+
+        Publishing uses hardlinks (zero-copy) into the published tree, but the
+        pool and the published tree are often on different filesystems, where
+        ``os.link`` raises ``EXDEV``. Fall back to a copy in that case.
+        """
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        if target_path.exists():
+            target_path.unlink()
+        try:
+            os.link(source_path, target_path)
+        except OSError as e:
+            if e.errno != errno.EXDEV:
+                raise
+            # Pool and target are on different filesystems: copy instead.
+            shutil.copy2(source_path, target_path)
 
     def create_hardlink(self, sha256: str, filename: str, target_path: Path) -> None:
         """Create hardlink from pool to target location.
 
-        This is used for publishing - creates zero-copy references to pool files.
+        This is used for publishing - creates zero-copy references to pool files
+        (falling back to a copy across filesystems).
 
         Args:
             sha256: SHA256 hash of package
@@ -258,15 +280,7 @@ class StorageManager:
         if not source_path.exists():
             raise FileNotFoundError(f"Source file not in pool: {source_path}")
 
-        # Create target directory if needed
-        target_path.parent.mkdir(parents=True, exist_ok=True)
-
-        # Remove target if already exists
-        if target_path.exists():
-            target_path.unlink()
-
-        # Create hardlink (use os.link for Python 3.9 compatibility)
-        os.link(source_path, target_path)
+        self.link_or_copy(source_path, target_path)
 
     def get_orphaned_files(self, session: Session) -> list[Path]:
         """Find files in pool that are not referenced in database.

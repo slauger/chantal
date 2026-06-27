@@ -306,7 +306,6 @@ class AptPublisher(PublisherPlugin):
         ``Architecture: all`` package linked from several arch indices resolves
         to one pool file.
         """
-        import os
 
         for package in packages:
             pool_file_path = self.storage.pool_path / package.pool_path
@@ -324,7 +323,7 @@ class AptPublisher(PublisherPlugin):
             target_file_path.parent.mkdir(parents=True, exist_ok=True)
             if target_file_path.exists():
                 target_file_path.unlink()
-            os.link(pool_file_path, target_file_path)
+            self.storage.link_or_copy(pool_file_path, target_file_path)
 
     def _upstream_rel_path(self, package: ContentItem) -> str | None:
         """Repo-root-relative path a package occupied upstream (for verbatim mirror).
@@ -340,15 +339,9 @@ class AptPublisher(PublisherPlugin):
         upstream = meta.get("filename")
         return str(upstream) if upstream else None
 
-    @staticmethod
-    def _link_verbatim(src: Path, dest: Path) -> None:
-        """Hardlink ``src`` to ``dest`` (replacing any existing file)."""
-        import os
-
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        if dest.exists():
-            dest.unlink()
-        os.link(src, dest)
+    def _link_verbatim(self, src: Path, dest: Path) -> None:
+        """Hardlink ``src`` to ``dest`` (copying across filesystems)."""
+        self.storage.link_or_copy(src, dest)
 
     def _publish_verbatim(
         self,
@@ -655,14 +648,13 @@ class AptPublisher(PublisherPlugin):
         stays consistent while it is being updated. The emitted sha is recorded
         in ``emitted`` so stale entries can be pruned afterwards.
         """
-        import os
 
         by_hash_dir = file_path.parent / "by-hash" / "SHA256"
         by_hash_dir.mkdir(parents=True, exist_ok=True)
         target = by_hash_dir / sha256_hex
         if target.exists():
             target.unlink()
-        os.link(file_path, target)
+        self.storage.link_or_copy(file_path, target)
         emitted.setdefault(by_hash_dir, set()).add(sha256_hex)
 
     def _prune_by_hash(self, emitted: dict[Path, set[str]]) -> None:

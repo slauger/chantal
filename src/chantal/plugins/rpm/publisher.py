@@ -570,9 +570,7 @@ class RpmPublisher(PublisherPlugin):
             if target_path.exists():
                 target_path.unlink()
 
-            import os
-
-            os.link(pool_file_path, target_path)
+            self.storage.link_or_copy(pool_file_path, target_path)
 
             # Add to published list
             published.append((repo_file.file_type, target_path))
@@ -588,7 +586,6 @@ class RpmPublisher(PublisherPlugin):
             kickstart_files: List of RepositoryFile with file_category="kickstart"
             target_path: Target directory for publishing
         """
-        import os
 
         for repo_file in kickstart_files:
             pool_file_path = self.storage.pool_path / repo_file.pool_path
@@ -622,7 +619,7 @@ class RpmPublisher(PublisherPlugin):
             if target_file_path.exists():
                 target_file_path.unlink()
 
-            os.link(pool_file_path, target_file_path)
+            self.storage.link_or_copy(pool_file_path, target_file_path)
 
             print(f"  ✓ Published {repo_file.file_type}: {repo_file.original_path}")
 

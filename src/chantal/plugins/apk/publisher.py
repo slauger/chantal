@@ -7,7 +7,6 @@ This module implements publishing for Alpine APK repositories.
 """
 
 import logging
-import os
 import shutil
 import tarfile
 import tempfile
@@ -137,7 +136,7 @@ class ApkPublisher(PublisherPlugin):
             # Create hardlink
             if target_file.exists():
                 target_file.unlink()
-            os.link(pool_path, target_file)
+            self.storage.link_or_copy(pool_path, target_file)
 
         # Publish metadata files (APKINDEX.tar.gz) from RepositoryFile or generate
         self._publish_metadata_files(
@@ -226,7 +225,7 @@ class ApkPublisher(PublisherPlugin):
             if target_file.exists():
                 target_file.unlink()
 
-            os.link(pool_path, target_file)
+            self.storage.link_or_copy(pool_path, target_file)
             logger.info(
                 f"Published APKINDEX.tar.gz from pool (mirror mode): {apkindex_file.sha256[:16]}..."
             )

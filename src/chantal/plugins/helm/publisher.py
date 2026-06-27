@@ -7,7 +7,6 @@ This module implements publishing for Helm chart repositories.
 """
 
 import logging
-import os
 import shutil
 from datetime import UTC, datetime
 from pathlib import Path
@@ -134,7 +133,7 @@ class HelmPublisher(PublisherPlugin):
             # Create hardlink
             if target_file.exists():
                 target_file.unlink()
-            os.link(pool_path, target_file)
+            self.storage.link_or_copy(pool_path, target_file)
 
         # Publish metadata files (index.yaml) from RepositoryFile or generate
         self._publish_metadata_files(
