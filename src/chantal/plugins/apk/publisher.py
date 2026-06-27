@@ -128,8 +128,11 @@ class ApkPublisher(PublisherPlugin):
 
         # Hardlink package files to target directory
         for pkg in packages:
-            pool_path = self.storage.get_absolute_pool_path(pkg.sha256, pkg.filename)
-            target_file = arch_path / pkg.filename
+            # Use the authoritative stored pool_path rather than reconstructing
+            # it from sha256+filename, and confine the published name to a bare
+            # basename so a crafted name/version can't escape the arch dir.
+            pool_path = self.storage.pool_path / pkg.pool_path
+            target_file = arch_path / Path(pkg.filename).name
 
             # Create hardlink
             if target_file.exists():
