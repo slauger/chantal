@@ -12,6 +12,7 @@ from datetime import UTC, datetime
 
 from sqlalchemy import (
     JSON,
+    BigInteger,
     Boolean,
     Column,
     DateTime,
@@ -167,7 +168,7 @@ class ContentItem(Base):
 
     # Content addressing (pool storage)
     sha256: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
-    size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
     pool_path: Mapped[str] = mapped_column(
         Text, nullable=False
     )  # Relative path in pool (e.g., "ab/cd/abc123...rpm")
@@ -269,7 +270,7 @@ class Snapshot(Base):
 
     # Statistics (cached for performance)
     package_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    total_size_bytes: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    total_size_bytes: Mapped[int] = mapped_column(BigInteger, default=0, nullable=False)
 
     # Relationships
     repository: Mapped[Repository] = relationship("Repository", back_populates="snapshots")
@@ -309,7 +310,7 @@ class SyncHistory(Base):
     packages_added: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     packages_removed: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     packages_updated: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    bytes_downloaded: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    bytes_downloaded: Mapped[int] = mapped_column(BigInteger, default=0, nullable=False)
 
     # Snapshot created during this sync
     snapshot_id: Mapped[int | None] = mapped_column(
@@ -434,7 +435,7 @@ class ViewSnapshot(Base):
 
     # Statistics (cached for performance)
     package_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    total_size_bytes: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    total_size_bytes: Mapped[int] = mapped_column(BigInteger, default=0, nullable=False)
 
     # Relationships
     view: Mapped[View] = relationship("View", back_populates="view_snapshots")
@@ -477,7 +478,7 @@ class RepositoryFile(Base):
     sha256: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     pool_path: Mapped[str] = mapped_column(Text, nullable=False)
     # Format: "files/ab/cd/abc123_updateinfo.xml.gz"
-    size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
 
     # Publishing path (preserve exact upstream structure)
     original_path: Mapped[str] = mapped_column(Text, nullable=False)
