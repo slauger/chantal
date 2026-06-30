@@ -1275,11 +1275,23 @@ class AptSyncPlugin:
             source_format = src.extra_fields.get("Format")
             for entry in src.checksums_sha256:
                 filename = entry["filename"]
+                # The size comes straight from the (untrusted) Sources stanza.
+                # A non-numeric value must skip the artifact, not raise and abort
+                # the whole sync (the binary Packages path is likewise tolerant).
+                raw_size = entry.get("size")
+                try:
+                    size = int(raw_size) if raw_size else 0
+                except (TypeError, ValueError):
+                    self.output.warning(
+                        f"Source artifact {filename} ({src.package} {src.version}) has a "
+                        f"non-numeric size {raw_size!r}; skipping it"
+                    )
+                    continue
                 artifacts.append(
                     {
                         "filename": filename,
                         "sha256": entry["checksum"],
-                        "size": int(entry["size"]) if entry.get("size") else 0,
+                        "size": size,
                         "md5": md5_by_name.get(filename),
                         "sha1": sha1_by_name.get(filename),
                         "directory": src.directory or "",
