@@ -417,6 +417,25 @@ class AptPublisher(PublisherPlugin):
 
         print(f"  ✓ Published verbatim mirror ({len(packages)} packages)")
 
+    @staticmethod
+    def _fold_field_line(line: str) -> str:
+        """Fold a stanza field's value into safe RFC822 continuation lines.
+
+        An upstream field value can contain embedded newlines (the parser
+        un-folds continuation lines into ``\\n``-joined values). Re-emitting it
+        verbatim would let a crafted value inject a forged field or a stanza
+        break (blank line) into the index chantal then GPG-signs. Prefix every
+        continuation line with a space so the value stays a single field, using
+        Debian's ``" ."`` marker for an otherwise-empty continuation line.
+        """
+        parts = line.split("\n")
+        if len(parts) == 1:
+            return line
+        folded = [parts[0]]
+        for cont in parts[1:]:
+            folded.append(" ." if cont.strip() == "" else " " + cont)
+        return "\n".join(folded)
+
     def _generate_packages_file(
         self,
         packages: list[ContentItem],
@@ -545,8 +564,9 @@ class AptPublisher(PublisherPlugin):
             if sha512:
                 stanza.append(f"SHA512: {sha512}")
 
-            # Join stanza lines
-            packages_content.append("\n".join(stanza))
+            # Join stanza lines (folding each field so an upstream value with an
+            # embedded newline cannot inject a forged field or stanza break).
+            packages_content.append("\n".join(self._fold_field_line(s) for s in stanza))
 
         # Join all stanzas with blank lines
         full_content = "\n\n".join(packages_content)
@@ -640,7 +660,7 @@ class AptPublisher(PublisherPlugin):
                 lines.append("Checksums-Sha256:")
                 lines.extend(sha256_lines)
 
-            stanzas.append("\n".join(lines))
+            stanzas.append("\n".join(self._fold_field_line(s) for s in lines))
 
         full_content = "\n\n".join(stanzas)
         if full_content:
