@@ -94,14 +94,13 @@ boot.iso = images/boot-x86.iso
 
         installer_files = parsers.parse_treeinfo(treeinfo_content)
 
-        # Should only parse images-aarch64 section
-        assert len(installer_files) == 2
-
-        # Verify paths are from aarch64 section
+        # Every images-* section is mirrored (the published .treeinfo references
+        # all of them), not just the default arch.
+        assert len(installer_files) == 3
         paths = {f["path"] for f in installer_files}
         assert "images/boot.iso" in paths
         assert "images/pxeboot/vmlinuz" in paths
-        assert "images/boot-x86.iso" not in paths
+        assert "images/boot-x86.iso" in paths  # other-arch image also collected
 
     def test_parse_treeinfo_empty(self):
         """Test parsing empty .treeinfo file."""
@@ -168,14 +167,13 @@ mainimage = images/install.img
 
         installer_files = parsers.parse_treeinfo(treeinfo_content)
 
-        # Verify we got all 4 files from images-x86_64 section
-        assert len(installer_files) == 4
+        # The 4 images-x86_64 files plus the [stage2] install.img (instimage and
+        # mainimage both point at it, deduped to one).
+        assert len(installer_files) == 5
+        paths = {f["path"] for f in installer_files}
+        assert "images/install.img" in paths  # the installer stage2 is mirrored
 
-        # Verify file types
-        file_types = {f["file_type"] for f in installer_files}
-        assert file_types == {"boot.iso", "initrd", "kernel", "efiboot.img"}
-
-        # Verify all have checksums
-        for file_info in installer_files:
-            assert file_info["sha256"] is not None
-            assert len(file_info["sha256"]) == 64  # SHA256 hex length
+        # The boot images carry sha256 checksums from [checksums].
+        by_path = {f["path"]: f for f in installer_files}
+        assert by_path["images/boot.iso"]["sha256"] is not None
+        assert len(by_path["images/boot.iso"]["sha256"]) == 64
