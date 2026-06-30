@@ -15,7 +15,6 @@ from pathlib import Path
 from urllib.parse import urljoin
 
 import requests
-from packaging import version
 from sqlalchemy.orm import Session
 
 from chantal.core.cache import MetadataCache
@@ -27,6 +26,7 @@ from chantal.core.storage import StorageManager
 from chantal.db.models import ContentItem, Repository, RepositoryFile
 from chantal.plugins.rpm import filters, parsers
 from chantal.plugins.rpm.models import RpmMetadata
+from chantal.plugins.rpm.version import evr_compare
 
 
 @dataclass
@@ -556,41 +556,24 @@ class RpmSyncPlugin:
                     updates.append(update)
                     total_update_size += pkg_meta["size_bytes"]
                 else:
-                    # Package exists - check if remote version is newer
+                    # Package exists - check if remote is newer using rpm EVR
+                    # semantics (epoch, then version, then release via rpmvercmp).
+                    # PEP 440 mis-orders these (e.g. 10.el9 < 9.el9, 1.0~rc1 newer
+                    # than 1.0) and rejects many valid rpm versions.
                     remote_epoch = int(pkg_meta.get("epoch") or "0")
                     local_epoch = int(existing_pkg.content_metadata.get("epoch") or "0")
 
-                    # EPOCH-style version comparison: compare epoch, then version, then release
-                    is_newer = False
-
-                    if remote_epoch > local_epoch:
-                        is_newer = True
-                    elif remote_epoch == local_epoch:
-                        # Compare version (use packaging library for proper version comparison)
-                        try:
-                            remote_ver = version.parse(pkg_meta["version"])
-                            local_ver = version.parse(existing_pkg.version)
-
-                            if remote_ver > local_ver:
-                                is_newer = True
-                            elif remote_ver == local_ver:
-                                # Compare release
-                                remote_rel = version.parse(pkg_meta["release"])
-                                local_rel = version.parse(
-                                    existing_pkg.content_metadata.get("release", "")
-                                )
-
-                                if remote_rel > local_rel:
-                                    is_newer = True
-                        except Exception:
-                            # Fallback to string comparison if packaging fails
-                            if pkg_meta["version"] > existing_pkg.version:
-                                is_newer = True
-                            elif pkg_meta["version"] == existing_pkg.version:
-                                if pkg_meta["release"] > existing_pkg.content_metadata.get(
-                                    "release", ""
-                                ):
-                                    is_newer = True
+                    is_newer = (
+                        evr_compare(
+                            remote_epoch,
+                            pkg_meta["version"],
+                            pkg_meta["release"],
+                            local_epoch,
+                            existing_pkg.version,
+                            existing_pkg.content_metadata.get("release", ""),
+                        )
+                        > 0
+                    )
 
                     if is_newer:
                         # Update available
