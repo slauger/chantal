@@ -12,6 +12,7 @@ import hashlib
 import os
 import shutil
 import tempfile
+import time
 from pathlib import Path
 from typing import Any
 
@@ -282,19 +283,35 @@ class StorageManager:
 
         self.link_or_copy(source_path, target_path)
 
-    def get_orphaned_files(self, session: Session) -> list[Path]:
+    # A pool blob is written before the sync commits the DB row that references
+    # it, so a freshly-written unreferenced file is most likely in-flight, not a
+    # true orphan. Skip files modified within this window to avoid a concurrent
+    # `pool cleanup` deleting content a running sync is about to commit.
+    _ORPHAN_GRACE_SECONDS = 3600
+
+    def get_orphaned_files(
+        self, session: Session, grace_seconds: float | None = None
+    ) -> list[Path]:
         """Find files in pool that are not referenced in database.
 
         Checks both ContentItem (packages) and RepositoryFile (metadata/installer)
-        tables to find orphaned files in both pool subdirectories.
+        tables to find orphaned files in both pool subdirectories. Files modified
+        within ``grace_seconds`` (default :attr:`_ORPHAN_GRACE_SECONDS`) are
+        excluded so a concurrent in-progress sync's not-yet-committed blobs are
+        not mistaken for orphans.
 
         Args:
             session: Database session
+            grace_seconds: Skip files newer than this many seconds.
 
         Returns:
             List of orphaned file paths
         """
         from chantal.db.models import RepositoryFile
+
+        if grace_seconds is None:
+            grace_seconds = self._ORPHAN_GRACE_SECONDS
+        cutoff = time.time() - grace_seconds
 
         orphaned = []
 
@@ -312,21 +329,31 @@ class StorageManager:
                     if "_" in filename:
                         file_sha256 = filename.split("_", 1)[0]
                         if len(file_sha256) == 64 and file_sha256 not in db_sha256s:
+                            try:
+                                if pool_file.stat().st_mtime > cutoff:
+                                    # Recently written -> likely an in-flight sync.
+                                    continue
+                            except OSError:
+                                continue
                             orphaned.append(pool_file)
 
         return orphaned
 
-    def cleanup_orphaned_files(self, session: Session, dry_run: bool = True) -> tuple[int, int]:
+    def cleanup_orphaned_files(
+        self, session: Session, dry_run: bool = True, grace_seconds: float | None = None
+    ) -> tuple[int, int]:
         """Remove files from pool that are not referenced in database.
 
         Args:
             session: Database session
             dry_run: If True, only report what would be deleted
+            grace_seconds: Skip files newer than this many seconds (see
+                :meth:`get_orphaned_files`).
 
         Returns:
             Tuple of (files_removed, bytes_freed)
         """
-        orphaned_files = self.get_orphaned_files(session)
+        orphaned_files = self.get_orphaned_files(session, grace_seconds=grace_seconds)
 
         files_removed = 0
         bytes_freed = 0
