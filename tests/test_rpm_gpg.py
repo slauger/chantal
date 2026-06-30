@@ -215,13 +215,40 @@ class TestPublisherRpmGpgIntegration:
         assert (target / "repodata" / "repomd.xml").exists()
         assert not (target / "repodata" / "repomd.xml.asc").exists()
 
-    def test_mirror_mode_does_not_sign(self, db_session, temp_storage, tmp_path, gpg_home):
-        """Mirror mode preserves upstream signatures and does not re-sign."""
+    def test_mirror_mode_signs_regenerated_repomd(
+        self, db_session, temp_storage, tmp_path, gpg_home
+    ):
+        """Mirror mode also regenerates repomd.xml (primary is relocated and
+        recompressed), so the upstream signature no longer matches; with a gpg
+        config configured chantal signs the regenerated repomd so clients can use
+        repo_gpgcheck=1."""
         repo = _make_repo(db_session, temp_storage, tmp_path, RepositoryMode.MIRROR)
         config = _config(
             "mirror",
             GpgConfig(generate_key=True, gnupg_home=str(gpg_home), key_email="t@chantal.local"),
         )
+        publisher = RpmPublisher(storage=temp_storage)
+        target = tmp_path / "published" / "test-rpm-repo"
+
+        publisher.publish_repository(
+            session=db_session, repository=repo, config=config, target_path=target
+        )
+
+        repomd = target / "repodata" / "repomd.xml"
+        asc = target / "repodata" / "repomd.xml.asc"
+        assert repomd.exists()
+        assert asc.exists()
+        assert (target / "key.gpg").exists()
+
+        with GpgSigner(config.gpg) as verifier:
+            with open(asc, "rb") as sig:
+                verified = verifier.gpg.verify_file(sig, str(repomd))
+            assert verified.valid
+
+    def test_mirror_mode_without_gpg_is_unsigned(self, db_session, temp_storage, tmp_path):
+        """Mirror mode without a gpg config stays unsigned (backward compatible)."""
+        repo = _make_repo(db_session, temp_storage, tmp_path, RepositoryMode.MIRROR)
+        config = _config("mirror", None)
         publisher = RpmPublisher(storage=temp_storage)
         target = tmp_path / "published" / "test-rpm-repo"
 
