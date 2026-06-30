@@ -7,6 +7,7 @@ This module implements publishing for APT repositories with Debian package metad
 """
 
 import hashlib
+import re
 import shutil
 from datetime import UTC, datetime, timedelta
 from pathlib import Path, PurePosixPath
@@ -26,6 +27,12 @@ _PACKAGES_VARIANTS = ("Packages", "Packages.gz", "Packages.xz", "Packages.zst", 
 
 # Sources index variants (the source-package analog of _PACKAGES_VARIANTS).
 _SOURCES_VARIANTS = ("Sources", "Sources.gz", "Sources.xz", "Sources.zst", "Sources.bz2")
+
+# A component/architecture is used as a directory name (binary-<arch>) and is
+# emitted into the GPG-signed Release. A real value is a plain token; reject
+# anything else (esp. embedded whitespace/newlines from an un-folded upstream
+# field) so it cannot inject a forged line into the signed Release.
+_SAFE_TOKEN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9.+_-]*$")
 
 
 class AptPublisher(PublisherPlugin):
@@ -246,6 +253,16 @@ class AptPublisher(PublisherPlugin):
             # Use `or` so an explicit None in the metadata still falls back.
             component = package.content_metadata.get("component") or "main"
             architecture = package.content_metadata.get("architecture") or "amd64"
+
+            # Reject a malformed component/architecture: these become directory
+            # names and Release fields, so an embedded newline (from an un-folded
+            # upstream Architecture: field) would inject into the signed Release.
+            if not _SAFE_TOKEN.match(architecture) or not _SAFE_TOKEN.match(component):
+                print(
+                    f"  ⚠ Skipping {package.name}: unsafe component/architecture "
+                    f"({component!r}/{architecture!r})"
+                )
+                continue
 
             if architecture == "source":
                 targets = ["source"]
