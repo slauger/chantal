@@ -447,17 +447,26 @@ def parse_treeinfo(content: str) -> list[dict[str, str | None]]:
                 checksum = value.split("sha256:")[1].strip()
                 checksums[key] = checksum
 
-    # Parse images section for current arch
-    arch = parser.get("general", "arch", fallback="x86_64")
-    images_section = f"images-{arch}"
-
-    if parser.has_section(images_section):
-        for file_type, file_path in parser.items(images_section):
-            # file_type: boot.iso, kernel, initrd, etc.
-            # file_path: images/boot.iso, images/pxeboot/vmlinuz
-
-            sha256 = checksums.get(file_path)
-
-            installer_files.append({"path": file_path, "file_type": file_type, "sha256": sha256})
+    # Collect installer files from every ``images-*`` section and ``[stage2]``.
+    # A .treeinfo lists boot images per arch (images-x86_64, images-xen, ...) and
+    # the installer runtime under [stage2] (mainimage/instimage = install.img).
+    # Republishing the .treeinfo verbatim while only mirroring the default arch's
+    # images leaves clients 404ing on install.img and other-arch images, so
+    # download everything the .treeinfo references. Dedup by path (an image can
+    # be listed in more than one section).
+    seen_paths: set[str] = set()
+    for section in parser.sections():
+        if section != "stage2" and not section.startswith("images-"):
+            continue
+        for file_type, file_path in parser.items(section):
+            # file_type: boot.iso, kernel, initrd, mainimage, ...
+            # file_path: images/boot.iso, images/pxeboot/vmlinuz, images/install.img
+            file_path = file_path.strip()
+            if not file_path or file_path in seen_paths:
+                continue
+            seen_paths.add(file_path)
+            installer_files.append(
+                {"path": file_path, "file_type": file_type, "sha256": checksums.get(file_path)}
+            )
 
     return installer_files
