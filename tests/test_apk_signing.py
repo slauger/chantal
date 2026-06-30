@@ -82,6 +82,30 @@ class TestApkSigner:
         signer = ApkSigner(config)
         assert signer.key_name == "alpine-mirror.rsa.pub"
 
+    def test_long_or_non_ascii_key_name_does_not_corrupt_signature(self):
+        """A long/non-ASCII public_key_name previously made tarfile emit a PAX
+        header that shifted the real header out of the cut window, silently
+        corrupting the signature segment into an unparseable APKINDEX."""
+        config = GpgConfig(generate_key=True, public_key_name="café-" + "x" * 200 + ".rsa.pub")
+        signer = ApkSigner(config)
+
+        # key_name is normalized to ASCII and bounded so the '.SIGN.RSA256.<name>'
+        # tar entry stays within USTAR's 100-byte single-header limit.
+        entry = f".SIGN.RSA256.{signer.key_name}"
+        assert entry.isascii()
+        assert len(entry) <= 100
+
+        unsigned = _unsigned_index()
+        signed = signer.sign_index(unsigned)
+        assert signed.endswith(unsigned)
+
+        # The signature segment is still a parseable cut tar holding the real
+        # entry, and the signature verifies (no corruption).
+        name, signature = _extract_signature(signed, unsigned)
+        assert name == entry
+        pub = load_pem_public_key(signer.export_public_key())
+        pub.verify(signature, unsigned, padding.PKCS1v15(), hashes.SHA256())
+
     def test_export_public_key_is_pem(self):
         signer = ApkSigner(GpgConfig(generate_key=True))
         pem = signer.export_public_key()

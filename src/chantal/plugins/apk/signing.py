@@ -103,11 +103,19 @@ class ApkSigner:
         """
         configured = self.config.public_key_name
         if configured and configured != "key.gpg":
-            return configured
-        base = default_base or self.config.key_name or self._default_name or "chantal"
-        # Keep the filename safe and apk-friendly.
-        base = "".join(c if c.isalnum() or c in "-._" else "-" for c in base)
-        return f"{base}.rsa.pub"
+            name = configured
+        else:
+            base = default_base or self.config.key_name or self._default_name or "chantal"
+            name = f"{base}.rsa.pub"
+        # The published filename is also embedded in the '.SIGN.RSA256.<name>'
+        # tar entry, so keep it ASCII + safe and short enough that the entry name
+        # (prefix + name) stays within USTAR's 100-byte limit - otherwise the
+        # signature segment can't be written as a single-header cut tar.
+        name = "".join(c if c.isascii() and (c.isalnum() or c in "-._") else "-" for c in name)
+        max_name = 100 - len(".SIGN.RSA256.")
+        if len(name) > max_name:
+            name = name[:max_name]
+        return name or "chantal.rsa.pub"
 
     def sign_index(self, unsigned_index: bytes) -> bytes:
         """Sign an unsigned ``APKINDEX.tar.gz`` byte string.
@@ -132,7 +140,12 @@ class ApkSigner:
         ``abuild-tar --cut``).
         """
         buf = io.BytesIO()
-        with tarfile.open(fileobj=buf, mode="w") as tar:
+        # USTAR (not the default PAX): PAX prepends an extra ``@PaxHeader`` block
+        # whenever the entry name is long or non-ASCII, which would shift the real
+        # header out of the single-block cut window below and silently corrupt the
+        # signature segment. USTAR always emits exactly one 512-byte header, so
+        # the cut math holds; the name is kept short+ASCII in _resolve_public_name.
+        with tarfile.open(fileobj=buf, mode="w", format=tarfile.USTAR_FORMAT) as tar:
             info = tarfile.TarInfo(name)
             info.size = len(data)
             info.mtime = 0
