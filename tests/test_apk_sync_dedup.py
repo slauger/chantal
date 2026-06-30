@@ -77,6 +77,46 @@ def test_duplicate_entries_in_one_sync_do_not_abort(session):
     assert len(items) == 1
 
 
+def test_same_version_content_replacement_redownloads(session):
+    """Upstream replacing a package's bytes while keeping the version (new C:)
+    must re-download and replace the stale package, not short-circuit it."""
+    repo = Repository(repo_id="alpine", name="Alpine", type="apk", feed="http://x", mode="MIRROR")
+    session.add(repo)
+    session.flush()
+    stale = ContentItem(
+        content_type="apk",
+        name="demo",
+        version="1.0-r0",
+        sha256="aa" * 32,
+        size_bytes=1,
+        pool_path="aa/aa/demo.apk",
+        filename="demo-1.0-r0.apk",
+        content_metadata={"architecture": "x86_64", "checksum": "Q1" + "A" * 27},
+    )
+    stale.repositories.append(repo)
+    session.add(stale)
+    session.commit()
+
+    config = _config()
+    syncer = ApkSyncer(storage=None, config=config)
+    new_entry = {**_entry(), "checksum": "Q1" + "B" * 27}  # same version, new content
+    with (
+        patch.object(syncer, "_fetch_apkindex", return_value=("", b"")),
+        patch.object(syncer, "_store_apkindex_file"),
+        patch.object(syncer, "_parse_apkindex", return_value=[new_entry]),
+        patch.object(
+            syncer, "_download_package", return_value=("cd/ef/demo.apk", "cd" * 32, 100, True)
+        ),
+    ):
+        stats = syncer.sync_repository(session, repo, config)
+
+    assert stats["packages_added"] == 1  # the new bytes were downloaded
+    apk_items = [i for i in repo.content_items if i.content_type == "apk"]
+    assert len(apk_items) == 1  # the stale package is unlinked, replaced
+    assert apk_items[0].sha256 == "cd" * 32
+    assert apk_items[0].content_metadata["checksum"] == "Q1" + "B" * 27
+
+
 def test_resync_links_instead_of_reinserting(session):
     repo = Repository(repo_id="alpine", name="Alpine", type="apk", feed="http://x", mode="MIRROR")
     session.add(repo)

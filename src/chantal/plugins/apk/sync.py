@@ -171,11 +171,21 @@ class ApkSyncer:
                     .all()
                 )
 
+                # Match on (name, version, arch) AND the upstream C: checksum.
+                # apk package identity is the control checksum, not name+version:
+                # if upstream replaces the bytes keeping the same version, the
+                # checksum differs and we must re-download rather than serve the
+                # stale package.
                 existing = None
+                stale = None
                 for candidate in candidates:
-                    if candidate.content_metadata.get("architecture") == metadata.architecture:
+                    if candidate.content_metadata.get("architecture") != metadata.architecture:
+                        continue
+                    if candidate.content_metadata.get("checksum") == metadata.checksum:
                         existing = candidate
-                        break
+                    else:
+                        stale = candidate
+                    break
 
                 if existing:
                     # Package already exists - link to repository if not already linked
@@ -188,6 +198,12 @@ class ApkSyncer:
                         stats["packages_skipped"] += 1
                     self.output.update_progress()
                     continue
+
+                if stale is not None and repository in stale.repositories:
+                    # Same version, different content: drop the superseded package
+                    # from this repository so the new bytes replace it (one entry
+                    # per name+version+arch in the published APKINDEX).
+                    stale.repositories.remove(repository)
 
                 # Download package
                 pkg_url = urljoin(base_url, filename)
