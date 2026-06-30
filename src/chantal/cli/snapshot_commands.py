@@ -11,10 +11,50 @@ import click
 
 from chantal.core.config import GlobalConfig
 from chantal.db.connection import DatabaseManager
-from chantal.db.models import Repository, Snapshot, View, ViewSnapshot
+from chantal.db.models import ContentItem, Repository, Snapshot, View, ViewSnapshot
 
 # Click context settings to enable -h as alias for --help
 CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
+
+
+def _package_ident(pkg: ContentItem) -> tuple[str, str]:
+    """Identity for snapshot-diff grouping: (name, arch).
+
+    Grouping by name alone collapses every multi-arch package
+    (``glibc.x86_64`` + ``glibc.i686``) and multi-version package, producing
+    spurious or missed updates. ``arch`` lives under ``arch`` (rpm) or
+    ``architecture`` (deb/apk); helm charts have none (-> "").
+    """
+    md = pkg.content_metadata or {}
+    return (pkg.name, md.get("arch") or md.get("architecture") or "")
+
+
+def _diff_package_sets(
+    packages1: dict[str, ContentItem], packages2: dict[str, ContentItem]
+) -> tuple[list[ContentItem], list[ContentItem], list[tuple[ContentItem, ContentItem]]]:
+    """Classify two sha256-keyed package sets into (added, removed, updated).
+
+    A package is *updated* when the same ``(name, arch)`` exists in both sets
+    with different content (sha256); such pairs are excluded from added/removed.
+    """
+    added_sha256s = set(packages2) - set(packages1)
+    removed_sha256s = set(packages1) - set(packages2)
+
+    by_ident1 = {_package_ident(pkg): pkg for pkg in packages1.values()}
+    by_ident2 = {_package_ident(pkg): pkg for pkg in packages2.values()}
+
+    updated: list[tuple[ContentItem, ContentItem]] = []
+    for ident in by_ident1.keys() & by_ident2.keys():
+        pkg1, pkg2 = by_ident1[ident], by_ident2[ident]
+        if pkg1.sha256 != pkg2.sha256:
+            updated.append((pkg1, pkg2))
+            added_sha256s.discard(pkg2.sha256)
+            removed_sha256s.discard(pkg1.sha256)
+
+    added = sorted((packages2[s] for s in added_sha256s), key=lambda p: p.name)
+    removed = sorted((packages1[s] for s in removed_sha256s), key=lambda p: p.name)
+    updated.sort(key=lambda p: p[0].name)
+    return added, removed, updated
 
 
 def create_snapshot_group(cli: click.Group) -> click.Group:
@@ -212,38 +252,8 @@ def create_snapshot_group(cli: click.Group) -> click.Group:
                 packages2 = {pkg.sha256: pkg for pkg in snap2.content_items}
                 comparison_name = snapshot2
 
-            # Calculate differences
-            added_sha256s = set(packages2.keys()) - set(packages1.keys())
-            removed_sha256s = set(packages1.keys()) - set(packages2.keys())
-
-            # Find updated packages (same name, different version)
-            # Group packages by name for easier comparison
-            packages1_by_name = {}
-            for pkg in packages1.values():
-                packages1_by_name[pkg.name] = pkg
-
-            packages2_by_name = {}
-            for pkg in packages2.values():
-                packages2_by_name[pkg.name] = pkg
-
-            # Find packages with same name but different SHA256 (= different version)
-            updated = []
-            for name in packages1_by_name.keys() & packages2_by_name.keys():
-                pkg1 = packages1_by_name[name]
-                pkg2 = packages2_by_name[name]
-                if pkg1.sha256 != pkg2.sha256:
-                    updated.append((pkg1, pkg2))
-                    # Remove from added/removed since they're updates
-                    added_sha256s.discard(pkg2.sha256)
-                    removed_sha256s.discard(pkg1.sha256)
-
-            added = [packages2[sha] for sha in added_sha256s]
-            removed = [packages1[sha] for sha in removed_sha256s]
-
-            # Sort for consistent output
-            added.sort(key=lambda p: p.name)
-            removed.sort(key=lambda p: p.name)
-            updated.sort(key=lambda p: p[0].name)
+            # Calculate differences (added / removed / updated).
+            added, removed, updated = _diff_package_sets(packages1, packages2)
 
             # Output
             if output_format == "json":
