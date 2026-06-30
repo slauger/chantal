@@ -266,7 +266,7 @@ def test_get_orphaned_files(temp_storage, test_file, db_session):
     db_session.commit()
 
     # Should find no orphaned files
-    orphaned = temp_storage.get_orphaned_files(db_session)
+    orphaned = temp_storage.get_orphaned_files(db_session, grace_seconds=0)
     assert len(orphaned) == 0
 
     # Remove from database
@@ -274,7 +274,7 @@ def test_get_orphaned_files(temp_storage, test_file, db_session):
     db_session.commit()
 
     # Should find orphaned file now
-    orphaned = temp_storage.get_orphaned_files(db_session)
+    orphaned = temp_storage.get_orphaned_files(db_session, grace_seconds=0)
     assert len(orphaned) == 1
     assert orphaned[0].name.startswith(sha256)
 
@@ -285,7 +285,9 @@ def test_cleanup_orphaned_files_dry_run(temp_storage, test_file, db_session):
     sha256, pool_path, size = temp_storage.add_package(test_file, "test.txt", verify_checksum=True)
 
     # Run cleanup in dry-run mode
-    files_removed, bytes_freed = temp_storage.cleanup_orphaned_files(db_session, dry_run=True)
+    files_removed, bytes_freed = temp_storage.cleanup_orphaned_files(
+        db_session, dry_run=True, grace_seconds=0
+    )
 
     # Should report what would be removed
     assert files_removed == 1
@@ -302,7 +304,9 @@ def test_cleanup_orphaned_files_real(temp_storage, test_file, db_session):
     sha256, pool_path, size = temp_storage.add_package(test_file, "test.txt", verify_checksum=True)
 
     # Run cleanup for real
-    files_removed, bytes_freed = temp_storage.cleanup_orphaned_files(db_session, dry_run=False)
+    files_removed, bytes_freed = temp_storage.cleanup_orphaned_files(
+        db_session, dry_run=False, grace_seconds=0
+    )
 
     # Should have removed file
     assert files_removed == 1
@@ -426,7 +430,7 @@ def test_get_orphaned_files_with_repository_files(temp_storage, test_file, db_se
     db_session.commit()
 
     # Check for orphans - should be empty (file is referenced)
-    orphaned = temp_storage.get_orphaned_files(db_session)
+    orphaned = temp_storage.get_orphaned_files(db_session, grace_seconds=0)
     assert len(orphaned) == 0
 
     # Delete from DB
@@ -434,7 +438,7 @@ def test_get_orphaned_files_with_repository_files(temp_storage, test_file, db_se
     db_session.commit()
 
     # Now should be orphaned
-    orphaned = temp_storage.get_orphaned_files(db_session)
+    orphaned = temp_storage.get_orphaned_files(db_session, grace_seconds=0)
     assert len(orphaned) == 1
     assert orphaned[0] == temp_storage.pool_path / pool_path
 
@@ -457,7 +461,9 @@ def test_cleanup_orphaned_files_preserves_repository_files(temp_storage, test_fi
     db_session.commit()
 
     # Run cleanup
-    files_removed, bytes_freed = temp_storage.cleanup_orphaned_files(db_session, dry_run=False)
+    files_removed, bytes_freed = temp_storage.cleanup_orphaned_files(
+        db_session, dry_run=False, grace_seconds=0
+    )
 
     # Nothing should be removed (file is referenced)
     assert files_removed == 0
@@ -519,7 +525,7 @@ def test_mixed_content_and_files_cleanup(temp_storage, db_session):
         assert sha256_pkg != sha256_file
 
         # Both should be preserved
-        orphaned = temp_storage.get_orphaned_files(db_session)
+        orphaned = temp_storage.get_orphaned_files(db_session, grace_seconds=0)
         assert len(orphaned) == 0
 
         # Delete package from DB (but keep file)
@@ -527,7 +533,7 @@ def test_mixed_content_and_files_cleanup(temp_storage, db_session):
         db_session.commit()
 
         # Package file should be orphaned, but not metadata file
-        orphaned = temp_storage.get_orphaned_files(db_session)
+        orphaned = temp_storage.get_orphaned_files(db_session, grace_seconds=0)
         assert len(orphaned) == 1
         assert orphaned[0] == temp_storage.pool_path / pool_path_pkg
 
