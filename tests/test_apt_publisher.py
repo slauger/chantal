@@ -209,6 +209,34 @@ class TestPackagesFileGeneration:
         # Should contain a pool-relative filename (so it resolves for real apt)
         assert "Filename: pool/main/t/test-package/test-package_1.0-1_amd64.deb" in content
 
+    def test_group_drops_unsafe_architecture(self, temp_storage, apt_config):
+        """A package whose architecture carries an embedded newline (from an
+        un-folded upstream field) must be dropped, not used as a directory name
+        or injected into the signed Release."""
+        publisher = AptPublisher(storage=temp_storage, config=apt_config)
+
+        def pkg(name, sha, arch):
+            return ContentItem(
+                content_type="deb",
+                name=name,
+                version="1.0",
+                sha256=sha,
+                size_bytes=1,
+                pool_path=f"pool/{sha[:2]}/{name}.deb",
+                filename=f"{name}_1.0_amd64.deb",
+                content_metadata={"architecture": arch, "component": "main"},
+            )
+
+        good = pkg("good", "a" * 64, "amd64")
+        evil = pkg("evil", "b" * 64, "amd64\nValid-Until: Thu, 01 Jan 1970 00:00:00 UTC")
+
+        grouped = publisher._group_packages_by_component_arch([good, evil])
+
+        # Only the clean (component, arch) survives; the injected arch is gone.
+        assert set(grouped.keys()) == {("main", "amd64")}
+        names = {p.name for pkgs in grouped.values() for p in pkgs}
+        assert names == {"good"}
+
     def test_generate_packages_rejects_field_injection(
         self, db_session, temp_storage, apt_config, test_deb_file
     ):
