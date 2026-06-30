@@ -206,12 +206,13 @@ class RpmPublisher(PublisherPlugin):
         # Generate repomd.xml with all metadata entries
         repomd_path = self._generate_repomd_xml(repodata_path, published_metadata)
 
-        # In filtered mode the regenerated repomd.xml invalidates the upstream
-        # repomd.xml.asc signature. Sign it ourselves when a GPG key is
-        # configured so clients can use repo_gpgcheck=1. Mirror mode keeps the
-        # upstream signature untouched. Packages are never re-signed: they
-        # retain their upstream signatures (verified via gpgcheck=1).
-        if mode == RepositoryMode.FILTERED and config is not None:
+        # repomd.xml is regenerated in EVERY mode (the primary is relocated and
+        # recompressed, with a fresh revision), so the upstream repomd.xml.asc
+        # never matches what we publish - mirror mode included. Sign it ourselves
+        # whenever a GPG key is configured so clients can use repo_gpgcheck=1 in
+        # mirror mode too. Packages are never re-signed: they retain their
+        # upstream signatures (verified via gpgcheck=1).
+        if config is not None:
             gpg_config = config.gpg
             if gpg_config is not None and gpg_config.enabled:
                 self._sign_repomd(repomd_path, target_path, gpg_config, config)
