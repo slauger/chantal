@@ -209,6 +209,50 @@ class TestPackagesFileGeneration:
         # Should contain a pool-relative filename (so it resolves for real apt)
         assert "Filename: pool/main/t/test-package/test-package_1.0-1_amd64.deb" in content
 
+    def test_generate_packages_rejects_field_injection(
+        self, db_session, temp_storage, apt_config, test_deb_file
+    ):
+        """A crafted upstream field with embedded newlines must not inject a
+        forged stanza into the (chantal-signed) regenerated Packages index."""
+        from chantal.plugins.apt.parsers import parse_packages_from_bytes
+
+        sha256, pool_path, size_bytes = temp_storage.add_package(
+            test_deb_file, "victim_1.0_amd64.deb"
+        )
+        injected = (
+            "realdep\n"
+            "\n"
+            "Package: evil\n"
+            "Version: 6.6.6\n"
+            "Architecture: amd64\n"
+            "Filename: pool/evil.deb\n"
+            "Size: 1\n"
+            "SHA256: " + "e" * 64
+        )
+        pkg = ContentItem(
+            content_type="deb",
+            name="victim",
+            version="1.0",
+            sha256=sha256,
+            size_bytes=size_bytes,
+            pool_path=pool_path,
+            filename="victim_1.0_amd64.deb",
+            content_metadata={"architecture": "amd64", "depends": injected},
+        )
+
+        publisher = AptPublisher(storage=temp_storage, config=apt_config)
+        out = Path(temp_storage.config.published_path) / "ca"
+        out.mkdir(parents=True, exist_ok=True)
+        publisher._generate_packages_file([pkg], out, "main", "amd64")
+
+        parsed = parse_packages_from_bytes((out / "Packages").read_bytes(), compressed=False)
+        names = [p.package for p in parsed]
+        assert names == ["victim"], f"forged stanza injected: {names}"
+        # No line may break out of the Depends value as a real field/stanza.
+        text = (out / "Packages").read_text()
+        assert "\n\nPackage: evil" not in text
+        assert "\nSHA256: " + "e" * 64 + "\n" not in text  # not a standalone field
+
     def test_generate_packages_file_multiple_packages(
         self, db_session, temp_storage, apt_config, test_repository
     ):
