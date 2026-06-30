@@ -503,9 +503,38 @@ class ApkSyncer:
                     f"Stored APKINDEX.tar.gz in pool: {sha256[:16]}... ({size_bytes} bytes)"
                 )
 
+            # Prune the previous sync's APKINDEX so mirror publishing doesn't pick
+            # up a stale one (Alpine regenerates the gz on nearly every fetch).
+            self._prune_stale_apkindex(session, repository, sha256)
+
         finally:
             # Clean up temp file
             tmp_path.unlink(missing_ok=True)
+
+    def _prune_stale_apkindex(
+        self, session: Session, repository: Repository, current_sha: str
+    ) -> None:
+        """Unlink APKINDEX RepositoryFiles from previous syncs.
+
+        Without this, every changed re-sync leaves another ``apkindex``
+        RepositoryFile linked, and the publisher (which picks the first match)
+        would republish a stale APKINDEX inconsistent with the published .apk
+        set, while old pool blobs stay referenced forever. Delete the row when no
+        other repository or snapshot still references it.
+        """
+        removed = 0
+        for repo_file in list(repository.repository_files):
+            if repo_file.file_category != "metadata" or repo_file.file_type != "apkindex":
+                continue
+            if repo_file.sha256 == current_sha:
+                continue
+            repository.repository_files.remove(repo_file)
+            removed += 1
+            if not repo_file.repositories and not repo_file.snapshots:
+                session.delete(repo_file)
+        if removed:
+            session.commit()
+            logger.info(f"Pruned {removed} stale APKINDEX file(s) from a previous sync")
 
     def _download_package(
         self,
