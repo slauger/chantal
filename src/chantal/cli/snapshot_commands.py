@@ -57,6 +57,20 @@ def _diff_package_sets(
     return added, removed, updated
 
 
+def _referencing_view_snapshots(session: Any, snapshot_id: int) -> list[ViewSnapshot]:
+    """Return view snapshots whose ``snapshot_ids`` include ``snapshot_id``.
+
+    ``ViewSnapshot.snapshot_ids`` is a plain JSON list of ``Snapshot.id`` with no
+    foreign key or cascade, so deleting a referenced snapshot would silently leave
+    a dangling reference that breaks the view snapshot when it is later published.
+    JSON-array containment is not portable across backends, so candidates are
+    filtered in Python.
+    """
+    return [
+        vs for vs in session.query(ViewSnapshot).all() if snapshot_id in (vs.snapshot_ids or [])
+    ]
+
+
 def create_snapshot_group(cli: click.Group) -> click.Group:
     """Create and return the snapshot command group.
 
@@ -371,6 +385,24 @@ def create_snapshot_group(cli: click.Group) -> click.Group:
                 click.echo(f"Error: Snapshot '{snapshot_name}' is currently published.", err=True)
                 click.echo(f"Published at: {snapshot.published_path}", err=True)
                 click.echo("Unpublish first or use --force to delete anyway.", err=True)
+                ctx.exit(1)
+
+            # Check if referenced by any view snapshot (no FK/cascade on snapshot_ids,
+            # so an unguarded delete would leave a dangling reference that breaks the
+            # view snapshot when it is published).
+            referencing = _referencing_view_snapshots(session, snapshot.id)
+            if referencing and not force:
+                click.echo(
+                    f"Error: Snapshot '{snapshot_name}' is referenced by "
+                    f"{len(referencing)} view snapshot(s):",
+                    err=True,
+                )
+                for vs in referencing:
+                    click.echo(f"  - view '{vs.view.name}' snapshot '{vs.name}'", err=True)
+                click.echo(
+                    "Delete the view snapshot(s) first or use --force to delete anyway.",
+                    err=True,
+                )
                 ctx.exit(1)
 
             click.echo(f"Deleting snapshot: {snapshot_name}")
