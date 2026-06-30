@@ -656,3 +656,45 @@ class TestHelmIntegration:
 
         published = yaml.safe_load((target / "index.yaml").read_text())
         assert published["entries"]["demo"][0]["urls"] == ["demo-1.0.0.tgz"]
+
+    def test_mirror_index_tolerates_non_string_digest(self, temp_storage):
+        """A malformed entry whose digest YAML-parses to a non-string (int/bool)
+        must not crash the whole publish."""
+        # 12345 is parsed as an int by yaml.safe_load.
+        index = {
+            "apiVersion": "v1",
+            "entries": {
+                "demo": [
+                    {
+                        "name": "demo",
+                        "version": "1.0.0",
+                        "urls": ["demo-1.0.0.tgz"],
+                        "digest": 12345,
+                    }
+                ]
+            },
+        }
+        index_path = temp_storage.pool_path / "index.yaml"
+        index_path.parent.mkdir(parents=True, exist_ok=True)
+        index_path.write_text(yaml.safe_dump(index), encoding="utf-8")
+
+        chart = ContentItem(
+            content_type="helm",
+            name="demo",
+            version="1.0.0",
+            sha256="ab" * 32,
+            size_bytes=1,
+            pool_path="ab/ab/demo-1.0.0.tgz",
+            filename="demo-1.0.0.tgz",
+            content_metadata={},
+        )
+
+        publisher = HelmPublisher(storage=temp_storage)
+        target = temp_storage.published_path
+        target.mkdir(parents=True, exist_ok=True)
+        repo_config = RepositoryConfig(id="x", name="x", type="helm", feed="https://up.example.com")
+
+        # Must not raise; the entry falls back to a basename match.
+        publisher._publish_mirror_index(index_path, target, [chart], repo_config)
+        published = yaml.safe_load((target / "index.yaml").read_text())
+        assert published["entries"]["demo"][0]["urls"] == ["demo-1.0.0.tgz"]
