@@ -31,8 +31,11 @@ def normalize_digest(digest: str | None) -> str | None:
 
     Helm ``index.yaml`` digests are bare hex, but some producers (including
     chantal's own generated index, historically) prefix them with ``sha256:``.
+    A malformed upstream index may parse ``digest:`` as a non-string (YAML reads
+    a bare numeric/bool as int/bool); treat anything non-string as absent so a
+    single bad entry can't crash the whole publish.
     """
-    if not digest:
+    if not digest or not isinstance(digest, str):
         return None
     return digest.split(":", 1)[1] if ":" in digest else digest
 
