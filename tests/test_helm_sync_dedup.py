@@ -91,3 +91,55 @@ def test_digestless_duplicate_in_one_sync_dedup_autoflush_off(session):
 
     assert stats["charts_added"] == 1  # second deduped, no IntegrityError
     assert session.query(ContentItem).filter_by(content_type="helm").count() == 1
+
+
+def test_digest_mismatch_keeps_blob_referenced_by_in_run_chart(session, tmp_path):
+    """A duplicate same-bytes entry with a bad digest must not delete the pool
+    blob the first (uncommitted, autoflush=False) chart already references."""
+    from chantal.core.config import StorageConfig
+    from chantal.core.storage import StorageManager
+
+    pool = tmp_path / "pool"
+    pool.mkdir()
+    storage = StorageManager(
+        StorageConfig(
+            base_path=str(tmp_path), pool_path=str(pool), published_path=str(tmp_path / "pub")
+        )
+    )
+    blob = pool / "ab" / "cd" / "demo.tgz"
+    blob.parent.mkdir(parents=True)
+    blob.write_bytes(b"chart-bytes")
+
+    repo = Repository(repo_id="demo", name="Demo", type="helm", feed="http://x", mode="MIRROR")
+    session.add(repo)
+    session.commit()
+
+    sha = "cd" * 32
+    config = _config()
+    syncer = HelmSyncer(storage=storage, config=config)
+    index = {
+        "apiVersion": "v1",
+        "entries": {
+            "demo": [
+                {"name": "demo", "version": "0.1.0", "urls": ["demo-0.1.0.tgz"], "digest": sha},
+                # identical bytes, but a wrong advertised digest -> mismatch branch
+                {
+                    "name": "demo",
+                    "version": "0.1.1",
+                    "urls": ["demo-0.1.1.tgz"],
+                    "digest": "e" * 64,
+                },
+            ]
+        },
+    }
+    with (
+        patch.object(syncer, "_fetch_index", return_value=index),
+        patch.object(syncer, "_store_index_file", return_value="f" * 64),
+        patch.object(
+            syncer, "_download_chart", return_value=("ab/cd/demo.tgz", sha, 11, "demo.tgz")
+        ),
+    ):
+        syncer.sync_repository(session, repo, config)
+
+    assert blob.exists(), "the shared pool blob was wrongly deleted"
+    assert session.query(ContentItem).filter_by(content_type="helm").count() == 1

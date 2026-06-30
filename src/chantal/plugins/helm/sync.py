@@ -188,8 +188,14 @@ class HelmSyncer:
                     # The download already content-addressed the bytes into the
                     # pool; remove the orphan if nothing else references it. Use
                     # the actual pool path (the chart url basename is unreliable
-                    # for oci:// and signed/query URLs).
-                    if not session.query(ContentItem).filter_by(sha256=sha256).first():
+                    # for oci:// and signed/query URLs). Consult the in-run dict
+                    # too: with autoflush=False a query can't see a chart added
+                    # earlier this run that legitimately shares these bytes, so
+                    # without it we could delete a blob a committed chart needs.
+                    if (
+                        sha256 not in inserted_by_sha
+                        and not session.query(ContentItem).filter_by(sha256=sha256).first()
+                    ):
                         (self.storage.pool_path / pool_path).unlink(missing_ok=True)
                     raise ValueError(
                         f"digest mismatch for {chart_name}: index.yaml advertises "
