@@ -31,6 +31,14 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
+      - name: Install cosign
+        if: github.event_name != 'pull_request'
+        uses: sigstore/cosign-installer@v4.1.2
+
+      - name: Install syft
+        if: github.event_name != 'pull_request'
+        uses: anchore/sbom-action/download-syft@v0.24.3
+
       - name: Log in to GitHub Container Registry
         if: github.event_name != 'pull_request'
         uses: docker/login-action@v4
@@ -75,6 +83,69 @@ jobs:
             BUILDTIME=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.created'] }}
             VERSION=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.version'] }}
             REVISION=${{ fromJSON(steps.meta.outputs.json).labels['org.opencontainers.image.revision'] }}
+          sbom: true
+          provenance: true
+
+      # Keyless signature on the multi-arch index. All tags pushed by this run
+      # point at the same digest, so one signature covers them.
+      - name: Sign image with cosign (keyless)
+        if: github.event_name != 'pull_request'
+        env:
+          IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: cosign sign --yes "${IMAGE}@${DIGEST}"
+
+      # BuildKit attaches an unsigned SPDX SBOM to every platform image, which
+      # CycloneDX-only consumers such as Dependency-Track cannot read. syft
+      # generates both formats from the pushed per-platform images.
+      - name: Generate SBOMs
+        if: github.event_name != 'pull_request'
+        env:
+          # Packages only: without this, every file owned by an RPM becomes a CycloneDX component
+          SYFT_FILE_METADATA_SELECTION: none
+          IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          INDEX_DIGEST: ${{ steps.build.outputs.digest }}
+          VERSION: ${{ steps.meta.outputs.version }}
+          PLATFORMS: linux/amd64,linux/arm64
+        run: |
+          NAME="${IMAGE##*/}"
+          INDEX=$(docker buildx imagetools inspect "${IMAGE}@${INDEX_DIGEST}" --format '{{json .Manifest}}')
+
+          mkdir -p sbom
+          for PLATFORM in ${PLATFORMS//,/ }; do
+            DIGEST=$(jq -r --arg os "${PLATFORM%%/*}" --arg arch "${PLATFORM#*/}" \
+              '.manifests[] | select(.platform.os == $os and .platform.architecture == $arch) | .digest' <<< "${INDEX}")
+            if [[ -z "${DIGEST}" ]]; then
+              echo "::error::no ${PLATFORM} image in ${IMAGE}@${INDEX_DIGEST}"
+              exit 1
+            fi
+            BASE="sbom/${NAME}-${VERSION}-${PLATFORM//\//-}"
+            syft scan "registry:${IMAGE}@${DIGEST}" \
+              --source-name "${IMAGE}" --source-version "${VERSION}" \
+              -o "cyclonedx-json=${BASE}.cdx.json" \
+              -o "spdx-json=${BASE}.spdx.json"
+            echo "${DIGEST}" > "${BASE}.digest"
+          done
+
+      # An SBOM describes one platform image, so it is attested against the
+      # platform digest rather than the index.
+      - name: Attest CycloneDX SBOMs with cosign (keyless)
+        if: github.event_name != 'pull_request'
+        env:
+          IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        run: |
+          for CDX in sbom/*.cdx.json; do
+            DIGEST=$(cat "${CDX%.cdx.json}.digest")
+            cosign attest --yes --type cyclonedx --predicate "${CDX}" "${IMAGE}@${DIGEST}"
+          done
+
+      - name: Upload SBOMs
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v7
+        with:
+          name: sbom-chantal
+          path: sbom/*.json
+          retention-days: 7
 
       - name: Generate artifact attestation
         if: github.event_name != 'pull_request'

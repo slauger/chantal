@@ -78,6 +78,44 @@ pip install -e .
 
 **Requirements:** Python 3.12+, PostgreSQL or SQLite
 
+### Verifying the Container Image
+
+Container images pushed to `ghcr.io/slauger/chantal` are:
+
+- **Signed** with [cosign](https://docs.sigstore.dev/cosign/) keyless signing (Sigstore OIDC) on the multi-arch index digest, so all tags pointing at the same image share one signature
+- **Attested** with [SLSA provenance](https://slsa.dev/) on the multi-arch index
+- **Accompanied by SBOMs** for each architecture: the unsigned SPDX SBOM that BuildKit attaches to the image, and a CycloneDX SBOM generated with [syft](https://github.com/anchore/syft) and attached as a signed cosign attestation, e.g. for [Dependency-Track](https://dependencytrack.org/)
+
+Verify the signature:
+
+```bash
+cosign verify ghcr.io/slauger/chantal:latest \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  --certificate-identity-regexp 'github\.com/slauger/chantal'
+```
+
+Verify the provenance attestation on the multi-arch index:
+
+```bash
+cosign verify-attestation ghcr.io/slauger/chantal:latest \
+  --type slsaprovenance1 \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  --certificate-identity-regexp 'github\.com/slauger/chantal'
+```
+
+An SBOM describes a single architecture, so the CycloneDX attestation is
+attached to the platform image rather than the multi-arch tag. `cosign
+verify-attestation` has no `--platform` flag; resolve the platform digest first:
+
+```bash
+DIGEST=$(crane digest --platform linux/amd64 ghcr.io/slauger/chantal:latest)
+cosign verify-attestation "ghcr.io/slauger/chantal@${DIGEST}" \
+  --type cyclonedx \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+  --certificate-identity-regexp 'github\.com/slauger/chantal' \
+  | jq -r '.payload' | base64 -d | jq '.predicate' > sbom.cdx.json
+```
+
 ### Basic Usage
 
 ```bash
