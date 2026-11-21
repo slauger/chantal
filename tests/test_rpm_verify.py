@@ -242,3 +242,115 @@ class TestPackageSignatureVerification:
         packet, blob = extracted
         with GpgVerifier(_verify_config(pub, verifier_home)) as verifier:
             assert verifier.verify_detached(blob, packet) is False
+
+
+# --------------------------------------------------------------------------- #
+# rpm >= 6: RPMSIGTAG_OPENPGP (278), base64 signatures in a string array
+# --------------------------------------------------------------------------- #
+
+import base64  # noqa: E402
+
+from chantal.plugins.rpm.rpm_header import (  # noqa: E402
+    RPMTAG_OPENPGP,
+    extract_header_signatures,
+)
+
+_FIXTURES = Path(__file__).parent / "fixtures" / "rpm"
+
+
+def _build_rpm6(main_blob: bytes, sig_packets: list[bytes]) -> bytes:
+    """Lead + signature header with an OPENPGP string array + main header."""
+    store = b"".join(base64.b64encode(p) + b"\x00" for p in sig_packets)
+    index = struct.pack(">IIII", RPMTAG_OPENPGP, 8, 0, len(sig_packets))  # 8 = STRING_ARRAY
+    sig_header = b"\x8e\xad\xe8\x01" + b"\x00" * 4 + struct.pack(">II", 1, len(store))
+    sig_header += index + store
+    pad = b"\x00" * (-(96 + len(sig_header)) % 8)
+    return _LEAD + sig_header + pad + main_blob
+
+
+@pytest.fixture
+def other_signer():
+    """A second signer whose key is not trusted by the verifier."""
+    home = _short_home()
+    signer = GpgSigner(GpgConfig(generate_key=True, gnupg_home=home, key_email="other@elsewhere"))
+    _ = signer.key_id
+    yield signer
+    signer.close()
+    shutil.rmtree(home, ignore_errors=True)
+
+
+class TestRpm6Signatures:
+    def test_real_rpm6_signed_package_verifies(self, verifier_home):
+        """A package signed by rpm 6.0.1 (no RSAHEADER/DSAHEADER) verifies."""
+        rpm = (_FIXTURES / "demo-1.0-1.noarch.rpm6-signed.rpm").read_bytes()
+        pub = (_FIXTURES / "rpm6-signing-key.asc").read_text()
+
+        extracted = extract_header_signatures(rpm)
+        assert extracted is not None, "rpm 6 OPENPGP header signature not found"
+        packets, blob = extracted
+        assert len(packets) == 1
+        assert extract_header_signature(rpm) == (packets[0], blob)
+        with GpgVerifier(_verify_config(pub, verifier_home)) as verifier:
+            assert verifier.verify_detached(blob, packets[0]) is True
+            tampered = bytearray(blob)
+            tampered[len(tampered) // 2] ^= 0xFF
+            assert verifier.verify_detached(bytes(tampered), packets[0]) is False
+
+    def test_multiple_signatures_are_decoded_in_order(self):
+        main_blob = _build_header([(1000, b"demo\x00")])
+        rpm = _build_rpm6(main_blob, [b"\x88first", b"\x88second"])
+        assert extract_header_signatures(rpm) == ([b"\x88first", b"\x88second"], main_blob)
+
+    def test_signature_count_is_capped(self):
+        """A crafted package cannot make sync run thousands of gpg verifications."""
+        from chantal.plugins.rpm.rpm_header import MAX_HEADER_SIGNATURES
+
+        main_blob = _build_header([(1000, b"demo\x00")])
+        extracted = extract_header_signatures(_build_rpm6(main_blob, [b"\x88"] * 32))
+        assert extracted is not None and len(extracted[0]) == MAX_HEADER_SIGNATURES == 32
+        with pytest.raises(RpmFormatError, match="more than"):
+            extract_header_signatures(_build_rpm6(main_blob, [b"\x88"] * 200_000))
+
+    def test_invalid_base64_raises(self):
+        main_blob = _build_header([(1000, b"demo\x00")])
+        rpm = bytearray(_build_rpm6(main_blob, [b"\x88sig"]))
+        start = rpm.index(base64.b64encode(b"\x88sig"))
+        rpm[start] = ord("!")
+        with pytest.raises(RpmFormatError, match="base64"):
+            extract_header_signatures(bytes(rpm))
+
+    @pytest.mark.parametrize("trusted_included", [True, False])
+    def test_sync_accepts_one_trusted_signature(
+        self, upstream_signer, other_signer, verifier_home, tmp_path, trusted_included
+    ):
+        """Like rpm, a package passes gpgcheck if any of its signatures is valid
+        and trusted (e.g. signed with an old and a new key during rotation)."""
+        from chantal.core.config import RepositoryConfig
+        from chantal.core.gpg_verify import SignatureVerificationError
+        from chantal.plugins.rpm.sync import RpmSyncPlugin
+
+        main_blob = _build_header([(1000, b"demo-1.0\x00")])
+        sigs = [other_signer.detach_sign(main_blob)]
+        if trusted_included:
+            sigs.append(upstream_signer.detach_sign(main_blob))
+        rpm_path = tmp_path / "demo.rpm"
+        rpm_path.write_bytes(_build_rpm6(main_blob, sigs))
+
+        pub = upstream_signer.export_public_key().decode("utf-8")
+        config = RepositoryConfig(
+            id="r",
+            name="r",
+            type="rpm",
+            feed="http://example.com/repo",
+            verify={"enabled": True, "keys": [pub], "gnupg_home": verifier_home},
+        )
+        plugin = RpmSyncPlugin(storage=None, config=config)
+        plugin._setup_package_verifier()
+        try:
+            if trusted_included:
+                plugin._verify_package_signature(rpm_path, "demo-1.0")
+            else:
+                with pytest.raises(SignatureVerificationError, match="untrusted"):
+                    plugin._verify_package_signature(rpm_path, "demo-1.0")
+        finally:
+            plugin._teardown_package_verifier()
