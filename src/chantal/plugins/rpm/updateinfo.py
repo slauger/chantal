@@ -83,7 +83,7 @@ class UpdateInfoParser:
 
         for update_elem in update_elems:
             try:
-                update = self._parse_update(update_elem)
+                update = self.parse_update(update_elem)
                 if update:
                     updates.append(update)
             except Exception as e:
@@ -92,7 +92,7 @@ class UpdateInfoParser:
 
         return updates
 
-    def _parse_update(self, update_elem: ET.Element) -> Update | None:
+    def parse_update(self, update_elem: ET.Element) -> Update | None:
         """Parse single <update> element.
 
         Args:

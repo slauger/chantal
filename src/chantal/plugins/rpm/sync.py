@@ -10,6 +10,7 @@ import hashlib
 import os
 import tempfile
 import xml.etree.ElementTree as ET
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urljoin
@@ -210,51 +211,11 @@ class RpmSyncPlugin:
                 f"Primary metadata: {primary_location} (SHA256: {primary_checksum[:16]}...)"
             )
 
-            # Step 3: Download and parse primary.xml.gz (with parsed data cache support)
-            # Try parsed cache first (fastest - avoids XML parsing)
-            packages = self.cache.get_parsed(primary_checksum, "primary") if self.cache else None
-
-            if packages:
-                self.output.verbose("  → primary packages loaded from parsed cache (fast path)")
-                self.output.info(f"Found {len(packages)} packages in repository")
-            else:
-                # Parsed cache miss - fetch XML and parse it
-                xml_content, from_cache = parsers.fetch_metadata_with_cache(
-                    session=self.session,
-                    base_url=self.config.feed,
-                    location=primary_location,
-                    checksum=primary_checksum,
-                    cache=self.cache,
-                    file_type="primary",
-                    checksum_type=primary_metadata.get("checksum_type"),
-                )
-                if from_cache:
-                    self.output.verbose("  → primary.xml.gz loaded from cache")
-                else:
-                    self.output.verbose("  → primary.xml.gz downloaded from upstream")
-
-                # Parse XML (slow operation)
-                self.output.verbose("  → parsing primary.xml...")
-                packages = parsers.parse_primary_xml(xml_content)
-                self.output.info(f"Found {len(packages)} packages in repository")
-
-                # Cache parsed data for next time
-                if self.cache:
-                    try:
-                        self.cache.put_parsed(primary_checksum, packages, "primary")
-                        self.output.verbose("  → cached parsed packages for next sync")
-                    except Exception as e:
-                        self.output.verbose(f"  → warning: failed to cache parsed data: {e}")
-
-            # Step 4: Apply filters if configured
-            if self.config.filters:
-                original_count = len(packages)
-                packages = filters.apply_filters(packages, self.config.filters)
-                filtered_out = original_count - len(packages)
-                if filtered_out > 0:
-                    self.output.info(
-                        f"Filtered out {filtered_out} packages, {len(packages)} remaining"
-                    )
+            # Step 3+4: Download, parse and filter primary.xml (streamed, with
+            # parsed data cache support)
+            packages = self._load_primary_packages(
+                primary_metadata, info=self.output.info, verbose=self.output.verbose
+            )
 
             # Step 5: Get existing packages from database
             existing_packages = self._get_existing_packages(session)
@@ -473,52 +434,9 @@ class RpmSyncPlugin:
             if not primary_metadata:
                 raise ValueError("Primary metadata not found in repomd.xml")
 
-            primary_location = primary_metadata["location"]
-            primary_checksum = primary_metadata["checksum"]
-
-            # Step 3: Download and parse primary.xml.gz (with parsed data cache support)
-            # Try parsed cache first (fastest - avoids XML parsing)
-            packages = self.cache.get_parsed(primary_checksum, "primary") if self.cache else None
-
-            if packages:
-                print("  → primary packages loaded from parsed cache (fast path)")
-                print(f"Found {len(packages)} packages in upstream repository")
-            else:
-                # Parsed cache miss - fetch XML and parse it
-                xml_content, from_cache = parsers.fetch_metadata_with_cache(
-                    session=self.session,
-                    base_url=self.config.feed,
-                    location=primary_location,
-                    checksum=primary_checksum,
-                    cache=self.cache,
-                    file_type="primary",
-                    checksum_type=primary_metadata.get("checksum_type"),
-                )
-                if from_cache:
-                    print("  → primary.xml.gz loaded from cache")
-                else:
-                    print("  → primary.xml.gz downloaded from upstream")
-
-                # Parse XML (slow operation)
-                print("  → parsing primary.xml...")
-                packages = parsers.parse_primary_xml(xml_content)
-                print(f"Found {len(packages)} packages in upstream repository")
-
-                # Cache parsed data for next time
-                if self.cache:
-                    try:
-                        self.cache.put_parsed(primary_checksum, packages, "primary")
-                        print("  → cached parsed packages for next check")
-                    except Exception as e:
-                        print(f"  → warning: failed to cache parsed data: {e}")
-
-            # Step 4: Apply filters if configured
-            if self.config.filters:
-                original_count = len(packages)
-                packages = filters.apply_filters(packages, self.config.filters)
-                filtered_out = original_count - len(packages)
-                if filtered_out > 0:
-                    print(f"Filtered out {filtered_out} packages, {len(packages)} remaining")
+            # Step 3+4: Download, parse and filter primary.xml (streamed, with
+            # parsed data cache support)
+            packages = self._load_primary_packages(primary_metadata, info=print, verbose=print)
 
             # Step 5: Get existing packages from database for this repository
             existing_packages = {}
@@ -875,6 +793,90 @@ class RpmSyncPlugin:
             session.commit()
             self.output.verbose(f"Pruned {removed} stale metadata file(s) from a previous sync")
 
+    def _parsed_cache_key(self, primary_checksum: str) -> str | None:
+        """Parsed-cache key for the packages of a primary, or None to skip caching.
+
+        The parsed cache holds the *filtered* package list (keeping the full
+        upstream list would mean holding all of it in memory), so the key covers
+        the filter configuration. Without filters it is the primary's checksum.
+        Filters relative to the current time (``last_n_days``) give a different
+        result on every run and are never cached.
+        """
+        if not self.config.filters:
+            return primary_checksum
+        normalized = self.config.filters.normalize()
+        build_time = normalized.metadata.build_time if normalized.metadata else None
+        if build_time and build_time.last_n_days:
+            return None
+        fingerprint = f"{primary_checksum}:{normalized.model_dump_json()}"
+        return hashlib.sha256(fingerprint.encode("utf-8")).hexdigest()
+
+    def _load_primary_packages(
+        self,
+        primary_metadata: dict,
+        info: Callable[[str], object],
+        verbose: Callable[[str], object],
+    ) -> list[dict]:
+        """Return the upstream packages that pass the configured filters.
+
+        primary.xml is streamed from disk and filtered package by package: large
+        repositories (e.g. RHEL BaseOS, >1 GB uncompressed primary) must not be
+        decompressed or parsed into memory in one piece.
+        """
+        primary_location = primary_metadata["location"]
+        primary_checksum = primary_metadata["checksum"]
+        parsed_key = self._parsed_cache_key(primary_checksum)
+
+        # Try parsed cache first (fastest - avoids XML parsing)
+        if self.cache and parsed_key:
+            cached = self.cache.get_parsed(parsed_key, "primary")
+            if cached:
+                verbose("  → primary packages loaded from parsed cache (fast path)")
+                info(f"Using {len(cached)} packages from repository (cached)")
+                return list(cached)
+
+        total = 0
+        with parsers.fetched_metadata_file(
+            session=self.session,
+            base_url=self.config.feed,
+            location=primary_location,
+            checksum=primary_checksum,
+            cache=self.cache,
+            file_type="primary",
+            checksum_type=primary_metadata.get("checksum_type"),
+        ) as (primary_path, from_cache):
+            if from_cache:
+                verbose("  → primary.xml loaded from cache")
+            else:
+                verbose("  → primary.xml downloaded from upstream")
+            verbose("  → parsing primary.xml...")
+
+            def counted() -> Iterator[dict]:
+                nonlocal total
+                with parsers.open_metadata(primary_path, primary_location) as stream:
+                    for pkg in parsers.iter_primary_packages(stream):
+                        total += 1
+                        yield pkg
+
+            if self.config.filters:
+                packages = filters.apply_filters(counted(), self.config.filters)
+            else:
+                packages = list(counted())
+
+        info(f"Found {total} packages in repository")
+        if total > len(packages):
+            info(f"Filtered out {total - len(packages)} packages, {len(packages)} remaining")
+
+        # Cache parsed data for next time
+        if self.cache and parsed_key:
+            try:
+                self.cache.put_parsed(parsed_key, packages, "primary")
+                verbose("  → cached parsed packages for next run")
+            except Exception as e:
+                verbose(f"  → warning: failed to cache parsed data: {e}")
+
+        return packages
+
     def _download_metadata_file(
         self,
         metadata_info: MetadataFileInfo,
@@ -901,82 +903,21 @@ class RpmSyncPlugin:
             requests.RequestException: On HTTP errors
             ValueError: On checksum mismatch
         """
-        from_cache = False
-
-        # Try cache first (if enabled)
-        if self.cache:
-            cached_file = self.cache.get(metadata_info.checksum, metadata_info.file_type)
-            if cached_file:
-                # Use cached file directly - it's already compressed
-                tmp_path = cached_file
-                cleanup_temp = False  # Don't delete cached file
-                from_cache = True
-            else:
-                # Cache miss - download and cache
-                metadata_url = urljoin(base_url + "/", metadata_info.location)
-                response = self.session.get(metadata_url, timeout=60)
-                response.raise_for_status()
-
-                # Cache the compressed file
-                try:
-                    cached_file = self.cache.put(
-                        metadata_info.checksum,
-                        response.content,
-                        metadata_info.file_type,
-                        algorithm=parsers.normalize_checksum_type(metadata_info.checksum_type),
-                    )
-                    tmp_path = cached_file
-                    cleanup_temp = False
-                except Exception as e:
-                    # Cache failed - use temp file
-                    self.output.warning(f"Failed to cache {metadata_info.file_type}: {e}")
-                    tmp_file = tempfile.NamedTemporaryFile(
-                        delete=False, suffix=f".{metadata_info.file_type}"
-                    )
-                    tmp_file.write(response.content)
-                    tmp_file.flush()
-                    tmp_file.close()
-                    tmp_path = Path(tmp_file.name)
-                    cleanup_temp = True
-        else:
-            # Cache disabled - download to temp file
-            metadata_url = urljoin(base_url + "/", metadata_info.location)
-
-            tmp_file = tempfile.NamedTemporaryFile(
-                delete=False, suffix=f".{metadata_info.file_type}"
-            )
-            tmp_path = Path(tmp_file.name)
-            cleanup_temp = True
-
-            try:
-                # Download file
-                response = self.session.get(metadata_url, timeout=60)
-                response.raise_for_status()
-
-                # Write to temp file
-                tmp_file.write(response.content)
-                tmp_file.flush()
-                tmp_file.close()
-            except Exception:
-                tmp_file.close()
-                tmp_path.unlink(missing_ok=True)
-                raise
-
-        # Store in pool (using cached or downloaded file)
-        try:
+        # Streamed to disk and verified against repomd.xml using the declared
+        # algorithm (sha256/sha512/sha1) before it is added to the pool. Large
+        # metadata (e.g. AppStream filelists, >100 MB compressed) is never held
+        # in memory.
+        with parsers.fetched_metadata_file(
+            session=self.session,
+            base_url=base_url,
+            location=metadata_info.location,
+            checksum=metadata_info.checksum,
+            cache=self.cache,
+            file_type=metadata_info.file_type,
+            checksum_type=metadata_info.checksum_type,
+        ) as (tmp_path, from_cache):
             # Extract filename from location
             filename = Path(metadata_info.location).name
-
-            # Verify the file against repomd.xml using the declared algorithm
-            # (sha256/sha512/sha1) before adding it to the pool.
-            if metadata_info.checksum and not parsers.verify_file_checksum(
-                tmp_path, metadata_info.checksum_type, metadata_info.checksum
-            ):
-                algo = parsers.normalize_checksum_type(metadata_info.checksum_type)
-                raise ValueError(
-                    f"{algo} checksum mismatch for {metadata_info.file_type}: "
-                    f"{metadata_info.location}"
-                )
 
             # Add to storage pool using add_repository_file (sha256-addressed)
             sha256, pool_path, size_bytes = self.storage.add_repository_file(
@@ -1014,11 +955,6 @@ class RpmSyncPlugin:
                 session.commit()
 
             return from_cache, sha256
-
-        finally:
-            # Clean up temp file (only if not from cache)
-            if cleanup_temp and tmp_path.exists():
-                tmp_path.unlink()
 
     def _download_installer_file(
         self,

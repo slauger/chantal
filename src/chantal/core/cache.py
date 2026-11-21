@@ -9,7 +9,10 @@ to avoid repeated downloads of large metadata files.
 
 import hashlib
 import logging
+import os
 import re
+import shutil
+import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -144,6 +147,64 @@ class MetadataCache:
             )
         finally:
             temp_file.unlink(missing_ok=True)
+
+        return cache_file
+
+    def put_file(
+        self,
+        checksum: str,
+        src: Path,
+        file_type: str = "metadata",
+        algorithm: str = "sha256",
+    ) -> Path:
+        """Move the file at ``src`` into the cache (streaming variant of :meth:`put`).
+
+        The file is verified in chunks, so large metadata never has to be held
+        in memory. When the cache is disabled ``src`` is returned unchanged.
+
+        Returns:
+            Path to the cached file (or ``src`` if caching is disabled)
+
+        Raises:
+            ValueError: If the checksum does not match or is not a valid key
+        """
+        if not self.enabled or not self.cache_path:
+            return src
+        if not _is_safe_key(checksum):
+            raise ValueError(f"Invalid cache key for {file_type}")
+
+        digest = hashlib.new(algorithm)
+        with open(src, "rb") as fh:
+            for chunk in iter(lambda: fh.read(1024 * 1024), b""):
+                digest.update(chunk)
+        if digest.hexdigest().lower() != checksum.lower():
+            logger.warning(
+                f"Checksum mismatch: expected {checksum[:16]}..., got {digest.hexdigest()[:16]}..."
+            )
+            raise ValueError(f"Checksum mismatch for {file_type}")
+
+        cache_file = self.cache_path / f"{checksum}.xml.gz"
+        try:
+            # Atomic rename when src is on the cache filesystem (the normal case:
+            # downloads are staged in the cache directory).
+            os.replace(src, cache_file)
+        except OSError:
+            # Other filesystem: copy to a unique temp name, then rename. src is
+            # only removed once the cache entry exists, so a failure here never
+            # takes the caller's file away.
+            fd, temp_name = tempfile.mkstemp(dir=self.cache_path, suffix=".tmp")
+            os.close(fd)
+            temp_file = Path(temp_name)
+            try:
+                shutil.copyfile(src, temp_file)
+                temp_file.replace(cache_file)
+            finally:
+                temp_file.unlink(missing_ok=True)
+            src.unlink(missing_ok=True)
+        logger.info(
+            f"Cached {file_type}: {checksum[:16]}... "
+            f"({cache_file.stat().st_size / 1024 / 1024:.2f} MB)"
+        )
 
         return cache_file
 

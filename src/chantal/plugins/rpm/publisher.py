@@ -6,15 +6,12 @@ RPM/DNF repository publisher plugin.
 This module implements publishing for RPM repositories with yum/dnf metadata.
 """
 
-import bz2
-import gzip
 import hashlib
-import io
-import lzma
 import shutil
 import xml.etree.ElementTree as ET
 from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
+from typing import BinaryIO
 
 from sqlalchemy.orm import Session
 
@@ -27,6 +24,7 @@ from chantal.plugins.rpm.compression import (
     CompressionFormat,
     add_compression_extension,
     compress_file,
+    open_decompressed,
 )
 from chantal.plugins.rpm.modules import (
     compress_bytes,
@@ -35,9 +33,22 @@ from chantal.plugins.rpm.modules import (
 )
 from chantal.plugins.rpm.updateinfo import (
     UpdateInfoFilter,
-    UpdateInfoGenerator,
     UpdateInfoParser,
 )
+from chantal.plugins.rpm.xmlstream import filter_metadata_file
+
+# Compression levels of the regenerated primary (same as compress_file()).
+_PRIMARY_COMPRESSION_LEVELS: dict[str, int] = {"gzip": 6, "zstandard": 3, "bzip2": 9}
+
+
+def _stream_digest(stream: BinaryIO) -> tuple[str, int]:
+    """SHA256 hex digest and size of everything readable from ``stream``."""
+    digest = hashlib.sha256()
+    size = 0
+    for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+        digest.update(chunk)
+        size += len(chunk)
+    return digest.hexdigest(), size
 
 
 class RpmPublisher(PublisherPlugin):
@@ -462,78 +473,78 @@ class RpmPublisher(PublisherPlugin):
 
         primary_path = published_metadata[primary_index][1]
         common_ns = "http://linux.duke.edu/metadata/common"
-        rpm_ns = "http://linux.duke.edu/metadata/rpm"
-        ET.register_namespace("", common_ns)
-        ET.register_namespace("rpm", rpm_ns)
 
+        # Match published packages by NEVR+arch (checksum-independent, so it
+        # works regardless of whether the upstream primary uses sha1/sha256/
+        # sha512 pkgids).
+        def _nevra_of_content(pkg: ContentItem) -> tuple[str, str, str, str]:
+            meta = pkg.content_metadata or {}
+            return (pkg.name, pkg.version, meta.get("release", ""), meta.get("arch", ""))
+
+        kept = {_nevra_of_content(pkg) for pkg in packages}
+        filename_by_nevra = {_nevra_of_content(pkg): pkg.filename for pkg in packages}
+
+        def keep(pkg_elem: ET.Element) -> bool:
+            name_elem = pkg_elem.find(f"{{{common_ns}}}name")
+            version_elem = pkg_elem.find(f"{{{common_ns}}}version")
+            arch_elem = pkg_elem.find(f"{{{common_ns}}}arch")
+            nevra = (
+                (name_elem.text or "") if name_elem is not None else "",
+                version_elem.get("ver", "") if version_elem is not None else "",
+                version_elem.get("rel", "") if version_elem is not None else "",
+                (arch_elem.text or "") if arch_elem is not None else "",
+            )
+
+            if mode == RepositoryMode.FILTERED and nevra not in kept:
+                return False
+
+            # Rewrite <location> to the republished Packages/<filename> path.
+            location = pkg_elem.find(f"{{{common_ns}}}location")
+            if location is not None:
+                href = location.get("href", "")
+                filename = filename_by_nevra.get(nevra) or PurePosixPath(href).name
+                location.set("href", f"Packages/{filename}")
+            return True
+
+        # Write the regenerated primary using the repository's configured
+        # metadata compression (not necessarily the upstream's). Streamed: the
+        # upstream primary of large repositories is >1 GB uncompressed.
+        target = repodata_path / add_compression_extension("primary.xml", compression)
         try:
-            data = decompress_bytes(primary_path.read_bytes(), primary_path.suffix)
-            root = ET.fromstring(data)
-
-            # Match published packages by NEVR+arch (checksum-independent, so it
-            # works regardless of whether the upstream primary uses sha1/sha256/
-            # sha512 pkgids).
-            def _nevra_of_content(pkg: ContentItem) -> tuple[str, str, str, str]:
-                meta = pkg.content_metadata or {}
-                return (pkg.name, pkg.version, meta.get("release", ""), meta.get("arch", ""))
-
-            kept = {_nevra_of_content(pkg) for pkg in packages}
-            filename_by_nevra = {_nevra_of_content(pkg): pkg.filename for pkg in packages}
-
-            original_count = len(root.findall(f"{{{common_ns}}}package"))
-            removed = 0
-            for pkg_elem in root.findall(f"{{{common_ns}}}package"):
-                name_elem = pkg_elem.find(f"{{{common_ns}}}name")
-                version_elem = pkg_elem.find(f"{{{common_ns}}}version")
-                arch_elem = pkg_elem.find(f"{{{common_ns}}}arch")
-                nevra = (
-                    (name_elem.text or "") if name_elem is not None else "",
-                    version_elem.get("ver", "") if version_elem is not None else "",
-                    version_elem.get("rel", "") if version_elem is not None else "",
-                    (arch_elem.text or "") if arch_elem is not None else "",
-                )
-
-                if mode == RepositoryMode.FILTERED and nevra not in kept:
-                    root.remove(pkg_elem)
-                    removed += 1
-                    continue
-
-                # Rewrite <location> to the republished Packages/<filename> path.
-                location = pkg_elem.find(f"{{{common_ns}}}location")
-                if location is not None:
-                    href = location.get("href", "")
-                    filename = filename_by_nevra.get(nevra) or PurePosixPath(href).name
-                    location.set("href", f"Packages/{filename}")
-
-            kept_count = original_count - removed
-            # Safety net: if matching dropped everything (e.g. unexpected NEVRA
-            # shape) but we do have packages, fall back to the database-built
-            # primary rather than publishing an empty index.
-            if kept_count == 0 and packages:
-                return published_metadata, False
-
-            root.set("packages", str(kept_count))
-            if removed:
-                print(
-                    f"Filtered primary: {original_count} → {original_count - removed} packages "
-                    f"(removed {removed} unavailable)"
-                )
-
-            # Write the regenerated primary using the repository's configured
-            # metadata compression (not necessarily the upstream's).
-            xml_bytes = ET.tostring(root, encoding="UTF-8", xml_declaration=True)
-            target = repodata_path / add_compression_extension("primary.xml", compression)
-            old_target = repodata_path / primary_path.name
-            old_target.unlink(missing_ok=True)  # drop the hardlinked upstream primary
-            target.unlink(missing_ok=True)
-            target.write_bytes(compress_file(xml_bytes, compression))
-
-            updated = published_metadata.copy()
-            updated[primary_index] = ("primary", target)
-            return updated, True
+            original_count, kept_count = filter_metadata_file(
+                primary_path,
+                target,
+                "package",
+                keep,
+                compression_level=_PRIMARY_COMPRESSION_LEVELS.get(compression),
+            )
+        except MemoryError:
+            raise
         except Exception as e:  # noqa: BLE001 - fall back to DB-built primary
             print(f"Warning: failed to regenerate primary from upstream: {e}")
             return published_metadata, False
+
+        # Safety net: if matching dropped everything (e.g. unexpected NEVRA
+        # shape) but we do have packages, fall back to the database-built
+        # primary rather than publishing an empty index.
+        if kept_count == 0 and packages:
+            if target != primary_path:
+                target.unlink(missing_ok=True)
+            return published_metadata, False
+
+        removed = original_count - kept_count
+        if removed:
+            print(
+                f"Filtered primary: {original_count} → {kept_count} packages "
+                f"(removed {removed} unavailable)"
+            )
+
+        if target != primary_path:
+            primary_path.unlink(missing_ok=True)  # drop the hardlinked upstream primary
+
+        updated = published_metadata.copy()
+        updated[primary_index] = ("primary", target)
+        return updated, True
 
     def _publish_metadata_files(
         self, repository_files: list[RepositoryFile], repodata_path: Path
@@ -683,18 +694,19 @@ class RpmPublisher(PublisherPlugin):
         for file_type, file_path in metadata_files:
             # Calculate checksum and size of compressed file
             with open(file_path, "rb") as f:
-                file_data = f.read()
-                file_sha256 = hashlib.sha256(file_data).hexdigest()
-                file_size = len(file_data)
+                file_sha256, file_size = _stream_digest(f)
 
             # Checksum/size of the uncompressed payload. dnf decompresses the
             # metadata and verifies it against open-checksum/open-size, so this
             # must describe the decompressed bytes for every supported format
             # (gz/xz/bz2/zst); uncompressed files use the file values as-is.
+            # Hashed as a stream: filelists of large repositories decompress to
+            # well over a gigabyte.
             try:
-                open_data = decompress_bytes(file_data, file_path.suffix)
-                open_sha256 = hashlib.sha256(open_data).hexdigest()
-                open_size = len(open_data)
+                with open_decompressed(file_path) as stream:
+                    open_sha256, open_size = _stream_digest(stream)
+            except MemoryError:
+                raise
             except Exception:
                 # If decompression fails, fall back to the compressed values.
                 open_sha256 = file_sha256
@@ -766,79 +778,43 @@ class RpmPublisher(PublisherPlugin):
 
         updateinfo_path = updateinfo_entry[1]
 
+        # Build set of available package NVRAs
+        available_nvras = self._build_package_nvra_set(packages)
+        parser = UpdateInfoParser()
+        filter_obj = UpdateInfoFilter()
+
+        def keep(update_elem: ET.Element) -> bool:
+            try:
+                update = parser.parse_update(update_elem)
+            except Exception as e:
+                print(f"Warning: Failed to parse update: {e}")
+                return False
+            return update is not None and bool(filter_obj.filter_updates([update], available_nvras))
+
+        # Streamed: updateinfo of large repositories is hundreds of MB
+        # uncompressed. Kept <update> elements are copied verbatim.
+        filtered_updateinfo_path = repodata_path / updateinfo_path.name
         try:
-            # Parse updateinfo
-            parser = UpdateInfoParser()
-            updates = parser.parse_file(updateinfo_path)
-
-            # Build set of available package NVRAs
-            available_nvras = self._build_package_nvra_set(packages)
-
-            # Filter updates
-            filter_obj = UpdateInfoFilter()
-            filtered_updates = filter_obj.filter_updates(updates, available_nvras)
-
-            print(
-                f"Filtered updateinfo: {len(updates)} → {len(filtered_updates)} updates "
-                f"(removed {len(updates) - len(filtered_updates)} unavailable)"
+            total, kept = filter_metadata_file(
+                updateinfo_path, filtered_updateinfo_path, "update", keep, count_attr=None
             )
-
-            # Generate new updateinfo.xml
-            generator = UpdateInfoGenerator()
-            filtered_xml = generator.generate_xml(filtered_updates)
-
-            # Write filtered XML to temp file
-            import tempfile
-
-            with tempfile.NamedTemporaryFile(mode="wb", delete=False, suffix=".xml") as tmp_f:
-                tmp_f.write(filtered_xml)
-                tmp_xml_path = Path(tmp_f.name)
-
-            # Compress it
-            filtered_updateinfo_path = repodata_path / updateinfo_path.name
-            # Break the hardlink to the pool blob before overwriting in place.
-            filtered_updateinfo_path.unlink(missing_ok=True)
-
-            # Determine compression based on extension
-            if updateinfo_path.suffix == ".bz2":
-                with open(tmp_xml_path, "rb") as f_in:
-                    with bz2.open(filtered_updateinfo_path, "wb") as f_out:
-                        shutil.copyfileobj(f_in, f_out)
-            elif updateinfo_path.suffix == ".gz":
-                with open(tmp_xml_path, "rb") as f_in:
-                    with gzip.open(filtered_updateinfo_path, "wb") as f_out:
-                        shutil.copyfileobj(f_in, f_out)
-            elif updateinfo_path.suffix == ".xz":
-                with open(tmp_xml_path, "rb") as f_in:
-                    with lzma.open(filtered_updateinfo_path, "wb") as f_out:
-                        shutil.copyfileobj(f_in, f_out)
-            elif updateinfo_path.suffix == ".zst":
-                import zstandard as zstd
-
-                with open(tmp_xml_path, "rb") as f_in:
-                    xml_data = f_in.read()
-                    cctx = zstd.ZstdCompressor()
-                    compressed_data = cctx.compress(xml_data)
-
-                with open(filtered_updateinfo_path, "wb") as f_out:
-                    f_out.write(compressed_data)
-            else:
-                # No compression
-                shutil.copy(tmp_xml_path, filtered_updateinfo_path)
-
-            # Clean up temp file
-            tmp_xml_path.unlink()
-
-            # Replace in published_metadata list
-            updated_metadata = published_metadata.copy()
-            updated_metadata[updateinfo_index] = ("updateinfo", filtered_updateinfo_path)
-
-            return updated_metadata
-
+        except MemoryError:
+            raise
         except Exception as e:
             print(f"Warning: Failed to filter updateinfo: {e}")
             # Return original metadata if filtering fails
             return published_metadata
+
+        print(
+            f"Filtered updateinfo: {total} → {kept} updates "
+            f"(removed {total - kept} unavailable)"
+        )
+
+        # Replace in published_metadata list
+        updated_metadata = published_metadata.copy()
+        updated_metadata[updateinfo_index] = ("updateinfo", filtered_updateinfo_path)
+
+        return updated_metadata
 
     def _build_package_nvra_set(self, packages: list[ContentItem]) -> set[str]:
         """Build set of package NVRAs for filtering.
@@ -1015,96 +991,9 @@ class RpmPublisher(PublisherPlugin):
             # No filelists to filter
             return published_metadata
 
-        filelists_path = filelists_entry[1]
-
-        try:
-            # Match by NVRA (not pkgid): the filelists pkgid is the package
-            # checksum in the repo's algorithm (sha1/sha256/sha512), which need
-            # not equal the locally-computed sha256 we store. NVRA matches the
-            # primary filter exactly, so primary and filelists always agree.
-            available_nvras = self._build_package_nvra_set(packages)
-            ns = "http://linux.duke.edu/metadata/filelists"
-
-            # Stream-decompress (the one-shot zstd path fails on frames without an
-            # embedded content size, which createrepo_c often omits).
-            tree = ET.parse(
-                io.BytesIO(decompress_bytes(filelists_path.read_bytes(), filelists_path.suffix))
-            )
-
-            root = tree.getroot()
-            original_count = int(root.get("packages", "0"))
-
-            # Filter packages by NVRA
-            packages_to_remove = []
-            for package_elem in root.findall(f"{{{ns}}}package"):
-                nvra = self._package_elem_nvra(package_elem, ns)
-                if nvra is None or nvra not in available_nvras:
-                    packages_to_remove.append(package_elem)
-
-            for package_elem in packages_to_remove:
-                root.remove(package_elem)
-
-            # Update package count
-            filtered_count = len(root.findall("{http://linux.duke.edu/metadata/filelists}package"))
-            root.set("packages", str(filtered_count))
-
-            print(
-                f"Filtered filelists: {original_count} → {filtered_count} packages "
-                f"(removed {original_count - filtered_count} unavailable)"
-            )
-
-            # Write filtered XML to temp file
-            import tempfile
-
-            with tempfile.NamedTemporaryFile(mode="wb", delete=False, suffix=".xml") as tmp_f:
-                tree.write(tmp_f, encoding="UTF-8", xml_declaration=True)
-                tmp_xml_path = Path(tmp_f.name)
-
-            # Compress it
-            filtered_filelists_path = repodata_path / filelists_path.name
-            # Break the hardlink to the pool blob before overwriting in place.
-            filtered_filelists_path.unlink(missing_ok=True)
-
-            # Determine compression based on extension
-            if filelists_path.suffix == ".xz":
-                with open(tmp_xml_path, "rb") as f_in:
-                    with lzma.open(filtered_filelists_path, "wb") as f_out:
-                        shutil.copyfileobj(f_in, f_out)
-            elif filelists_path.suffix == ".bz2":
-                with open(tmp_xml_path, "rb") as f_in:
-                    with bz2.open(filtered_filelists_path, "wb") as f_out:
-                        shutil.copyfileobj(f_in, f_out)
-            elif filelists_path.suffix == ".gz":
-                with open(tmp_xml_path, "rb") as f_in:
-                    with gzip.open(filtered_filelists_path, "wb") as f_out:
-                        shutil.copyfileobj(f_in, f_out)
-            elif filelists_path.suffix == ".zst":
-                import zstandard as zstd
-
-                with open(tmp_xml_path, "rb") as f_in:
-                    xml_data = f_in.read()
-                    cctx = zstd.ZstdCompressor()
-                    compressed_data = cctx.compress(xml_data)
-
-                with open(filtered_filelists_path, "wb") as f_out:
-                    f_out.write(compressed_data)
-            else:
-                # No compression
-                shutil.copy(tmp_xml_path, filtered_filelists_path)
-
-            # Clean up temp file
-            tmp_xml_path.unlink()
-
-            # Replace in published_metadata list
-            updated_metadata = published_metadata.copy()
-            updated_metadata[filelists_index] = ("filelists", filtered_filelists_path)
-
-            return updated_metadata
-
-        except Exception as e:
-            print(f"Warning: Failed to filter filelists: {e}")
-            # Return original metadata if filtering fails
-            return published_metadata
+        return self._filter_package_metadata(
+            "filelists", filelists_index, packages, repodata_path, published_metadata
+        )
 
     def _filter_and_regenerate_other(
         self,
@@ -1136,90 +1025,53 @@ class RpmPublisher(PublisherPlugin):
             # No other to filter
             return published_metadata
 
-        other_path = other_entry[1]
+        return self._filter_package_metadata(
+            "other", other_index, packages, repodata_path, published_metadata
+        )
 
+    def _filter_package_metadata(
+        self,
+        file_type: str,
+        index: int,
+        packages: list[ContentItem],
+        repodata_path: Path,
+        published_metadata: list[tuple[str, Path]],
+    ) -> list[tuple[str, Path]]:
+        """Filter filelists/other (``published_metadata[index]``) to ``packages``.
+
+        Streamed package by package: AppStream filelists decompress to almost
+        2 GB. Packages are matched by NVRA (not pkgid): the pkgid is the package
+        checksum in the repo's algorithm (sha1/sha256/sha512), which need not
+        equal the locally-computed sha256 we store. NVRA matches the primary
+        filter exactly, so primary and filelists/other always agree.
+        """
+        source_path = published_metadata[index][1]
+        available_nvras = self._build_package_nvra_set(packages)
+
+        def keep(package_elem: ET.Element) -> bool:
+            ns = package_elem.tag[1:].split("}", 1)[0] if package_elem.tag.startswith("{") else ""
+            nvra = self._package_elem_nvra(package_elem, ns)
+            return nvra is not None and nvra in available_nvras
+
+        # Same name as the published hardlink, which is replaced (not written
+        # through to the pool blob).
+        filtered_path = repodata_path / source_path.name
         try:
-            # Match by NVRA (not pkgid) - see _filter_and_regenerate_filelists.
-            available_nvras = self._build_package_nvra_set(packages)
-            ns = "http://linux.duke.edu/metadata/other"
-
-            # Stream-decompress (the one-shot zstd path fails on frames without an
-            # embedded content size, which createrepo_c often omits).
-            tree = ET.parse(
-                io.BytesIO(decompress_bytes(other_path.read_bytes(), other_path.suffix))
+            original_count, filtered_count = filter_metadata_file(
+                source_path, filtered_path, "package", keep
             )
-
-            root = tree.getroot()
-            original_count = int(root.get("packages", "0"))
-
-            # Filter packages by NVRA
-            packages_to_remove = []
-            for package_elem in root.findall(f"{{{ns}}}package"):
-                nvra = self._package_elem_nvra(package_elem, ns)
-                if nvra is None or nvra not in available_nvras:
-                    packages_to_remove.append(package_elem)
-
-            for package_elem in packages_to_remove:
-                root.remove(package_elem)
-
-            # Update package count
-            filtered_count = len(root.findall("{http://linux.duke.edu/metadata/other}package"))
-            root.set("packages", str(filtered_count))
-
-            print(
-                f"Filtered other: {original_count} → {filtered_count} packages "
-                f"(removed {original_count - filtered_count} unavailable)"
-            )
-
-            # Write filtered XML to temp file
-            import tempfile
-
-            with tempfile.NamedTemporaryFile(mode="wb", delete=False, suffix=".xml") as tmp_f:
-                tree.write(tmp_f, encoding="UTF-8", xml_declaration=True)
-                tmp_xml_path = Path(tmp_f.name)
-
-            # Compress it
-            filtered_other_path = repodata_path / other_path.name
-            # Break the hardlink to the pool blob before overwriting in place.
-            filtered_other_path.unlink(missing_ok=True)
-
-            # Determine compression based on extension
-            if other_path.suffix == ".xz":
-                with open(tmp_xml_path, "rb") as f_in:
-                    with lzma.open(filtered_other_path, "wb") as f_out:
-                        shutil.copyfileobj(f_in, f_out)
-            elif other_path.suffix == ".bz2":
-                with open(tmp_xml_path, "rb") as f_in:
-                    with bz2.open(filtered_other_path, "wb") as f_out:
-                        shutil.copyfileobj(f_in, f_out)
-            elif other_path.suffix == ".gz":
-                with open(tmp_xml_path, "rb") as f_in:
-                    with gzip.open(filtered_other_path, "wb") as f_out:
-                        shutil.copyfileobj(f_in, f_out)
-            elif other_path.suffix == ".zst":
-                import zstandard as zstd
-
-                with open(tmp_xml_path, "rb") as f_in:
-                    xml_data = f_in.read()
-                    cctx = zstd.ZstdCompressor()
-                    compressed_data = cctx.compress(xml_data)
-
-                with open(filtered_other_path, "wb") as f_out:
-                    f_out.write(compressed_data)
-            else:
-                # No compression
-                shutil.copy(tmp_xml_path, filtered_other_path)
-
-            # Clean up temp file
-            tmp_xml_path.unlink()
-
-            # Replace in published_metadata list
-            updated_metadata = published_metadata.copy()
-            updated_metadata[other_index] = ("other", filtered_other_path)
-
-            return updated_metadata
-
+        except MemoryError:
+            raise
         except Exception as e:
-            print(f"Warning: Failed to filter other: {e}")
+            print(f"Warning: Failed to filter {file_type}: {e}")
             # Return original metadata if filtering fails
             return published_metadata
+
+        print(
+            f"Filtered {file_type}: {original_count} → {filtered_count} packages "
+            f"(removed {original_count - filtered_count} unavailable)"
+        )
+
+        updated_metadata = published_metadata.copy()
+        updated_metadata[index] = (file_type, filtered_path)
+        return updated_metadata
