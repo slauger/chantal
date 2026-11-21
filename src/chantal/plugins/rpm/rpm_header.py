@@ -25,9 +25,15 @@ Its value is a raw OpenPGP signature packet, and the signed data is exactly the
 serialized *main header* blob. Verification therefore reduces to a normal
 detached-signature check of that packet over the main-header bytes.
 
+rpm >= 6 signs into ``RPMSIGTAG_OPENPGP`` (278) instead: a string array that
+can hold several signatures, each a base64-encoded OpenPGP signature over the
+same main-header blob. Packages signed by rpm 6 carry no 267/268 tag.
+
 References: RPM file format / ``rpm-head-signing`` (see the research notes).
 """
 
+import base64
+import binascii
 import mmap
 import struct
 
@@ -37,6 +43,7 @@ _Buffer = bytes | mmap.mmap
 
 RPMTAG_RSAHEADER = 268
 RPMTAG_DSAHEADER = 267
+RPMTAG_OPENPGP = 278
 
 # Main-header value tags (package metadata) and their RPM type codes.
 _RPM_TYPE_INT32 = 4
@@ -94,16 +101,17 @@ def _parse_header(data: _Buffer, offset: int) -> tuple[list[tuple[int, int, int,
     return entries, store, store_end
 
 
-def extract_header_signature(data: _Buffer) -> tuple[bytes, bytes] | None:
-    """Extract the header-only OpenPGP signature and the data it covers.
+def extract_header_signatures(data: _Buffer) -> tuple[list[bytes], bytes] | None:
+    """Extract all header-only OpenPGP signatures and the data they cover.
 
     Args:
         data: The full ``.rpm`` file bytes.
 
     Returns:
-        ``(signature_packet, main_header_blob)`` if a header signature
-        (RSAHEADER/DSAHEADER) is present, or ``None`` if the package carries no
-        header signature.
+        ``(signature_packets, main_header_blob)`` if the package carries at
+        least one header signature (RSAHEADER/DSAHEADER from rpm < 6, OPENPGP
+        from rpm >= 6), or ``None`` if it carries none. Packets are binary
+        OpenPGP signatures in header order.
 
     Raises:
         RpmFormatError: If the bytes are not a parseable RPM.
@@ -121,14 +129,58 @@ def extract_header_signature(data: _Buffer) -> tuple[bytes, bytes] | None:
     _main_entries, _main_store, main_end = _parse_header(data, main_offset)
     main_header_blob = data[main_offset:main_end]
 
-    for tag, _type, store_offset, count in sig_entries:
+    packets: list[bytes] = []
+    for tag, rpm_type, store_offset, count in sig_entries:
         if tag in (RPMTAG_RSAHEADER, RPMTAG_DSAHEADER):
             signature_packet = sig_store[store_offset : store_offset + count]
             if not signature_packet:
                 raise RpmFormatError("empty header signature packet")
-            return signature_packet, main_header_blob
+            packets.append(signature_packet)
+        elif tag == RPMTAG_OPENPGP:
+            packets.extend(_openpgp_tag_packets(sig_store, rpm_type, store_offset, count))
 
-    return None
+    if not packets:
+        return None
+    return packets, main_header_blob
+
+
+def _openpgp_tag_packets(store: bytes, rpm_type: int, offset: int, count: int) -> list[bytes]:
+    """Decode the base64 signatures of an ``RPMSIGTAG_OPENPGP`` entry."""
+    if rpm_type not in (_RPM_TYPE_STRING, _RPM_TYPE_STRING_ARRAY):
+        raise RpmFormatError(f"unexpected type {rpm_type} for the OpenPGP signature tag")
+    packets = []
+    for _ in range(count if rpm_type == _RPM_TYPE_STRING_ARRAY else 1):
+        end = store.find(b"\x00", offset)
+        if end == -1:
+            raise RpmFormatError("unterminated OpenPGP signature string")
+        try:
+            packet = base64.b64decode(store[offset:end], validate=True)
+        except binascii.Error as exc:
+            raise RpmFormatError(f"invalid base64 in OpenPGP signature: {exc}") from exc
+        if not packet:
+            raise RpmFormatError("empty header signature packet")
+        packets.append(packet)
+        offset = end + 1
+    return packets
+
+
+def extract_header_signature(data: _Buffer) -> tuple[bytes, bytes] | None:
+    """Extract the first header-only OpenPGP signature and the data it covers.
+
+    See :func:`extract_header_signatures`, which returns every signature (rpm
+    >= 6 packages can carry several).
+
+    Returns:
+        ``(signature_packet, main_header_blob)``, or ``None`` if unsigned.
+
+    Raises:
+        RpmFormatError: If the bytes are not a parseable RPM.
+    """
+    extracted = extract_header_signatures(data)
+    if extracted is None:
+        return None
+    packets, main_header_blob = extracted
+    return packets[0], main_header_blob
 
 
 def _read_cstring(store: bytes, offset: int) -> str:
