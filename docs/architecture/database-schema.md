@@ -378,39 +378,51 @@ views / view_snapshots:
 
 ## Database Migrations
 
-Chantal uses Alembic for schema migrations. Migration scripts live in
-`alembic/versions/`.
+Chantal uses Alembic for schema migrations. Migration scripts ship inside the
+package in `src/chantal/migrations/versions/`, so `chantal db init` and
+`chantal db upgrade` work from an installed wheel and from any working
+directory. Chantal builds the Alembic configuration in code; `alembic.ini` at
+the repository root is only used when running the `alembic` CLI from a checkout.
 
 ### Migration Files
 
 ```text
-alembic/
+src/chantal/migrations/
 ├── versions/
 │   ├── 20260110_2202_a4a922fdfc63_initial_schema_with_generic_content_.py
 │   ├── 20260111_1138_4ae7cc6b7243_add_repository_files_table_and_.py
-│   └── 20260111_1242_e190d159daac_add_repository_mode_field.py
-└── env.py
+│   ├── 20260111_1242_e190d159daac_add_repository_mode_field.py
+│   └── 20260627_2330_b1c2d3e4f5a6_bigint_size_columns.py
+├── env.py
+└── script.py.mako
 ```
 
-Revision chain (head is `e190d159daac`):
+Revision chain (head is `b1c2d3e4f5a6`):
 
 ```text
 a4a922fdfc63 (initial schema, generic ContentItem)
     → 4ae7cc6b7243 (add repository_files table + junctions)
-        → e190d159daac (add Repository.mode field)   ← head
+        → e190d159daac (add Repository.mode field)
+            → b1c2d3e4f5a6 (widen size/bytes columns to BigInteger)   ← head
 ```
 
 ### Run Migrations
 
 ```bash
 # Upgrade to latest
+chantal db upgrade
+
+# Show current version and pending migrations
+chantal db status
+```
+
+When developing a new migration from a checkout, use the `alembic` CLI with the
+repository's `alembic.ini` (set `CHANTAL_DATABASE_URL` to the target database):
+
+```bash
+alembic revision --autogenerate -m "describe change"
 alembic upgrade head
-
-# Downgrade one version
 alembic downgrade -1
-
-# Show current version
-alembic current
 ```
 
 ## Example Queries

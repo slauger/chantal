@@ -1,6 +1,11 @@
 """Tests for database migrations module."""
 
+import os
+import shutil
+import subprocess
+import sys
 import tempfile
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -107,3 +112,104 @@ def test_get_revision_info_invalid(temp_db):
     """Test getting revision info for invalid revision."""
     info = migrations.get_revision_info(temp_db, "invalid_revision_hash")
     assert info is None
+
+
+def test_migrations_independent_of_cwd(temp_db, tmp_path, monkeypatch):
+    """Migrations resolve from the package, not the current directory (#153)."""
+    monkeypatch.chdir(tmp_path)
+
+    migrations.init_database(temp_db)
+
+    assert migrations.get_current_revision(temp_db) == migrations.get_head_revision(temp_db)
+
+
+def test_db_init_from_installed_wheel(tmp_path):
+    """`chantal db init` works from a built wheel outside the checkout (#153).
+
+    Builds the wheel, installs it (without dependencies, which come from the
+    test environment) into a separate directory that shadows the editable
+    install, and runs the CLI from an unrelated working directory.
+    """
+    project_root = Path(__file__).resolve().parent.parent
+    # Build from a clean copy so neither a stale build/ dir in the checkout
+    # leaks into the wheel nor the build leaves artifacts behind.
+    source = tmp_path / "source"
+    source.mkdir()
+    for name in ("pyproject.toml", "README.md", "MANIFEST.in"):
+        shutil.copy2(project_root / name, source / name)
+    shutil.copytree(
+        project_root / "src",
+        source / "src",
+        ignore=shutil.ignore_patterns("__pycache__", "*.egg-info"),
+    )
+    wheel_dir = tmp_path / "wheel"
+    target = tmp_path / "site"
+    workdir = tmp_path / "work"
+    workdir.mkdir()
+
+    subprocess.run(
+        [sys.executable, "-m", "pip", "wheel", "--no-deps", "-q", "-w", str(wheel_dir), "."],
+        cwd=source,
+        check=True,
+    )
+    (wheel,) = wheel_dir.glob("chantal-*.whl")
+    with zipfile.ZipFile(wheel) as zf:
+        names = set(zf.namelist())
+    assert "chantal/migrations/env.py" in names
+    assert "chantal/migrations/script.py.mako" in names
+    assert any(n.startswith("chantal/migrations/versions/") for n in names)
+
+    subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pip",
+            "install",
+            "--no-deps",
+            "-q",
+            "--target",
+            str(target),
+            str(wheel),
+        ],
+        check=True,
+    )
+
+    db_path = workdir / "chantal.db"
+    config_path = workdir / "config.yaml"
+    config_path.write_text(f"database:\n  url: sqlite:///{db_path}\n")
+
+    env = {k: v for k, v in os.environ.items() if not k.startswith("CHANTAL_")}
+    env["PYTHONPATH"] = str(target)
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            "import sys, chantal; assert chantal.__file__.startswith(sys.argv[1]), chantal.__file__;"
+            "from chantal.cli.main import cli; sys.argv[1:2] = []; cli()",
+            str(target),
+            "--config",
+            str(config_path),
+            "db",
+            "init",
+        ],
+        cwd=workdir,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "Database initialized to revision" in result.stdout
+    # Alembic progress is still reported without alembic.ini's logging config.
+    assert "Running upgrade" in result.stderr
+    assert db_path.exists()
+
+
+def test_init_ignores_env_database_url(temp_db, tmp_path, monkeypatch):
+    """The URL chantal passes wins over CHANTAL_DATABASE_URL (only the CLI honors it)."""
+    other = tmp_path / "other.db"
+    monkeypatch.setenv("CHANTAL_DATABASE_URL", f"sqlite:///{other}")
+
+    migrations.init_database(temp_db)
+
+    assert migrations.get_current_revision(temp_db) == migrations.get_head_revision(temp_db)
+    assert not other.exists()

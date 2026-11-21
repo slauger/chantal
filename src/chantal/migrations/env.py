@@ -1,6 +1,8 @@
 """Alembic environment configuration."""
 
+import logging
 import os
+import sys
 from logging.config import fileConfig
 
 from alembic import context
@@ -16,6 +18,17 @@ config = context.config
 # This line sets up loggers basically.
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
+else:
+    # chantal builds the Config in code (no alembic.ini); keep the INFO-level
+    # "Running upgrade ..." progress output that the ini file used to enable.
+    # alembic attaches a NullHandler to its logger on import, so look for a
+    # real handler rather than any handler.
+    alembic_logger = logging.getLogger("alembic")
+    if all(isinstance(h, logging.NullHandler) for h in alembic_logger.handlers):
+        handler = logging.StreamHandler(sys.stderr)
+        handler.setFormatter(logging.Formatter("%(levelname)-5.5s [%(name)s] %(message)s"))
+        alembic_logger.addHandler(handler)
+        alembic_logger.setLevel(logging.INFO)
 
 # add your model's MetaData object here
 # for 'autogenerate' support
@@ -29,12 +42,15 @@ target_metadata = Base.metadata
 
 def get_url() -> str:
     """Get database URL from environment variable or config file."""
-    # Try environment variable first
-    url = os.getenv("CHANTAL_DATABASE_URL")
-    if url:
-        return url
+    # Only the alembic CLI (which reads alembic.ini) honors the environment
+    # override. chantal passes its configured URL in code, and status/history
+    # read that same URL, so an env override here would migrate a different
+    # database than the one chantal reports on.
+    if config.config_file_name is not None:
+        url = os.getenv("CHANTAL_DATABASE_URL")
+        if url:
+            return url
 
-    # Fall back to alembic.ini
     return config.get_main_option("sqlalchemy.url")
 
 

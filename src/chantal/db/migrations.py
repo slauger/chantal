@@ -9,16 +9,23 @@ schema management.
 
 from pathlib import Path
 
+from alembic import command
 from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
 from sqlalchemy import create_engine, inspect
 
-from alembic import command
+# Migration scripts ship inside the package (src/chantal/migrations), so they
+# are found the same way from a checkout, an editable install or a wheel.
+MIGRATIONS_DIR = Path(__file__).resolve().parent.parent / "migrations"
 
 
 def get_alembic_config(database_url: str) -> Config:
     """Get Alembic configuration.
+
+    The config is built in code instead of reading alembic.ini, which is not
+    part of the installed package and whose relative script_location would
+    otherwise be resolved against the current working directory.
 
     Args:
         database_url: SQLAlchemy database URL
@@ -26,15 +33,14 @@ def get_alembic_config(database_url: str) -> Config:
     Returns:
         Alembic Config object
     """
-    # Find alembic.ini relative to this file
-    project_root = Path(__file__).parent.parent.parent.parent
-    alembic_ini = project_root / "alembic.ini"
+    if not (MIGRATIONS_DIR / "env.py").is_file():
+        raise FileNotFoundError(f"Alembic migrations not found at {MIGRATIONS_DIR}")
 
-    if not alembic_ini.exists():
-        raise FileNotFoundError(f"alembic.ini not found at {alembic_ini}")
-
-    config = Config(str(alembic_ini))
-    config.set_main_option("sqlalchemy.url", database_url)
+    config = Config()
+    # Config options go through ConfigParser interpolation; escape '%' so
+    # install paths and percent-encoded credentials survive unchanged.
+    config.set_main_option("script_location", str(MIGRATIONS_DIR).replace("%", "%%"))
+    config.set_main_option("sqlalchemy.url", database_url.replace("%", "%%"))
 
     return config
 
