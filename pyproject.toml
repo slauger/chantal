@@ -81,18 +81,29 @@ chantal = "chantal.cli.main:cli"
 where = ["src"]
 
 [tool.setuptools.package-data]
-chantal = ["py.typed"]
+# The Alembic migrations are not a Python package (no __init__.py); ship them
+# as data so `chantal db init` works from an installed wheel.
+chantal = [
+    "py.typed",
+    "migrations/env.py",
+    "migrations/script.py.mako",
+    "migrations/versions/*.py",
+]
 
 # Black configuration
 [tool.black]
 line-length = 100
 target-version = ["py312"]
 include = '\.pyi?$'
+# Generated Alembic migration scripts (see [tool.mypy] exclude)
+extend-exclude = '^/src/chantal/migrations/versions/'
 
 # Ruff configuration
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+# Generated Alembic migration scripts (see [tool.mypy] exclude)
+extend-exclude = ["src/chantal/migrations/versions"]
 
 [tool.ruff.lint]
 select = [
@@ -120,6 +131,8 @@ check_untyped_defs = true
 no_implicit_optional = true
 warn_redundant_casts = true
 warn_unused_ignores = true
+# Alembic migration scripts are loaded by file path, not imported as modules
+exclude = ["src/chantal/migrations/"]
 
 # python-gnupg ships no type stubs
 [[tool.mypy.overrides]]

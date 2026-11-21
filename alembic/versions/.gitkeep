@@ -1,3 +1,0 @@
-# This directory contains Alembic migration scripts
-# Migration scripts will be auto-generated here by running:
-# alembic revision --autogenerate -m "description"
