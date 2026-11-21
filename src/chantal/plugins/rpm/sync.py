@@ -609,7 +609,7 @@ class RpmSyncPlugin:
         import mmap
 
         from chantal.core.gpg_verify import GpgVerifier
-        from chantal.plugins.rpm.rpm_header import RpmFormatError, extract_header_signature
+        from chantal.plugins.rpm.rpm_header import RpmFormatError, extract_header_signatures
 
         assert isinstance(verifier, GpgVerifier)
         verify = self.config.verify
@@ -623,7 +623,7 @@ class RpmSyncPlugin:
                 open(rpm_path, "rb") as fh,
                 mmap.mmap(fh.fileno(), 0, access=mmap.ACCESS_READ) as mm,
             ):
-                extracted = extract_header_signature(mm)
+                extracted = extract_header_signatures(mm)
         except RpmFormatError as exc:
             self._handle_verify_policy(verify.on_invalid_signature, f"{nvra}: {exc}")
             return
@@ -634,8 +634,11 @@ class RpmSyncPlugin:
             )
             return
 
-        signature_packet, header_blob = extracted
-        if not verifier.verify_detached(header_blob, signature_packet):
+        # rpm >= 6 packages can carry several signatures (e.g. during a key
+        # rotation); like rpm, accept the package if one of them is valid and
+        # made by a trusted key.
+        signature_packets, header_blob = extracted
+        if not any(verifier.verify_detached(header_blob, packet) for packet in signature_packets):
             self._handle_verify_policy(
                 verify.on_invalid_signature,
                 f"{nvra}: invalid or untrusted package signature",
