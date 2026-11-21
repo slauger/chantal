@@ -301,6 +301,16 @@ class TestRpm6Signatures:
         rpm = _build_rpm6(main_blob, [b"\x88first", b"\x88second"])
         assert extract_header_signatures(rpm) == ([b"\x88first", b"\x88second"], main_blob)
 
+    def test_signature_count_is_capped(self):
+        """A crafted package cannot make sync run thousands of gpg verifications."""
+        from chantal.plugins.rpm.rpm_header import MAX_HEADER_SIGNATURES
+
+        main_blob = _build_header([(1000, b"demo\x00")])
+        extracted = extract_header_signatures(_build_rpm6(main_blob, [b"\x88"] * 32))
+        assert extracted is not None and len(extracted[0]) == MAX_HEADER_SIGNATURES == 32
+        with pytest.raises(RpmFormatError, match="more than"):
+            extract_header_signatures(_build_rpm6(main_blob, [b"\x88"] * 200_000))
+
     def test_invalid_base64_raises(self):
         main_blob = _build_header([(1000, b"demo\x00")])
         rpm = bytearray(_build_rpm6(main_blob, [b"\x88sig"]))

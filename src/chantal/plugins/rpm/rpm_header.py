@@ -45,6 +45,11 @@ RPMTAG_RSAHEADER = 268
 RPMTAG_DSAHEADER = 267
 RPMTAG_OPENPGP = 278
 
+# Each signature is checked with a gpg call, so a crafted package must not be
+# able to make a sync verify thousands of junk entries. Real packages carry one
+# or two (key rotation); rpm caps the whole signature header at 32 entries.
+MAX_HEADER_SIGNATURES = 32
+
 # Main-header value tags (package metadata) and their RPM type codes.
 _RPM_TYPE_INT32 = 4
 _RPM_TYPE_STRING = 6
@@ -114,7 +119,10 @@ def extract_header_signatures(data: _Buffer) -> tuple[list[bytes], bytes] | None
         OpenPGP signatures in header order.
 
     Raises:
-        RpmFormatError: If the bytes are not a parseable RPM.
+        RpmFormatError: If the bytes are not a parseable RPM, a signature entry
+            is malformed (this rejects the package even if another signature is
+            valid: a corrupt signature header is not trusted), or there are more
+            than :data:`MAX_HEADER_SIGNATURES` signatures.
     """
     if len(data) < _LEAD_SIZE + _INTRO_SIZE or data[:4] != _LEAD_MAGIC:
         raise RpmFormatError("not an RPM file (bad lead magic)")
@@ -139,6 +147,9 @@ def extract_header_signatures(data: _Buffer) -> tuple[list[bytes], bytes] | None
         elif tag == RPMTAG_OPENPGP:
             packets.extend(_openpgp_tag_packets(sig_store, rpm_type, store_offset, count))
 
+        if len(packets) > MAX_HEADER_SIGNATURES:
+            raise RpmFormatError(f"more than {MAX_HEADER_SIGNATURES} header signatures")
+
     if not packets:
         return None
     return packets, main_header_blob
@@ -148,7 +159,9 @@ def _openpgp_tag_packets(store: bytes, rpm_type: int, offset: int, count: int) -
     """Decode the base64 signatures of an ``RPMSIGTAG_OPENPGP`` entry."""
     if rpm_type not in (_RPM_TYPE_STRING, _RPM_TYPE_STRING_ARRAY):
         raise RpmFormatError(f"unexpected type {rpm_type} for the OpenPGP signature tag")
-    packets = []
+    packets: list[bytes] = []
+    if count > MAX_HEADER_SIGNATURES:
+        raise RpmFormatError(f"more than {MAX_HEADER_SIGNATURES} header signatures")
     for _ in range(count if rpm_type == _RPM_TYPE_STRING_ARRAY else 1):
         end = store.find(b"\x00", offset)
         if end == -1:

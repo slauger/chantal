@@ -105,20 +105,19 @@ def test_real_signed_rpm_header_signature_verifies(tmp_path):
     assert sign.returncode == 0, f"rpm --addsign failed:\n{sign.stdout}\n{sign.stderr}"
 
     # 4. Our parser must find the header signature, and it must verify. rpm < 6
-    # writes RSAHEADER/DSAHEADER, rpm >= 6 the base64 OPENPGP tag; either way
-    # this rpm signed exactly once.
+    # writes RSAHEADER/DSAHEADER, rpm >= 6 the base64 OPENPGP tag (signing a v4
+    # package it may write both - the same signature twice).
     extracted = extract_header_signatures(rpm_path.read_bytes())
     assert extracted is not None, "parser did not find the header signature in a real signed RPM"
     packets, header_blob = extracted
-    assert len(packets) == 1, f"expected one signature, found {len(packets)}"
-    packet = packets[0]
 
     cfg = SignatureVerificationConfig(
         enabled=True, keys=[public_key], gnupg_home=str(tmp_path / "verify")
     )
+    tampered = bytearray(header_blob)
+    tampered[len(tampered) // 2] ^= 0xFF
     with GpgVerifier(cfg) as verifier:
-        assert verifier.verify_detached(header_blob, packet) is True
-        # A modified header must not verify.
-        tampered = bytearray(header_blob)
-        tampered[len(tampered) // 2] ^= 0xFF
-        assert verifier.verify_detached(bytes(tampered), packet) is False
+        for packet in packets:
+            assert verifier.verify_detached(header_blob, packet) is True
+            # A modified header must not verify.
+            assert verifier.verify_detached(bytes(tampered), packet) is False
