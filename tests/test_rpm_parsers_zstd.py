@@ -2,10 +2,25 @@
 
 from __future__ import annotations
 
-import pytest
+import tempfile
+from pathlib import Path
+
 import zstandard as zstd
 
-from chantal.plugins.rpm.parsers import _decompress_metadata
+from chantal.plugins.rpm.parsers import open_metadata
+
+
+def _decompress_metadata(data: bytes, location: str) -> bytes:
+    """Decompress ``data`` the way sync reads a fetched metadata file.
+
+    The file is stored under a neutral name (like a cache entry), so the format
+    must come from the upstream ``location`` or the magic bytes.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "entry.bin"
+        path.write_bytes(data)
+        with open_metadata(path, location) as stream:
+            return stream.read()
 
 
 class TestZstdDecompression:
@@ -77,10 +92,17 @@ class TestZstdDecompression:
         decompressed = _decompress_metadata(compressed, "primary.xml.xz")
         assert decompressed == self.TEST_XML
 
-    def test_decompress_unknown_format_raises(self) -> None:
-        """Test that unknown format raises error."""
-        with pytest.raises(ValueError, match="Unknown compression format"):
-            _decompress_metadata(b"invalid data", "unknown.xyz")
+    def test_decompress_unknown_format_reads_as_is(self) -> None:
+        """Data without a known suffix or magic is read unchanged (plain XML);
+        garbage then fails in the XML parser."""
+        assert _decompress_metadata(b"invalid data", "unknown.xyz") == b"invalid data"
+
+    def test_decompress_concatenated_zst_frames(self) -> None:
+        """All frames of a multi-frame zstd file are read, not just the first."""
+        cctx = zstd.ZstdCompressor()
+        half = len(self.TEST_XML) // 2
+        compressed = cctx.compress(self.TEST_XML[:half]) + cctx.compress(self.TEST_XML[half:])
+        assert _decompress_metadata(compressed, "primary.xml.zst") == self.TEST_XML
 
     def test_decompress_zst_frame_without_content_size(self) -> None:
         """A zstd frame without an embedded content size (what createrepo_c and

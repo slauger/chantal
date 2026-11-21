@@ -6,7 +6,10 @@ comparison ('10.el9' > '9.el9' is False) reported "no update available".
 
 from __future__ import annotations
 
+import io
 import xml.etree.ElementTree as ET
+from contextlib import nullcontext
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -66,12 +69,16 @@ def test_check_updates_uses_evr_ordering(session):
             return_value=[{"file_type": "primary", "location": "p", "checksum": "c"}],
         ),
         patch(
-            "chantal.plugins.rpm.sync.parsers.fetch_metadata_with_cache",
-            return_value=(b"<metadata/>", False),
+            "chantal.plugins.rpm.sync.parsers.fetched_metadata_file",
+            return_value=nullcontext((Path("primary.xml.gz"), False)),
         ),
         patch(
-            "chantal.plugins.rpm.sync.parsers.parse_primary_xml",
-            return_value=[_remote_pkg("10.el9")],
+            "chantal.plugins.rpm.sync.parsers.open_metadata",
+            return_value=nullcontext(io.BytesIO(b"<metadata/>")),
+        ),
+        patch(
+            "chantal.plugins.rpm.sync.parsers.iter_primary_packages",
+            return_value=iter([_remote_pkg("10.el9")]),
         ),
     ):
         result = plugin.check_updates(session, repo)

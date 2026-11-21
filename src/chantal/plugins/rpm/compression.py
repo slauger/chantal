@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import bz2
 import gzip
-from typing import Literal
+import lzma
+from collections.abc import Iterator
+from contextlib import contextmanager
+from pathlib import Path
+from typing import BinaryIO, Literal, cast
 
 import zstandard as zstd
 
@@ -143,3 +147,88 @@ def detect_compression_from_repomd(repomd_data: dict[str, dict]) -> CompressionF
 
     # Fallback to gzip (most common)
     return "gzip"
+
+
+# Magic bytes used when a file name carries no (or a misleading) extension, e.g.
+# metadata cache entries, which are stored under a fixed name.
+_MAGIC_SUFFIXES = (
+    (b"\x1f\x8b", ".gz"),
+    (b"\xfd7zXZ\x00", ".xz"),
+    (b"\x28\xb5\x2f\xfd", ".zst"),
+    (b"BZh", ".bz2"),
+)
+_STREAM_SUFFIXES = (".gz", ".xz", ".zst", ".bz2")
+
+
+def _sniff_suffix(path: Path) -> str:
+    with open(path, "rb") as fh:
+        head = fh.read(6)
+    for magic, suffix in _MAGIC_SUFFIXES:
+        if head.startswith(magic):
+            return suffix
+    return ""
+
+
+@contextmanager
+def open_decompressed(path: Path, suffix: str | None = None) -> Iterator[BinaryIO]:
+    """Open ``path`` as a stream of its decompressed bytes.
+
+    Large repositories ship metadata that decompresses to more than a gigabyte,
+    so it must never be decompressed into memory in one piece. The format comes
+    from ``suffix`` (defaults to the file's own suffix); an unknown suffix falls
+    back to magic-byte detection, and data without a known magic is read as-is.
+    """
+    suffix = suffix if suffix is not None else path.suffix
+    if suffix not in _STREAM_SUFFIXES:
+        suffix = _sniff_suffix(path)
+
+    if suffix == ".gz":
+        with gzip.open(path, "rb") as fh:
+            yield cast(BinaryIO, fh)
+    elif suffix == ".xz":
+        with lzma.open(path, "rb") as fh:
+            yield cast(BinaryIO, fh)
+    elif suffix == ".bz2":
+        with bz2.open(path, "rb") as fh:
+            yield cast(BinaryIO, fh)
+    elif suffix == ".zst":
+        # Streaming reader: the one-shot decompress() needs the frame to embed
+        # its content size, which createrepo_c/zstd often omit.
+        with open(path, "rb") as raw:
+            reader = zstd.ZstdDecompressor().stream_reader(raw, read_across_frames=True)
+            with reader:
+                yield cast(BinaryIO, reader)
+    else:
+        with open(path, "rb") as fh:
+            yield cast(BinaryIO, fh)
+
+
+@contextmanager
+def open_compressed_writer(
+    path: Path, suffix: str, compression_level: int | None = None
+) -> Iterator[BinaryIO]:
+    """Open ``path`` for writing, compressing according to ``suffix``.
+
+    ``compression_level`` of None keeps each format's library default. Unknown
+    suffixes write the data uncompressed.
+    """
+    if suffix == ".gz":
+        level = compression_level if compression_level is not None else 9
+        with gzip.open(path, "wb", compresslevel=level) as fh:
+            yield cast(BinaryIO, fh)
+    elif suffix == ".xz":
+        with lzma.open(path, "wb", preset=compression_level) as fh:
+            yield cast(BinaryIO, fh)
+    elif suffix == ".bz2":
+        level = compression_level if compression_level is not None else 9
+        with bz2.open(path, "wb", compresslevel=level) as fh:
+            yield cast(BinaryIO, fh)
+    elif suffix == ".zst":
+        level = compression_level if compression_level is not None else 3
+        with open(path, "wb") as raw:
+            writer = zstd.ZstdCompressor(level=level).stream_writer(raw, closefd=False)
+            with writer:
+                yield cast(BinaryIO, writer)
+    else:
+        with open(path, "wb") as fh:
+            yield cast(BinaryIO, fh)

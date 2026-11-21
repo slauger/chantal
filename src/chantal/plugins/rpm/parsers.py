@@ -6,21 +6,24 @@ RPM repository metadata parsers.
 This module provides functions for parsing RPM repository metadata files.
 """
 
-import bz2
 import configparser
-import gzip
 import hashlib
 import io
 import logging
-import lzma
+import os
+import tempfile
 import xml.etree.ElementTree as ET
-from pathlib import Path
+from collections.abc import Iterator
+from contextlib import AbstractContextManager, contextmanager
+from pathlib import Path, PurePosixPath
+from typing import BinaryIO
 from urllib.parse import urljoin
 
 import requests
-import zstandard as zstd
 
 from chantal.core.cache import MetadataCache
+from chantal.plugins.rpm.compression import open_decompressed
+from chantal.plugins.rpm.xmlstream import iter_items
 
 logger = logging.getLogger(__name__)
 
@@ -215,7 +218,43 @@ def extract_all_metadata(repomd_root: ET.Element) -> list[dict]:
     return metadata_files
 
 
-def fetch_metadata_with_cache(
+def download_verified(
+    session: requests.Session,
+    url: str,
+    dest: Path,
+    checksum_type: str | None,
+    checksum: str,
+) -> None:
+    """Stream ``url`` into ``dest`` and verify it against ``checksum``.
+
+    The body is hashed while it is written, so the file is never held in
+    memory. On a mismatch (or any error) ``dest`` is removed.
+
+    Raises:
+        requests.RequestException: On HTTP errors
+        ValueError: If the checksum is empty or does not match
+    """
+    if not checksum:
+        raise ValueError("Cannot verify: empty expected checksum")
+    digest = hashlib.new(normalize_checksum_type(checksum_type))
+    try:
+        with session.get(url, timeout=60, stream=True) as response:
+            response.raise_for_status()
+            with open(dest, "wb") as fh:
+                for chunk in response.iter_content(chunk_size=1024 * 1024):
+                    digest.update(chunk)
+                    fh.write(chunk)
+        if digest.hexdigest().lower() != checksum.lower():
+            raise ValueError(
+                f"{normalize_checksum_type(checksum_type)} checksum mismatch for {url}"
+            )
+    except BaseException:
+        dest.unlink(missing_ok=True)
+        raise
+
+
+@contextmanager
+def fetched_metadata_file(
     session: requests.Session,
     base_url: str,
     location: str,
@@ -223,97 +262,63 @@ def fetch_metadata_with_cache(
     cache: MetadataCache | None = None,
     file_type: str = "metadata",
     checksum_type: str | None = None,
-) -> tuple[bytes, bool]:
-    """Download, verify and decompress a metadata file (with optional caching).
+) -> Iterator[tuple[Path, bool]]:
+    """Provide a verified local copy of a (compressed) metadata file.
 
-    The compressed file is verified against the ``checksum`` from repomd.xml
-    using the declared ``checksum_type`` algorithm (sha256/sha512/sha1).
+    The file is taken from the cache when present and valid, otherwise it is
+    streamed from upstream and verified against the ``checksum`` from
+    repomd.xml using the declared ``checksum_type`` (sha256/sha512/sha1). With
+    a cache the download is stored there; without one it is a temporary file
+    that is removed when the context exits.
 
-    Args:
-        session: Requests session (with auth/SSL configured)
-        base_url: Base URL of repository
-        location: Relative path to metadata file (e.g., "repodata/abc-primary.xml.gz")
-        checksum: Expected checksum from repomd.xml
-        cache: Optional MetadataCache instance
-        file_type: Type hint for logging (e.g., "primary", "updateinfo")
-        checksum_type: Checksum algorithm from repomd.xml (defaults to sha256)
-
-    Returns:
-        Tuple of (decompressed XML content as bytes, from_cache boolean)
+    Yields:
+        ``(path, from_cache)``. Open ``path`` with :func:`open_metadata`.
 
     Raises:
         requests.RequestException: On HTTP errors
-        ValueError: If compression format is unknown or the checksum mismatches
+        ValueError: If the checksum mismatches
     """
     # Try cache first if enabled (re-verify in case the cache entry is corrupt).
     if cache:
         cached_file = cache.get(checksum, file_type)
         if cached_file:
-            compressed_content = cached_file.read_bytes()
-            if verify_data_checksum(compressed_content, checksum_type, checksum):
-                return _decompress_metadata(compressed_content, location), True
+            if verify_file_checksum(cached_file, checksum_type, checksum):
+                yield cached_file, True
+                return
             logger.warning(f"Cached {file_type} failed checksum verification; re-downloading")
 
-    # Cache miss or disabled - download from upstream
     metadata_url = urljoin(base_url + "/", location)
     logger.info(f"Downloading {file_type} from {metadata_url}")
-    response = session.get(metadata_url, timeout=60)
-    response.raise_for_status()
+    fd, tmp_name = tempfile.mkstemp(
+        suffix=f".{file_type}.tmp",
+        dir=cache.cache_path if cache and cache.enabled and cache.cache_path else None,
+    )
+    os.close(fd)
+    tmp_path = Path(tmp_name)
+    try:
+        download_verified(session, metadata_url, tmp_path, checksum_type, checksum)
 
-    # Verify the downloaded file against repomd.xml before trusting it.
-    algo = normalize_checksum_type(checksum_type)
-    if not verify_data_checksum(response.content, checksum_type, checksum):
-        raise ValueError(f"{file_type} {algo} checksum mismatch for {location}")
-
-    # Store in cache if enabled (compressed)
-    if cache:
-        try:
-            cache.put(checksum, response.content, file_type, algorithm=algo)
-        except Exception as e:
-            logger.warning(f"Failed to cache {file_type}: {e}")
-
-    # Decompress and return
-    return _decompress_metadata(response.content, location), False
+        path = tmp_path
+        if cache:
+            try:
+                path = cache.put_file(
+                    checksum, tmp_path, file_type, algorithm=normalize_checksum_type(checksum_type)
+                )
+            except Exception as e:
+                # put_file leaves tmp_path in place when it fails.
+                logger.warning(f"Failed to cache {file_type}: {e}")
+        yield path, False
+    finally:
+        tmp_path.unlink(missing_ok=True)
 
 
-def _decompress_metadata(compressed_content: bytes, filename: str) -> bytes:
-    """Decompress metadata file based on extension or magic bytes.
+def open_metadata(path: Path, location: str) -> AbstractContextManager[BinaryIO]:
+    """Open a fetched metadata file as a decompressed stream.
 
-    Args:
-        compressed_content: Compressed file content
-        filename: Filename for extension detection
-
-    Returns:
-        Decompressed content
-
-    Raises:
-        ValueError: If compression format is unknown
+    The format follows the upstream ``location`` (cache entries are stored under
+    a fixed name), falling back to magic-byte detection.
     """
-    # Try extension-based detection first
-    if filename.endswith(".xz"):
-        return lzma.decompress(compressed_content)
-    elif filename.endswith(".gz"):
-        return gzip.decompress(compressed_content)
-    elif filename.endswith(".zst"):
-        # Streaming reader: the one-shot decompress() needs the frame to embed
-        # its content size, which createrepo_c/zstd often omit.
-        return zstd.ZstdDecompressor().stream_reader(io.BytesIO(compressed_content)).read()
-    elif filename.endswith(".bz2"):
-        return bz2.decompress(compressed_content)
-
-    # Fallback to magic byte detection
-    if compressed_content[:2] == b"\x1f\x8b":  # gzip magic
-        return gzip.decompress(compressed_content)
-    elif compressed_content[:6] == b"\xfd7zXZ\x00":  # xz magic
-        return lzma.decompress(compressed_content)
-    elif compressed_content[:4] == b"\x28\xb5\x2f\xfd":  # zstandard magic
-        # Streaming reader: the one-shot decompress() needs the frame to embed
-        # its content size, which createrepo_c/zstd often omit.
-        return zstd.ZstdDecompressor().stream_reader(io.BytesIO(compressed_content)).read()
-    elif compressed_content[:3] == b"BZh":  # bzip2 magic
-        return bz2.decompress(compressed_content)
-    else:
-        raise ValueError(f"Unknown compression format for {filename}")
+    return open_decompressed(path, PurePosixPath(location).suffix)
 
 
 def parse_primary_xml(xml_content: bytes) -> list[dict]:
@@ -323,105 +328,107 @@ def parse_primary_xml(xml_content: bytes) -> list[dict]:
         xml_content: Decompressed primary.xml content
 
     Returns:
-        List of dicts with package metadata
-        Each dict contains: name, version, release, epoch, arch, sha256, size_bytes,
-        location, summary, description, build_time, file_time, group, license,
-        vendor, sourcerpm
+        List of dicts with package metadata, see :func:`iter_primary_packages`
     """
-    root = ET.fromstring(xml_content)
-    packages = []
+    return list(iter_primary_packages(io.BytesIO(xml_content)))
 
-    # Handle namespace
-    ns = {"common": "http://linux.duke.edu/metadata/common"}
 
-    # Find all package elements
-    package_elems = root.findall("common:package", ns)
-    if not package_elems:
-        # Try without namespace
-        package_elems = root.findall("package")
+def iter_primary_packages(stream: BinaryIO) -> Iterator[dict]:
+    """Stream package metadata out of a decompressed primary.xml.
 
-    for pkg_elem in package_elems:
+    Packages are parsed one at a time (memory does not grow with the size of
+    the repository).
+
+    Yields:
+        Dicts with: name, version, release, epoch, arch, sha256, checksum_type,
+        size_bytes, location, summary, description, build_time, file_time,
+        group, license, vendor, sourcerpm
+    """
+    for pkg_elem in iter_items(stream, "package"):
         try:
-            # Namespace URI for common elements
-            ns_uri = "{http://linux.duke.edu/metadata/common}"
-            rpm_ns = "{http://linux.duke.edu/metadata/rpm}"
-
-            # Extract basic info
-            name_elem = pkg_elem.find(f"{ns_uri}name")
-            arch_elem = pkg_elem.find(f"{ns_uri}arch")
-            version_elem = pkg_elem.find(f"{ns_uri}version")
-            checksum_elem = pkg_elem.find(f"{ns_uri}checksum")
-            size_elem = pkg_elem.find(f"{ns_uri}size")
-            location_elem = pkg_elem.find(f"{ns_uri}location")
-            summary_elem = pkg_elem.find(f"{ns_uri}summary")
-            desc_elem = pkg_elem.find(f"{ns_uri}description")
-
-            # Extract extended metadata
-            time_elem = pkg_elem.find(f"{ns_uri}time")
-            format_elem = pkg_elem.find(f"{ns_uri}format")
-
-            # Extract RPM-specific metadata from <format> element
-            group = None
-            license_str = None
-            vendor = None
-            sourcerpm = None
-            if format_elem is not None:
-                group_elem = format_elem.find(f"{rpm_ns}group")
-                license_elem = format_elem.find(f"{rpm_ns}license")
-                vendor_elem = format_elem.find(f"{rpm_ns}vendor")
-                sourcerpm_elem = format_elem.find(f"{rpm_ns}sourcerpm")
-
-                group = group_elem.text if group_elem is not None else None
-                license_str = license_elem.text if license_elem is not None else None
-                vendor = vendor_elem.text if vendor_elem is not None else None
-                sourcerpm = sourcerpm_elem.text if sourcerpm_elem is not None else None
-
-            # Extract time metadata
-            build_time = None
-            file_time = None
-            if time_elem is not None:
-                build_time_str = time_elem.get("build")
-                file_time_str = time_elem.get("file")
-                build_time = int(build_time_str) if build_time_str else None
-                file_time = int(file_time_str) if file_time_str else None
-
-            # ElementTree elements can be falsy even if not None, so check explicitly
-            if (
-                name_elem is None
-                or arch_elem is None
-                or version_elem is None
-                or checksum_elem is None
-                or location_elem is None
-            ):
-                continue  # Skip incomplete packages
-
-            pkg_meta = {
-                "name": name_elem.text,
-                "version": version_elem.get("ver"),
-                "release": version_elem.get("rel") or "",
-                "epoch": version_elem.get("epoch"),
-                "arch": arch_elem.text,
-                "sha256": checksum_elem.text,
-                "checksum_type": checksum_elem.get("type"),
-                "size_bytes": int(size_elem.get("package") or "0") if size_elem is not None else 0,
-                "location": location_elem.get("href"),
-                "summary": summary_elem.text if summary_elem is not None else None,
-                "description": desc_elem.text if desc_elem is not None else None,
-                "build_time": build_time,
-                "file_time": file_time,
-                "group": group,
-                "license": license_str,
-                "vendor": vendor,
-                "sourcerpm": sourcerpm,
-            }
-            packages.append(pkg_meta)
-
+            pkg_meta = _primary_package(pkg_elem)
         except Exception as e:
             # Skip packages with parsing errors
             print(f"Warning: Failed to parse package: {e}")
             continue
+        if pkg_meta is not None:
+            yield pkg_meta
 
-    return packages
+
+def _primary_package(pkg_elem: ET.Element) -> dict | None:
+    """Extract package metadata from a primary.xml ``<package>`` element."""
+    # Namespace URI for common elements
+    ns_uri = "{http://linux.duke.edu/metadata/common}"
+    rpm_ns = "{http://linux.duke.edu/metadata/rpm}"
+
+    # Extract basic info
+    name_elem = pkg_elem.find(f"{ns_uri}name")
+    arch_elem = pkg_elem.find(f"{ns_uri}arch")
+    version_elem = pkg_elem.find(f"{ns_uri}version")
+    checksum_elem = pkg_elem.find(f"{ns_uri}checksum")
+    size_elem = pkg_elem.find(f"{ns_uri}size")
+    location_elem = pkg_elem.find(f"{ns_uri}location")
+    summary_elem = pkg_elem.find(f"{ns_uri}summary")
+    desc_elem = pkg_elem.find(f"{ns_uri}description")
+
+    # Extract extended metadata
+    time_elem = pkg_elem.find(f"{ns_uri}time")
+    format_elem = pkg_elem.find(f"{ns_uri}format")
+
+    # Extract RPM-specific metadata from <format> element
+    group = None
+    license_str = None
+    vendor = None
+    sourcerpm = None
+    if format_elem is not None:
+        group_elem = format_elem.find(f"{rpm_ns}group")
+        license_elem = format_elem.find(f"{rpm_ns}license")
+        vendor_elem = format_elem.find(f"{rpm_ns}vendor")
+        sourcerpm_elem = format_elem.find(f"{rpm_ns}sourcerpm")
+
+        group = group_elem.text if group_elem is not None else None
+        license_str = license_elem.text if license_elem is not None else None
+        vendor = vendor_elem.text if vendor_elem is not None else None
+        sourcerpm = sourcerpm_elem.text if sourcerpm_elem is not None else None
+
+    # Extract time metadata
+    build_time = None
+    file_time = None
+    if time_elem is not None:
+        build_time_str = time_elem.get("build")
+        file_time_str = time_elem.get("file")
+        build_time = int(build_time_str) if build_time_str else None
+        file_time = int(file_time_str) if file_time_str else None
+
+    # ElementTree elements can be falsy even if not None, so check explicitly
+    if (
+        name_elem is None
+        or arch_elem is None
+        or version_elem is None
+        or checksum_elem is None
+        or location_elem is None
+    ):
+        return None  # Skip incomplete packages
+
+    return {
+        "name": name_elem.text,
+        "version": version_elem.get("ver"),
+        "release": version_elem.get("rel") or "",
+        "epoch": version_elem.get("epoch"),
+        "arch": arch_elem.text,
+        "sha256": checksum_elem.text,
+        "checksum_type": checksum_elem.get("type"),
+        "size_bytes": int(size_elem.get("package") or "0") if size_elem is not None else 0,
+        "location": location_elem.get("href"),
+        "summary": summary_elem.text if summary_elem is not None else None,
+        "description": desc_elem.text if desc_elem is not None else None,
+        "build_time": build_time,
+        "file_time": file_time,
+        "group": group,
+        "license": license_str,
+        "vendor": vendor,
+        "sourcerpm": sourcerpm,
+    }
 
 
 def parse_treeinfo(content: str) -> list[dict[str, str | None]]:

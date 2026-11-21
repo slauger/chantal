@@ -7,8 +7,9 @@ This module provides functions for filtering RPM packages based on various crite
 """
 
 import re
-from collections import defaultdict
+from collections.abc import Iterable
 from datetime import datetime, timedelta
+from typing import Any
 
 from chantal.core.config import (
     FilterConfig,
@@ -21,11 +22,15 @@ from chantal.core.config import (
 from chantal.plugins.rpm.version import evr_pkg_key
 
 
-def apply_filters(packages: list[dict], filters: FilterConfig) -> list[dict]:
+def apply_filters(packages: Iterable[dict], filters: FilterConfig) -> list[dict]:
     """Apply package filters using generic filter engine.
 
+    ``packages`` may be a lazy iterator (e.g. streamed from primary.xml): it is
+    consumed once and only packages that survive the filters are kept, so
+    memory follows the filtered result rather than the upstream repository.
+
     Args:
-        packages: List of package metadata dicts
+        packages: Package metadata dicts
         filters: Filter configuration
 
     Returns:
@@ -37,32 +42,34 @@ def apply_filters(packages: list[dict], filters: FilterConfig) -> list[dict]:
     # Validate filter config for RPM repository
     filters.validate_for_repo_type("rpm")
 
-    filtered_packages = []
-
-    for pkg in packages:
-        # Apply generic metadata filters
-        if filters.metadata:
-            if not check_generic_metadata_filters(pkg, filters.metadata):
-                continue
-
-        # Apply RPM-specific filters
-        if filters.rpm:
-            if not check_rpm_filters(pkg, filters.rpm):
-                continue
-
-        # Apply pattern filters
-        if filters.patterns:
-            if not check_pattern_filters(pkg, filters.patterns):
-                continue
-
-        # Package passed all filters
-        filtered_packages.append(pkg)
+    filtered_packages = (pkg for pkg in packages if _passes_filters(pkg, filters))
 
     # Apply post-processing (after all filters)
     if filters.post_processing:
-        filtered_packages = apply_post_processing(filtered_packages, filters.post_processing)
+        return apply_post_processing(filtered_packages, filters.post_processing)
 
-    return filtered_packages
+    return list(filtered_packages)
+
+
+def _passes_filters(pkg: dict, filters: FilterConfig) -> bool:
+    """Return True if ``pkg`` passes the metadata, RPM and pattern filters."""
+    # Apply generic metadata filters
+    if filters.metadata:
+        if not check_generic_metadata_filters(pkg, filters.metadata):
+            return False
+
+    # Apply RPM-specific filters
+    if filters.rpm:
+        if not check_rpm_filters(pkg, filters.rpm):
+            return False
+
+    # Apply pattern filters
+    if filters.patterns:
+        if not check_pattern_filters(pkg, filters.patterns):
+            return False
+
+    # Package passed all filters
+    return True
 
 
 def check_generic_metadata_filters(pkg: dict, metadata: GenericMetadataFilterConfig) -> bool:
@@ -216,7 +223,7 @@ def check_pattern_filters(pkg: dict, patterns: PatternFilterConfig) -> bool:
     return True
 
 
-def apply_post_processing(packages: list[dict], post_proc: PostProcessingConfig) -> list[dict]:
+def apply_post_processing(packages: Iterable[dict], post_proc: PostProcessingConfig) -> list[dict]:
     """Apply post-processing to filtered packages.
 
     Args:
@@ -231,33 +238,39 @@ def apply_post_processing(packages: list[dict], post_proc: PostProcessingConfig)
     elif post_proc.only_latest_n_versions:
         return keep_only_latest_versions(packages, n=post_proc.only_latest_n_versions)
 
-    return packages
+    return list(packages)
 
 
-def keep_only_latest_versions(packages: list[dict], n: int = 1) -> list[dict]:
+def keep_only_latest_versions(packages: Iterable[dict], n: int = 1) -> list[dict]:
     """Keep only the latest N versions of each package (by name and arch).
 
+    Only the current top N of each (name, arch) are held while ``packages`` is
+    consumed, so a lazy iterator over a repository with many old versions does
+    not have to be materialized.
+
     Args:
-        packages: List of package metadata dicts
+        packages: Package metadata dicts
         n: Number of versions to keep (default: 1)
 
     Returns:
-        Filtered list with only latest N versions per (name, arch)
+        Filtered list with only latest N versions per (name, arch), grouped in
+        order of first appearance, newest first within a group
     """
-    # Group packages by (name, arch)
-    grouped: dict[tuple[str, str], list[dict]] = defaultdict(list)
-    for pkg in packages:
-        name = pkg.get("name", "")
-        arch = pkg.get("arch", "")
-        key = (name, arch)
-        grouped[key].append(pkg)
-
-    # For each group, keep only the latest N versions (newest first) using RPM's
+    # Per (name, arch): the newest N packages, newest first, compared with RPM's
     # own EVR ordering (rpmvercmp). PEP 440 mis-orders releases like 10.el9 vs
     # 9.el9 and rejects/mishandles RPM '~'/'^' versions.
-    result = []
-    for pkg_list in grouped.values():
-        sorted_pkgs = sorted(pkg_list, key=evr_pkg_key, reverse=True)
-        result.extend(sorted_pkgs[:n])
+    grouped: dict[tuple[str, str], list[tuple[Any, dict]]] = {}
+    for pkg in packages:
+        key = (pkg.get("name", ""), pkg.get("arch", ""))
+        top = grouped.setdefault(key, [])
+        evr = evr_pkg_key(pkg)
+        # Insert after every entry that is not older, so equal versions keep
+        # their input order (as a stable descending sort would).
+        pos = len(top)
+        while pos > 0 and top[pos - 1][0] < evr:
+            pos -= 1
+        if pos < n:
+            top.insert(pos, (evr, pkg))
+            del top[n:]
 
-    return result
+    return [pkg for top in grouped.values() for _, pkg in top]
