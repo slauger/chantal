@@ -33,11 +33,11 @@ jobs:
 
       - name: Install cosign
         if: github.event_name != 'pull_request'
-        uses: sigstore/cosign-installer@v4.1.2
+        uses: sigstore/cosign-installer@v4.1.4
 
       - name: Install syft
         if: github.event_name != 'pull_request'
-        uses: anchore/sbom-action/download-syft@v0.24.3
+        uses: anchore/sbom-action/download-syft@v0.24.4
 
       - name: Log in to GitHub Container Registry
         if: github.event_name != 'pull_request'
