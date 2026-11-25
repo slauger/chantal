@@ -38,6 +38,30 @@
         "dockerfile"
       ],
       "groupName": "Container base images"
+    },
+    {
+      "description": "Automerge non-major updates once all checks pass; majors still need review",
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "digest",
+        "pin",
+        "pinDigest",
+        "lockFileMaintenance"
+      ],
+      "automerge": true
+    },
+    {
+      "description": "Python runtime in setup-python steps follows the supported-versions policy; keep it out of the GitHub Actions group and never automerge",
+      "matchManagers": [
+        "github-actions"
+      ],
+      "matchDepNames": [
+        "python"
+      ],
+      "groupName": "Python CI runtime",
+      "automerge": false
     }
-  ]
+  ],
+  "platformAutomerge": false
 }
